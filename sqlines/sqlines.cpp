@@ -29,7 +29,6 @@
 #include "sqlparserexp.h"
 #include "os.h"
 #include "str.h"
-#include "license.h"
 
 // Constructor/destructor
 Sqlines::Sqlines()
