@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/sqlines.png</file>
+    </qresource>
+</RCC>
