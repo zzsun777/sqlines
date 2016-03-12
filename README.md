@@ -1,6 +1,6 @@
 # SQLines SQL Converter
 
-SQLines SQL Converter tool allows you to convert database schema (DDL), queries and DML statements, views, stored procedures, packages, functions and triggers between Microsoft SQL Server, Oracle, IBM DB2, MySQL, PostgreSQL, Sybase, Informix, Teradata, Greenplum and Netezza.
+SQLines SQL Converter is an open source tool (Apache License 2.0) that allows you to convert database schema (DDL), queries and DML statements, views, stored procedures, packages, functions and triggers between Microsoft SQL Server, Oracle, IBM DB2, MySQL, PostgreSQL, Sybase, Informix, Teradata, Greenplum and Netezza.
 
 You can also try it online at http://www.sqlines.com/online
 
