@@ -1,0 +1,21 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/new.png</file>
+        <file>images/run.png</file>
+        <file>images/terminate.png</file>
+        <file>images/sqlines.png</file>
+        <file>images/fileopen.png</file>
+        <file>images/filesave.png</file>
+        <file>images/fileclose.png</file>
+        <file>images/documentation.png</file>
+        <file>images/zoomout.png</file>
+        <file>images/zoomin.png</file>
+        <file>images/find.png</file>
+        <file>images/hlayout.png</file>
+        <file>images/vlayout.png</file>
+        <file>images/options.png</file>
+        <file>images/online.png</file>
+        <file>images/message.png</file>
+        <file>images/styles.png</file>
+    </qresource>
+</RCC>
