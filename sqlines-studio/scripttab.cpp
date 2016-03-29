@@ -98,6 +98,7 @@ void ScriptTab::ReadFileToTextEdit(QPlainTextEdit *edit, QString &in_file)
 
     QTextStream stream(&file);
     edit->setPlainText(stream.readAll());
+    edit->setFont(QFont("Verdana"));
 
     file.close();
 }

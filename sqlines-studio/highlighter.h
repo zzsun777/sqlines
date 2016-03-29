@@ -46,10 +46,12 @@ class Highlighter : public QSyntaxHighlighter
      QRegExp commentEndExpression;
 
      QTextCharFormat keywordFormat;
-     QTextCharFormat classFormat;
+     QTextCharFormat numberFormat;
      QTextCharFormat singleLineCommentFormat;
+     QTextCharFormat singleLineCommentFormat2;
      QTextCharFormat multiLineCommentFormat;
      QTextCharFormat quotationFormat;
+     QTextCharFormat singleQuotationFormat;
 };
 
 #endif // HIGHLIGHTER_H

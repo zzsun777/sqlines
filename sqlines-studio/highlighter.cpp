@@ -26,32 +26,39 @@
      keywordFormat.setForeground(Qt::blue);
      //keywordFormat.setFontWeight(QFont::Bold);
      QStringList keywordPatterns;
-     keywordPatterns << "\\bchar\\b" << "\\bclass\\b" << "\\bconst\\b"
-                     << "\\bcreate\\b"
-                     << "\\bdefine\\b"
-                     << "\\bdouble\\b" << "\\benum\\b" << "\\bexplicit\\b"
-                     << "\\bfor\\b" << "\\bforeach\\b"
-                     << "\\bfriend\\b" << "\\binline\\b" << "\\bint\\b"
-                     << "\\blike\\b"
-                     << "\\blong\\b" << "\\bnamespace\\b" << "\\boperator\\b"
-                     << "\\bprivate\\b" << "\\bprocedure\\b"
-                     << "\\bprotected\\b" << "\\bpublic\\b"
-                     << "\\breturn\\b" << "\\breturning\\b"
-                     << "\\bshort\\b" << "\\bsignals\\b" << "\\bsigned\\b"
-                     << "\\bslots\\b" << "\\bstatic\\b" << "\\bstruct\\b"
-                     << "\\btemplate\\b" << "\\btypedef\\b" << "\\btypename\\b"
-                     << "\\bunion\\b" << "\\bunsigned\\b" << "\\bupdate\\b"
-                     << "\\bvoid\\b" << "\\bvolatile\\b";
+     keywordPatterns
+             << "and" << "autoincrement"
+             << "bigint" << "binary"
+             << "cascade" << "char" << "check" << "commit" << "constraint"
+             << "create"
+             << "date" << "datetime" << "day" << "default" << "delete" << "double"
+             << "for" << "foreach" << "foreign" << "from"
+             << "index" << "insert" << "int" << "into"
+             << "key"
+             << "like"
+             << "long"
+             << "money"
+             << "nchar" << "null" << "number" << "numeric" << "nvarchar" << "nvarchar2"
+             << "on"
+             << "primary" << "procedure"
+             << "references" << "restrict" << "return" << "returning"
+             << "select" << "set"
+             << "short" << "signed" << "smallint" << "smallmoney"
+             << "table" << "time" << "timestamp"
+             << "union" << "unique" << "uniqueidentifier" << "unsigned" << "update"
+             << "where" << "work"
+             << "values" << "varchar" << "varchar2" << "volatile"
+             << "xml";
      foreach (const QString &pattern, keywordPatterns) {
-         rule.pattern = QRegExp(pattern);
+         rule.pattern = QRegExp(QString("\\b%1\\b").arg(pattern));
          rule.format = keywordFormat;
+         rule.pattern.setCaseSensitivity(Qt::CaseInsensitive);
          highlightingRules.append(rule);
      }
 
-     classFormat.setFontWeight(QFont::Bold);
-     classFormat.setForeground(Qt::darkMagenta);
-     rule.pattern = QRegExp("\\bQ[A-Za-z]+\\b");
-     rule.format = classFormat;
+     numberFormat.setForeground(Qt::darkMagenta);
+     rule.pattern = QRegExp("\\b[0-9]+\\b");
+     rule.format = numberFormat;
      highlightingRules.append(rule);
 
      singleLineCommentFormat.setForeground(Qt::darkGreen);
@@ -59,11 +66,21 @@
      rule.format = singleLineCommentFormat;
      highlightingRules.append(rule);
 
+     singleLineCommentFormat2.setForeground(Qt::darkGreen);
+     rule.pattern = QRegExp("--[^\n]*");
+     rule.format = singleLineCommentFormat2;
+     highlightingRules.append(rule);
+
      multiLineCommentFormat.setForeground(Qt::darkGreen);
 
      quotationFormat.setForeground(Qt::darkRed);
      rule.pattern = QRegExp("\".*\"");
      rule.format = quotationFormat;
+     highlightingRules.append(rule);
+
+     singleQuotationFormat.setForeground(Qt::darkRed);
+     rule.pattern = QRegExp("'.*'");
+     rule.format = singleQuotationFormat;
      highlightingRules.append(rule);
 
      commentStartExpression = QRegExp("/\\*");
