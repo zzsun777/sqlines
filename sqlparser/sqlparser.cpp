@@ -75,6 +75,10 @@ void SqlParser::SetOption(const char *option, const char *value)
 	// Object mapping file
 	if(_stricmp(option, "-omapf") == 0 && value != NULL)
 		SetObjectMappingFromFile(value);
+    else
+	// Meta information about table columns
+	if(_stricmp(option, "-meta") == 0 && value != NULL)
+		SetMetaFromFile(value);
 }
 
 // Perform conversion
@@ -1731,10 +1735,10 @@ Token* SqlParser::AppendCopy(Token *token, Token *first, Token *last, bool appen
 		return NULL;
 
 	Token *cur = first;
-
 	Token *new_first = NULL;
+    int cnt = 1000;
 
-	while(cur != NULL)
+	while(cur != NULL && cnt != 0)
 	{
 		bool removed = cur->IsRemoved();
 
@@ -1756,6 +1760,7 @@ Token* SqlParser::AppendCopy(Token *token, Token *first, Token *last, bool appen
 			break;
 
 		cur = cur->next;
+        cnt--;
 	}
 
 	return new_first;

@@ -21,7 +21,7 @@
 #include "applog.h"
 #include "parameters.h"
 
-#define SQLINES_VERSION				"SQLines 3.0.11 - SQL Migration Tool."	
+#define SQLINES_VERSION				"SQLines 3.0.13 - SQL Migration Tool."	
 #define SQLINES_COPYRIGHT			"Copyright (c) 2016 SQLines. All Rights Reserved."
 
 #define S_OPTION					"-s"		// Source type 

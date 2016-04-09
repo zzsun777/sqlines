@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <algorithm>
 #include "sqlparser.h"
 #include "str.h"
 #include "file.h"
@@ -313,6 +314,133 @@ void SqlParser::SetObjectMappingFromFile(const char *file)
 
 		_object_map.insert(StringMapPair(source, target));
 	}
+}
+
+// Meta information about tables, columns
+void SqlParser::SetMetaFromFile(const char *file)
+{
+	if(file == NULL)
+		return;
+
+	// Meta file size
+	int size = File::GetFileSize(file);
+
+	if(size == -1)
+		return;
+ 
+	char *input = new char[size + 1];
+
+	// Get content of the file (without terminating 'x0')
+	if(File::GetContent(file, input, size) == -1)
+	{
+		delete input;
+		return;
+	}
+
+	input[size] = '\x0';
+
+	char *cur = input;
+
+	// Process input
+	while(*cur)
+	{
+		cur = Str::SkipComments(cur);
+
+		if(*cur == '\x0')
+			break;
+
+		std::string object;
+		std::string column;
+        std::string dtype;
+
+		// Get the object name until ,
+		while(*cur && *cur != ',')
+		{
+			object += *cur;
+			cur++;
+		}
+
+		Str::TrimTrailingSpaces(object);
+
+		if(*cur == ',')
+			cur++;
+		else
+			break;
+
+		cur = Str::SkipSpaces(cur);
+
+        // Get the column name until ,
+		while(*cur && *cur != ',')
+		{
+			column += *cur;
+			cur++;
+		}
+
+		Str::TrimTrailingSpaces(column);
+
+		if(*cur == ',')
+			cur++;
+		else
+			break;
+
+		cur = Str::SkipSpaces(cur);
+
+		// Get the data type until new line
+		while(*cur && *cur != '\r' && *cur != '\n' && *cur != '\t')
+		{
+			dtype += *cur;
+			cur++;
+		}
+
+		Str::TrimTrailingSpaces(dtype);
+
+        std::transform(object.begin(), object.end(), object.begin(), ::tolower);
+
+        // Check if any metadata for this object already exists
+        ListT<Meta> *m = NULL;
+        std::map<std::string, ListT<Meta>*>::iterator i = _meta.find(object);
+        
+        if(i == _meta.end())
+        {
+            m = new ListT<Meta>();
+            _meta.insert(std::make_pair(object, m));
+        }
+        else 
+            m = i->second;
+
+        m->Add(new Meta(object, column, dtype));
+	}
+}
+
+// Read the data type from available meta information
+const char* SqlParser::GetMetaType(Token *object)
+{
+    if(object == NULL)
+        return NULL;
+
+    TokenStr obj;
+    TokenStr col;
+
+    // Separate object and column names
+    SplitIdentifierByLastPart(object, obj, col, 2);
+
+    std::transform(obj.str.begin(), obj.str.end(), obj.str.begin(), ::tolower);
+    std::map<std::string, ListT<Meta>*>::iterator i = _meta.find(obj.str);
+
+     if(i != _meta.end())
+     {
+         Meta *meta = i->second->GetFirstNoCurrent();
+
+	     while(meta != NULL)
+	     {
+             if(_stricmp(meta->column.c_str(), col.str.c_str()) == 0)
+                 return meta->dtype.c_str();
+
+		     meta = meta->next;
+         }
+     }
+
+     return NULL;
 }
 
 // Schema name mapping in format s1:t1, s2:t2, s3, ...
@@ -1038,6 +1166,7 @@ void SqlParser::ClearSplScope()
 	_scope.DeleteAll();
 
 	_spl_package = NULL;
+    _spl_outer_begin = NULL;
 	_spl_last_declare = NULL;
 	_spl_first_non_declare = NULL;
 	_spl_new_correlation_name = NULL;
@@ -1094,6 +1223,7 @@ void SqlParser::ClearSplScope()
 	_spl_sp_calls.DeleteAll();
 
 	_spl_proc_to_func = false;
+    _spl_not_found_handler = false;
 
 	_exp_select = 0;
 }

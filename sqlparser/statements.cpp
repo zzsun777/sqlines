@@ -1752,6 +1752,10 @@ bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, T
 		// Replace with GO for SQL Server, as only one CREATE FUNCTION is allowed in a batch
 		if(_target == SQL_SQL_SERVER)
 			Token::Change(pl_sql, "GO", L"GO", 2);
+        else
+        // For MySQL will be later replaced with DELIMITER
+        if(_target == SQL_MYSQL)
+            Token::Remove(pl_sql);
 	}
 	else
 	// In DB2 procedure can be terminated without any special delimiter
@@ -1763,7 +1767,7 @@ bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, T
 		if(_target == SQL_ORACLE)
 			Append(GetLastToken(), "\n/", L"\n/", 2);
 	}
-	else
+	
 	// Reset delimiter for MySQL
 	if(_target == SQL_MYSQL)
 	{
@@ -3241,12 +3245,11 @@ bool SqlParser::ParseExitStatement(Token *exit)
 		return false;
 
 	Token *cent = GetNextCharToken('%', L'%');
-
-	if(cent == NULL)
-		return false;
+    Token *notfound = NULL;
 
 	// cursor%NOTFOUND
-	Token *notfound = GetNextWordToken("NOTFOUND", L"NOTFOUND", 8);
+    if(cent != NULL)
+	    notfound = GetNextWordToken("NOTFOUND", L"NOTFOUND", 8);
 
 	if(notfound != NULL)
 	{
@@ -3258,6 +3261,24 @@ bool SqlParser::ParseExitStatement(Token *exit)
 
 			Token::Remove(next, notfound); 
 		}
+        else
+        // Check generated NOT_FOUND variable 
+        if(_target == SQL_MYSQL)
+        {
+            Token::Change(exit, "IF NOT_FOUND = 1", L"IF NOT_FOUND = 1", 16);
+            Token::Change(when, "THEN", L"THEN", 4);
+
+            Token::Change(notfound, "LEAVE", L"LEAVE", 5);
+            AppendNoFormat(notfound, " label;", L" label;", 7);
+
+            Token *semi = GetNext(';', L';');
+            Append(notfound, " END IF;", L" END IF;", 7);
+
+            Token::Remove(next, cent); 
+
+             // Add NOT FOUND handler and variable
+            MySQLAddNotFoundHandler();
+        }
 		else
 		// WHEN NOT FOUND in Netezza
 		if(_target == SQL_NETEZZA)
@@ -3266,6 +3287,24 @@ bool SqlParser::ParseExitStatement(Token *exit)
 			Token::Remove(next, cent); 
 		}
 	}
+    // Boolean condition
+    else
+    {
+        ParseBooleanExpression(SQL_BOOL_IF, exit);
+        Token *last = GetLastToken();
+
+        // IF-LEAVE in MySQL
+        if(_target == SQL_MYSQL)
+        {
+            Token::Change(exit, "IF", L"IF", 2);
+            Token::Remove(when);
+
+            Append(last, " THEN LEAVE", L" THEN LEAVE", 11, exit);
+            AppendNoFormat(last, " label;", L" label;", 7);
+
+            Append(last, " END IF;", L" END IF;", 7);
+        }
+    }
 
 	return true;
 }
@@ -4726,6 +4765,9 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 	if(in == NULL && as == NULL)
 		return false;
 
+    // SELECT can be enclosed with ()
+    Token *open = GetNext('(', L'(');
+
 	// Next can be an integer, variable, expression, cursor, SELECT or (SELECT ...)
 	Token *first = GetNextToken();
 
@@ -4863,6 +4905,11 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 		}
 	}
 
+    Token *close = NULL;
+
+    if(open != NULL)
+        close = GetNext(')', L')');
+
 	// LOOP keyword starts the block in Oracle
 	Token *loop = GetNextWordToken("LOOP", L"LOOP", 4);
 	Token *do_ = NULL;
@@ -4871,20 +4918,28 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 	if(loop == NULL)
 		do_ = GetNextWordToken("DO", L"DO", 2);
 
-	if(_target == SQL_SQL_SERVER)
+	if(Target(SQL_SQL_SERVER, SQL_MYSQL))
 	{
 		// DECLARE var CURSOR AS
 		Token::Change(for_, "DECLARE", L"DECLARE", 7);
 		Append(var, " CURSOR", L" CURSOR", 7, for_); 
-		Token::Change(as, "FOR", L"FOR", 3);
+		Token::Change(Nvl(in, as), "FOR", L"FOR", 3);
 
-		Token *begin = NULL;
+        Token::Remove(open);
+        Token::Remove(close);
 
-		// Use BEGIN keyword in SQL Server
+        Append(select_end, ";", L";", 1);
+
+		Token *begin = loop;
+
+		// Use BEGIN keyword in SQL Server, DO in MySQL
 		if(loop != NULL)
 		{
-			Token::Change(loop, "BEGIN", L"BEGIN", 5);
-			begin = loop;
+            if(_target == SQL_SQL_SERVER)
+			    Token::Change(loop, "BEGIN", L"BEGIN", 5);
+            else
+            if(_target == SQL_MYSQL)
+			    Token::Change(loop, "DO", L"DO", 2);
 		}
 		else
 		if(do_ != NULL)
@@ -4904,7 +4959,16 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 		Prepend(begin, " INTO;\n", L" INTO;\n", 7);
 
 		// Start WHILE loop
-		Prepend(begin, "WHILE @@FETCH_STATUS=0\n", L"WHILE @@FETCH_STATUS=0\n", 23);
+        if(_target == SQL_SQL_SERVER)
+		    Prepend(begin, "WHILE @@FETCH_STATUS=0\n", L"WHILE @@FETCH_STATUS=0\n", 23);
+        else
+        if(_target == SQL_MYSQL)
+        {
+            Prepend(begin, "WHILE not_found=0\n", L"WHILE not_found=0\n", 18);
+
+            // Add NOT FOUND handler and variable
+            MySQLAddNotFoundHandler();
+        }
 	}
 	else
 	// Use LOOP keyword in Oracle
@@ -6190,8 +6254,24 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 		if(add_end_if == true)
 			Append(GetLastToken(), "\nEND IF;", L"\nEND IF;", 8, when); 
 
+        if(_target == SQL_MYSQL)
+		    Append(GetLastToken(), "\nEND;", L"\nEND;", 5, when);
+
 		exists = true;
 	}
+
+    // Move to the declaration section
+    if(exists && Target(SQL_MYSQL))
+    {
+        Token *append = GetDeclarationAppend();
+        Token *last = GetLastToken();
+
+		if(append != NULL)
+		{
+            AppendCopy(append, exception, last, false);
+            Token::Remove(exception, last);
+        }
+    }
 
 	return exists;
 }
@@ -8014,6 +8094,8 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 	// In SQL Server and Sybase procedural block can start without BEGIN; In Informix BEGIN not used
 	Token *begin = GetNextWordToken("BEGIN", L"BEGIN", 5);
 
+    _spl_outer_begin = begin;
+
 	// In Oracle, variable declaration goes before BEGIN
 	if(_source == SQL_ORACLE && begin == NULL)
 	{
@@ -9098,8 +9180,8 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 
 		if(Token::Compare(name, next) == true)
 		{
-			// Remove for SQL Server
-			if(_target == SQL_SQL_SERVER)
+			// Remove for SQL Server, MySQL
+			if(Target(SQL_SQL_SERVER, SQL_MYSQL))
 				Token::Remove(next);
 
 			semi = GetNextCharToken(';', L';');
@@ -9134,7 +9216,8 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 		OracleExitHandlersToException(end);
 
 	// User-defined delimiter can be specified for MySQL, often // @ (also used for DB2)
-	ParseMySQLDelimiter(create);
+    if(Source(SQL_DB2, SQL_MYSQL))
+	    ParseMySQLDelimiter(create);
 
 	return true;
 }

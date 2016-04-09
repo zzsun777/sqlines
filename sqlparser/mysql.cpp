@@ -134,6 +134,24 @@ void SqlParser::MysqlMoveInlineIndexes(ListWM &inline_indexes, Token *append)
 	}
 }
 
+// Add NOT_FOUND variable and condition handler
+void SqlParser::MySQLAddNotFoundHandler()
+{
+    if(_spl_not_found_handler)
+        return;
+
+    Token *append = GetDeclarationAppend();
+    Token *format = _spl_outer_begin;
+    
+    if(append == NULL)
+        append = _spl_outer_begin;
+
+    Append(append, "\nDECLARE not_found INT DEFAULT 0;", L"\nDECLARE not_found INT DEFAULT 0;", 33, format);
+    Append(append, "\nDECLARE CONTINUE HANDLER FOR NOT FOUND SET not_found = 1;", L"\nDECLARE CONTINUE HANDLER FOR NOT FOUND SET not_found = 1", 58, format);
+            
+    _spl_not_found_handler = true;
+}
+
 // MySQL DEFINER, ALGORITHM clauses in CREATE statements
 bool SqlParser::ParseMyqlDefinerClause(Token *token)
 {

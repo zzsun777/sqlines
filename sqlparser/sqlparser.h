@@ -203,6 +203,26 @@ struct CopyPaste
 	CopyPaste() { scope = 0; type = 0; name = NULL; next = NULL; prev = NULL; }
 };
 
+// Metadata information
+class Meta
+{
+public:
+    // Table, view, procedure name
+    std::string object;
+    // Column or parameter
+	std::string column;
+    // Data type
+    std::string dtype;
+
+    Meta(std::string o, std::string c, std::string dt) 
+    { 
+        object = o; column = c; dtype = dt; prev = next = NULL; 
+    }
+
+    Meta *prev;
+	Meta *next;
+};
+
 class SqlParser
 {
 	// Source and target SQL dialects
@@ -231,6 +251,9 @@ class SqlParser
 	// Copy, Paste and Cut blocks
 	ListT<CopyPaste> _copypaste;
 
+    // Metadata information
+    std::map<std::string, ListT<Meta>*> _meta;
+
 	// Scope list
 	ListWM _scope;
 
@@ -249,11 +272,13 @@ class SqlParser
 	ListW _spl_variables;
 	ListW _spl_parameters;
 
-	// Last declare statement before the first non-declare statement
+	// Outer BEGIN keyword
+    Token *_spl_outer_begin;
+    // Last declare statement before the first non-declare statement
 	Token *_spl_last_declare;
 	// First non-declare statement in procedure or function
 	Token *_spl_first_non_declare;
-
+    
 	// Number of result sets returned from procedure
 	int _spl_result_sets;
 	// Result set cursor names (declared cursor with return)
@@ -351,6 +376,8 @@ class SqlParser
 
 	// Procedure converted to function
 	bool _spl_proc_to_func;
+    // Handler for NOT FOUND condition
+    bool _spl_not_found_handler;
 
 	// User-defined data types
 	ListWM _udt;
@@ -1065,6 +1092,9 @@ public:
 	bool ParseProcedureSpAddType(Token *execute, Token *sp_addtype);
 	bool ParseProcedureSpBindRule(Token *execute, Token *sp_bindrule);
 
+    // Read the data type from available meta information
+    const char *GetMetaType(Token *object);
+
 	// Guess functions
 	char GuessType(Token *name);
 	char GuessType(Token *name, TokenStr &type);
@@ -1161,6 +1191,7 @@ public:
 	bool ParseMyqlDefinerClause(Token *token);
 	bool ParseMysqlSetOptions(Token *set);
 	bool MysqlCreateDatabase(Token *create, Token *database, Token *name);
+    void MySQLAddNotFoundHandler();
 
 	bool ParseDb2StorageClause();
 	bool ParseDb2PartitioningClause(Token *partition, Token *by);
@@ -1272,9 +1303,10 @@ public:
 	// Check for LIST aggregate function
 	bool IsListAggregateFunction(Token *name);			
 
-	// Define database object name mappings
+	// Define database object name mappings, meta information etc.
 	void SetObjectMappingFromFile(const char *file);
 	void SetSchemaMapping(const char *mapping);
+    void SetMetaFromFile(const char *file);
 
 	// Map object name for identifier
 	bool MapObjectName(Token *token);

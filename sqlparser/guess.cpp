@@ -56,10 +56,11 @@ char SqlParser::GuessType(Token *name, TokenStr &type)
 		dt = TOKEN_DT_NUMBER;
 	}
 	else
-	// Decimal - Ends with BALANCE (archived_balance i.e)
-	if(len >= 7 && Token::Compare(name, "BALANCE", L"BALANCE", len - 7, 7) == true)
+	// Decimal - Ends with BALANCE, AMOUNT (archived_balance i.e)
+	if((len >= 7 && Token::Compare(name, "BALANCE", L"BALANCE", len - 7, 7) == true) ||
+        (len >= 6 && Token::Compare(name, "AMOUNT", L"AMOUNT", len - 6, 6) == true))
 	{
-		if(_target == SQL_SQL_SERVER)
+		if(Target(SQL_SQL_SERVER, SQL_MYSQL))
 			type.Append("DECIMAL(19,4)", L"DECIMAL(19,4)", 13);
 
 		dt = TOKEN_DT_NUMBER;
@@ -68,7 +69,7 @@ char SqlParser::GuessType(Token *name, TokenStr &type)
 	// Datetime - Ends with DATE (emp.hiredate)
 	if(len > 4 && Token::Compare(name, "DATE", L"DATE", len - 4, 4) == true)
 	{
-		if(_target == SQL_SQL_SERVER)
+		if(Target(SQL_SQL_SERVER, SQL_MYSQL))
 			type.Append("DATETIME", L"DATETIME", 8);
 
 		dt = TOKEN_DT_DATETIME;

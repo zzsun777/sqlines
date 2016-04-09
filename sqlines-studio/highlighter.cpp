@@ -27,27 +27,33 @@
      //keywordFormat.setFontWeight(QFont::Bold);
      QStringList keywordPatterns;
      keywordPatterns
-             << "and" << "autoincrement"
-             << "bigint" << "binary"
-             << "cascade" << "char" << "check" << "commit" << "constraint"
-             << "create"
-             << "date" << "datetime" << "day" << "default" << "delete" << "double"
-             << "for" << "foreach" << "foreign" << "from"
-             << "index" << "insert" << "int" << "into"
+             << "alter" << "and" << "as" << "autoincrement"
+             << "begin" << "between" << "bigint" << "binary"
+             << "cascade" << "char" << "check" << "close" << "comment" << "commit"
+             << "constraint"
+             << "create" << "cursor"
+             << "date" << "datetime" << "day" << "deallocate "<< "declare" << "default"
+             << "delete" << "double"
+             << "drop"
+             << "else" << "end" << "exception" << "exists" << "exit"
+             << "fetch" << "for" << "foreach" << "foreign" << "from" << "function"
+             << "handler"
+             << "if" << "in" << "index" << "insert" << "int" << "into" << "is"
+             << "go"
              << "key"
              << "like"
-             << "long"
+             << "long" << "loop"
              << "money"
              << "nchar" << "null" << "number" << "numeric" << "nvarchar" << "nvarchar2"
-             << "on"
+             << "on" << "open" << "or"
              << "primary" << "procedure"
-             << "references" << "restrict" << "return" << "returning"
+             << "references" << "replace" << "restrict" << "return" << "returns" << "returning"
              << "select" << "set"
              << "short" << "signed" << "smallint" << "smallmoney"
-             << "table" << "time" << "timestamp"
+             << "table" << "then" << "time" << "timestamp"
              << "union" << "unique" << "uniqueidentifier" << "unsigned" << "update"
-             << "where" << "work"
-             << "values" << "varchar" << "varchar2" << "volatile"
+             << "when" << "where" << "while" << "work"
+             << "values" << "varchar" << "varchar2" << "view" << "volatile"
              << "xml";
      foreach (const QString &pattern, keywordPatterns) {
          rule.pattern = QRegExp(QString("\\b%1\\b").arg(pattern));
@@ -75,11 +81,13 @@
 
      quotationFormat.setForeground(Qt::darkRed);
      rule.pattern = QRegExp("\".*\"");
+     rule.pattern.setMinimal(true);
      rule.format = quotationFormat;
      highlightingRules.append(rule);
 
      singleQuotationFormat.setForeground(Qt::darkRed);
      rule.pattern = QRegExp("'.*'");
+     rule.pattern.setMinimal(true);
      rule.format = singleQuotationFormat;
      highlightingRules.append(rule);
 

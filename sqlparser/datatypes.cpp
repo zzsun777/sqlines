@@ -354,19 +354,26 @@ bool SqlParser::ParseTypedVariable(Token *var, Token *ref_type)
 	// Convert %TYPE
 	if(type != NULL)
 	{
+        // Read the data type from available meta information
+        const char *meta_type = GetMetaType(ref_type);
+
+        if(meta_type != NULL)
+        {
+            Token::Change(ref_type, meta_type, NULL, strlen(meta_type), type);
+            Token::Remove(cent, type);
+            return true;
+        }
+
 		// Guess functions
-		char data_type = GuessType(ref_type);
+        TokenStr type_str(" ", L" ", 1);
+		char data_type = GuessType(ref_type, type_str);
 
-		if(data_type == TOKEN_DT_STRING)
-			Append(var, " VARCHAR(4000)", L" VARCHAR(4000)", 14);
-		else
-		if(data_type == TOKEN_DT_DATETIME)
-		{
-			if(_target == SQL_SQL_SERVER)
-				Append(var, " DATETIME", L" DATETIME", 9);
-		}
-
-		Comment(ref_type, type);
+		if(data_type != 0)
+            Append(var, &type_str, type);
+        else
+            Append(var, " VARCHAR(4000)", L" VARCHAR(4000)", 14, type);
+		
+		Comment("Use -meta option ", L"Use -meta option ", 17, ref_type, type);
 	}
 	else
 	// Convert LIKE
@@ -2655,7 +2662,9 @@ bool SqlParser::ParseIntType(Token *name, int clause_scope)
 	else
 	// Convert Oracle INTEGER to DECIMAL(38) in other databases
 	if(_source == SQL_ORACLE && _target != SQL_ORACLE)
-		Token::Change(name, "DECIMAL(38)", L"DECIMAL(38)", 11);
+    {
+		//Token::Change(name, "DECIMAL(38)", L"DECIMAL(38)", 11);
+    }
 	// Remove [] for other databases
 	else
 	if(_target != SQL_SQL_SERVER && int_in_braces == true)

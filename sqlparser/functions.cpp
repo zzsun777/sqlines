@@ -5174,7 +5174,10 @@ bool SqlParser::ParseFunctionDecode(Token *decode, Token *open)
 		if(comma2 == NULL)
 		{
 			if(_target != SQL_ORACLE && _target != SQL_INFORMIX)
-				Token::Change(comma1, " ELSE ", L" ELSE ", 6);
+            {
+                Prepend(when, " ELSE ", L" ELSE ", 6, decode);
+                Token::Remove(comma1);
+            }
 			
 			break;
 		}
@@ -5188,8 +5191,9 @@ bool SqlParser::ParseFunctionDecode(Token *decode, Token *open)
 		// Change commas to WHEN THEN
 		if(_target != SQL_ORACLE && _target != SQL_INFORMIX)
 		{
-			Token::Change(comma1, " WHEN ", L" WHEN ", 6);
-			Token::Change(comma2, " THEN ", L" THEN ", 6);
+            Prepend(when, " WHEN ", L" WHEN ", 6, decode);
+            Token::Remove(comma1);
+			Token::Change(comma2, " THEN ", L" THEN ", 6, decode);
 		}
 
 		Token *then = GetNextToken();
@@ -5203,7 +5207,7 @@ bool SqlParser::ParseFunctionDecode(Token *decode, Token *open)
 	Token *close = GetNextCharToken(')', L')');
 
 	if(_target != SQL_ORACLE && _target != SQL_INFORMIX)
-		Token::Change(close, " END", L" END", 4);	
+		Token::Change(close, " END", L" END", 4, decode);	
 
 	// Check if we need to use searched form
 	if(null_exists == true)
@@ -12332,6 +12336,15 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 				Token::Remove(comma);
 				Token::Remove(unit);
 			}
+            else
+            // Convert to DATE in MySQL
+		    if(_target == SQL_MYSQL)
+            {
+			    Token::Change(name, "DATE", L"DATE", 4);
+
+                Token::Remove(comma);
+				Token::Remove(unit);
+            }
 		}
 		else
 		// 'MM' truncate to month
@@ -12345,6 +12358,13 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 				
 				Token::Change(unit, "120) + '-01'", L"120) + '-01'", 12);
 			}
+            else
+            // DATE_FORMAT in MySQL
+            if(_target == SQL_MYSQL)
+            {
+                Token::Change(name, "DATE_FORMAT", L"DATE_FORMAT", 11);
+                Token::ChangeNoFormat(unit, "'%Y-%m-01'", L"'%Y-%m-01'", 10);
+            }
 		}
 	}
 	else

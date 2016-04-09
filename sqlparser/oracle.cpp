@@ -766,6 +766,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 	}
 
 	_declare_format = declare;
+	_spl_last_declare = GetLastToken();
 
 	return exists;
 }
