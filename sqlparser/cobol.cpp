@@ -67,9 +67,9 @@ bool Cobol::ParseDataDivision(Token *data)
 		return false;
 
 	// DIVISION keyword
-	Token *division = GetNextWordToken("DIVISION", L"DIVISION", 8);
+	/*Token *division */ (void) GetNextWordToken("DIVISION", L"DIVISION", 8);
 
-	Token *dot = GetNextCharToken('.', L'.');
+	/*Token *dot*/ (void) GetNextCharToken('.', L'.');
 
 	// Comment for PL/SQL
 	if(_target_app == APP_PLSQL)
@@ -85,9 +85,9 @@ bool Cobol::ParseEnvironmentDivision(Token *environment)
 		return false;
 
 	// DIVISION keyword
-	Token *division = GetNextWordToken("DIVISION", L"DIVISION", 8);
+	/*Token *division */ (void) GetNextWordToken("DIVISION", L"DIVISION", 8);
 
-	Token *dot = GetNextCharToken('.', L'.');
+	/*Token *dot */ (void) GetNextCharToken('.', L'.');
 
 	// Comment for PL/SQL
 	if(_target_app == APP_PLSQL)
@@ -103,9 +103,9 @@ bool Cobol::ParseIdentificationDivision(Token *identification)
 		return false;
 
 	// DIVISION keyword
-	Token *division = GetNextWordToken("DIVISION", L"DIVISION", 8);
+	/*Token *division */ (void) GetNextWordToken("DIVISION", L"DIVISION", 8);
 
-	Token *dot = GetNextCharToken('.', L'.');
+	/*Token *dot */ (void) GetNextCharToken('.', L'.');
 
 	// Comment for PL/SQL
 	if(_target_app == APP_PLSQL)
@@ -119,7 +119,7 @@ bool Cobol::ParseIdentificationDivision(Token *identification)
 		if(next == NULL)
 			break;
 
-		Token *dot = GetNextCharToken('.', L'.');
+		/*Token *dot */ (void) GetNextCharToken('.', L'.');
 
 		// PROGRAM_ID. name
 		if(next->Compare("PROGRAM-ID", L"PROGRAM-ID", 10) == true)
@@ -127,7 +127,7 @@ bool Cobol::ParseIdentificationDivision(Token *identification)
 			// Program name
 			Token *name = GetNextToken();
 
-			Token *dot2 = GetNextCharToken('.', L'.');
+			/*Token *dot2 */ (void) GetNextCharToken('.', L'.');
 			
 			if(_target_app == APP_PLSQL)
 			{
@@ -143,7 +143,7 @@ bool Cobol::ParseIdentificationDivision(Token *identification)
 		// AUTHOR. text
 		if(next->Compare("AUTHOR", L"AUTHOR", 6) == true)
 		{
-			Token *text = GetNextUntilNewlineToken();
+			/*Token *text */ (void) GetNextUntilNewlineToken();
 			
 			if(_target_app == APP_PLSQL)
 				Prepend(next, "-- ", L"-- ", 3);				
@@ -154,7 +154,7 @@ bool Cobol::ParseIdentificationDivision(Token *identification)
 		// DATE-WRITTEN. date.
 		if(next->Compare("DATE-WRITTEN", L"DATE-WRITTEN", 12) == true)
 		{
-			Token *date = GetNextUntilNewlineToken();
+			/*Token *date */ (void) GetNextUntilNewlineToken();
 			
 			if(_target_app == APP_PLSQL)
 				Prepend(next, "-- ", L"-- ", 3);				
@@ -165,7 +165,7 @@ bool Cobol::ParseIdentificationDivision(Token *identification)
 		// DATE-COMPILED. date.
 		if(next->Compare("DATE-COMPILED", L"DATE-COMPILED", 13) == true)
 		{
-			Token *date = GetNextUntilNewlineToken();
+			/*Token *date */ (void) GetNextUntilNewlineToken();
 			
 			if(_target_app == APP_PLSQL)
 				Prepend(next, "-- ", L"-- ", 3);				
@@ -188,9 +188,9 @@ bool Cobol::ParseWorkingStorageSection(Token *working_storage)
 		return false;
 
 	// SECTION keyword
-	Token *section = GetNextWordToken("SECTION", L"SECTION", 7);
+	/*Token *section */ (void) GetNextWordToken("SECTION", L"SECTION", 7);
 
-	Token *dot = GetNextCharToken('.', L'.');
+	/*Token *dot */ (void) GetNextCharToken('.', L'.');
 
 	// Comment for PL/SQL
 	if(_target_app == APP_PLSQL)
@@ -339,7 +339,7 @@ bool Cobol::ParseRecordDeclaration(Token *parent_record, Token *num, Token *name
 
 		Prepend(name, "TYPE ", L"TYPE ", 5);
 		Append(name, " IS RECORD (", L" IS RECORD (", 12);
-		Token *last = Prepend(end_dot, ")", L")", 1);
+		/*Token *last */ (void) Prepend(end_dot, ")", L")", 1);
 
 		Token::Remove(num);
 		Token::Remove(dot);
@@ -422,8 +422,8 @@ bool Cobol::ParsePicFormat(Token *pic)
 		if(next->Compare("X", L"X", 1) == true)
 		{
 			Token *open = GetNextCharToken('(', L'(');
-			Token *num = GetNextToken(open);
-			Token *close = GetNextCharToken(')', L')');
+			/*Token *num */ (void) GetNextToken(open);
+			/*Token *close */ (void) GetNextCharToken(')', L')');
 
 			// VARCHAR2 in Oracle
 			if(_target_app == APP_PLSQL)
@@ -437,7 +437,7 @@ bool Cobol::ParsePicFormat(Token *pic)
 		if(next->Compare("X", L"X", 1, 1) == true && next->len > 1)
 		{
 			TokenStr len("VARCHAR2(", L"VARCHAR2(", 9);
-			len.Append(next->len);
+			len.Append((int)next->len);
 			len.Append(")", L")", 1);
 
 			// VARCHAR2(len) in Oracle
@@ -452,8 +452,8 @@ bool Cobol::ParsePicFormat(Token *pic)
 		if(next->Compare("9", L"9", 1) == true)
 		{
 			Token *open = GetNextCharToken('(', L'(');
-			Token *num = GetNextToken(open);
-			Token *close = GetNextCharToken(')', L')');
+			/*Token *num */ (void) GetNextToken(open);
+			/*Token *close */ (void) GetNextCharToken(')', L')');
 
 			// NUMBER in Oracle
 			if(_target_app == APP_PLSQL)
@@ -474,9 +474,9 @@ bool Cobol::ParseCopyStatement(Token *copy)
 		return false;
 
 	// Copy book
-	Token *name = GetNextToken();
+	/*Token *name */ (void) GetNextToken();
 
-	Token *dot = GetNextCharToken('.', L'.');
+	/*Token *dot */ (void) GetNextCharToken('.', L'.');
 
 	// Comment for PL/SQL
 	if(_target_app == APP_PLSQL)
@@ -517,7 +517,7 @@ Token* Cobol::GetNextCharToken(const char ch, const wchar_t wch)
 		return NULL; 
 }
 
-Token* Cobol::GetNextWordToken(const char *str, const wchar_t *wstr, int len) 
+Token* Cobol::GetNextWordToken(const char *str, const wchar_t *wstr, size_t len) 
 { 
 	if(_sqlparser != NULL) 
 		return _sqlparser->GetNextWordToken(str, wstr, len); 
@@ -546,7 +546,7 @@ Token* Cobol::GetLastToken()
 		return NULL;
 }
 
-Token* Cobol::Append(Token *token, const char *str, const wchar_t *wstr, int len, Token *format)
+Token* Cobol::Append(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format)
 {
 	if(_sqlparser != NULL) 
 		return _sqlparser->Append(token, str, wstr, len, format);
@@ -562,7 +562,7 @@ Token* Cobol::AppendCopy(Token *token, Token *append)
 	return NULL;
 }
 
-Token* Cobol::Prepend(Token *token, const char *str, const wchar_t *wstr, int len, Token *format)
+Token* Cobol::Prepend(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format)
 {
 	if(_sqlparser != NULL) 
 		return _sqlparser->Prepend(token, str, wstr, len, format);

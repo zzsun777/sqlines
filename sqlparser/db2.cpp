@@ -70,7 +70,7 @@ bool SqlParser::ParseDb2GeneratedClause(Token *create, Token *table_name, Token 
 		// START WITH
 		if(option->Compare("START", L"START", 5) == true)
 		{
-			Token *with = GetNextWordToken("WITH", L"WITH", 4);
+			/*Token *with */ (void) GetNextWordToken("WITH", L"WITH", 4);
 			start_with = GetNextNumberToken();
 
 			exists = true;
@@ -80,7 +80,7 @@ bool SqlParser::ParseDb2GeneratedClause(Token *create, Token *table_name, Token 
 		// INCREMENT BY
 		if(option->Compare("INCREMENT", L"INCREMENT", 9) == true)
 		{
-			Token *by = GetNextWordToken("BY", L"BY", 2);
+			/*Token *by */ (void) GetNextWordToken("BY", L"BY", 2);
 			increment_by = GetNextNumberToken();
 
 			exists = true;
@@ -90,7 +90,7 @@ bool SqlParser::ParseDb2GeneratedClause(Token *create, Token *table_name, Token 
 		// MINVALUE
 		if(option->Compare("MINVALUE", L"MINVALUE", 8) == true)
 		{
-			Token *value = GetNextNumberToken();
+			/*Token *value */ (void) GetNextNumberToken();
 
 			exists = true;
 			continue;
@@ -99,7 +99,7 @@ bool SqlParser::ParseDb2GeneratedClause(Token *create, Token *table_name, Token 
 		// MAXVALUE
 		if(option->Compare("MAXVALUE", L"MAXVALUE", 8) == true)
 		{
-			Token *value = GetNextNumberToken();
+			/*Token *value */ (void) GetNextNumberToken();
 
 			exists = true;
 			continue;
@@ -108,7 +108,7 @@ bool SqlParser::ParseDb2GeneratedClause(Token *create, Token *table_name, Token 
 		// NO CYCLE and NO ORDER
 		if(option->Compare("NO", L"NO", 2) == true)
 		{
-			Token *attr = GetNextToken();
+			/*Token *attr */ (void) GetNextToken();
 
 			exists = true;
 			continue;
@@ -117,7 +117,7 @@ bool SqlParser::ParseDb2GeneratedClause(Token *create, Token *table_name, Token 
 		// CACHE
 		if(option->Compare("CACHE", L"CACHE", 5) == true)
 		{
-			Token *value = GetNextNumberToken();
+			/*Token *value */ (void) GetNextNumberToken();
 
 			exists = true;
 			continue;
@@ -300,7 +300,7 @@ bool SqlParser::ParseDb2CreateIndexOptions()
 		// DB2 ALLOW REVERSE SCAN
 		if(next->Compare("ALLOW", L"ALLOW", 5) == true)
 		{
-			Token *reverse = GetNextWordToken("REVERSE", L"REVERSE", 7);
+			/*Token *reverse */ (void) GetNextWordToken("REVERSE", L"REVERSE", 7);
 			Token *scan = GetNextWordToken("SCAN", L"SCAN", 4);
 			
 			if(_target != SQL_DB2)
@@ -373,7 +373,7 @@ bool SqlParser::ParseDb2CreateIndexOptions()
 		// DB2 SPECIFICATION ONLY (index will be commented)
 		if(next->Compare("SPECIFICATION", L"SPECIFICATION", 13) == true)
 		{
-			Token *only = GetNextWordToken("ONLY", L"ONLY", 4);
+			/*Token *only */ (void) GetNextWordToken("ONLY", L"ONLY", 4);
 
 			exists = true;
 			continue;
@@ -885,7 +885,7 @@ bool SqlParser::ParseDb2FetchFirstRowOnly(Token *fetch, Token **rowlimit_soption
 }
 
 // DB2 CREATE DATABASE statement
-bool SqlParser::Db2CreateDatabase(Token *create, Token *database, Token *name)
+bool SqlParser::Db2CreateDatabase(Token *create, Token * /*database*/, Token * /*name*/)
 {
 	bool exists = false;
 
@@ -1124,7 +1124,7 @@ bool SqlParser::ParseDb2PartitioningClause(Token *partition, Token *by)
 	if(range == NULL && _target == SQL_ORACLE)
 		Append(by, " RANGE", L" RANGE", 6);
 
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	// Comma separated list of columns
 	while(true)
@@ -1140,9 +1140,9 @@ bool SqlParser::ParseDb2PartitioningClause(Token *partition, Token *by)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
-	Token *open2 = GetNextCharToken('(', L'(');
+	/*Token *open2 */ (void) GetNextCharToken('(', L'(');
 
 	// Comma separated list of partition definitions
 	while(true)
@@ -1175,11 +1175,11 @@ bool SqlParser::ParseDb2PartitioningClause(Token *partition, Token *by)
 		}
 
 		// Each value is in ()
-		Token *open3 = GetNextCharToken('(', L'(');
+		/*Token *open3 */ (void) GetNextCharToken('(', L'(');
 
-		Token *limit = GetNextToken();
+		/*Token *limit */ (void) GetNextToken();
 
-		Token *close3 = GetNextCharToken(')', L')');
+		/*Token *close3 */ (void) GetNextCharToken(')', L')');
 		
 		Token *comma = GetNextCharToken(',', L',');
 
@@ -1187,7 +1187,7 @@ bool SqlParser::ParseDb2PartitioningClause(Token *partition, Token *by)
 			break;
 	}
 
-	Token *close2 = GetNextCharToken(')', L')');
+	/*Token *close2 */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -1215,13 +1215,13 @@ bool SqlParser::ParseDb2SetOptions(Token *set)
 	if(option->Compare("PATH", L"PATH", 4) == true)
 	{
 		// Optional =
-		Token *equal = GetNextCharToken('=', L'=');
+		/*Token *equal */ (void) GetNextCharToken('=', L'=');
 
 		// Comma-separated list of values
 		while(true)
 		{
 			// Schema name
-			Token *name = GetNextToken();
+			/*Token *name */ (void) GetNextToken();
 
 			Token *comma = GetNextCharToken(',', L',');
 
@@ -1243,7 +1243,7 @@ bool SqlParser::ParseDb2SetOptions(Token *set)
 		Token *equal = GetNextCharToken('=', L'=');
 
 		// Schema name
-		Token *name = GetNextToken();
+		/*Token *name */ (void) GetNextToken();
 
 		// ALTER SESSION SET CURRENT_SCHEMA = name in Oracle
 		if(_target == SQL_ORACLE)
@@ -1323,7 +1323,7 @@ bool SqlParser::ParseDb2ResultSetLocatorDeclaration(Token *declare, Token *name,
 		return false;
 
 	// VARYING keyword
-	Token *varying = GetNextWordToken("VARYING", L"VARYING", 7);
+	/*Token *varying */ (void) GetNextWordToken("VARYING", L"VARYING", 7);
 
 	_spl_declared_rs_locators.Add(name);
 
@@ -1511,7 +1511,7 @@ bool SqlParser::ParseDb2ForColumn()
 		return false;
 
 	// COLUMN keyword is optional
-	Token *column = GetNextWordToken("COLUMN", L"COLUMN", 6);
+	/*Token *column */ (void) GetNextWordToken("COLUMN", L"COLUMN", 6);
 
 	Token *system_name = GetNextToken();
 

@@ -27,7 +27,7 @@ char SqlParser::GuessType(Token *name)
 		return false;
 
 	char data_type = TOKEN_DT_STRING;
-	int len = name->len;
+	size_t len = name->len;
 
 	// Ends with DATE (emp.hiredate)
 	if(Token::Compare(name, "DATE", L"DATE", len - 4, 4) == true)
@@ -43,7 +43,7 @@ char SqlParser::GuessType(Token *name, TokenStr &type)
 	if(name == NULL)
 		return dt;
 
-	int len = name->len;
+	size_t len = name->len;
 
 	// Integer - ID
 	if((Token::Compare(name, "ID", L"ID", 2) == true) ||

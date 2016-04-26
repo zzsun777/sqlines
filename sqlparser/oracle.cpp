@@ -116,7 +116,7 @@ bool SqlParser::ParseOracleStorageClause(Token *storage)
 		// FREELIST GROUPS num
 		if(next->Compare("FREELIST", L"FREELIST", 8) == true)
 		{
-			Token *groups = GetNextWordToken("GROUPS", L"GROUPS", 6);
+			/*Token *groups */ (void) GetNextWordToken("GROUPS", L"GROUPS", 6);
 			Token *num = GetNextToken();
 
 			if(_target != SQL_ORACLE && num != NULL)
@@ -192,11 +192,11 @@ bool SqlParser::ParseOracleLobStorageClause(Token *lob)
 		return false;
 
 	// LOB column
-	Token *col = GetNextIdentToken();
+	/*Token *col */ (void) GetNextIdentToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close*/ (void) GetNextCharToken(')', L')');
 
-	Token *store = GetNextWordToken("STORE", L"STORE", 5);
+	/*Token *store*/ (void) GetNextWordToken("STORE", L"STORE", 5);
 	Token *as = GetNextWordToken("AS", L"AS", 2);
 
 	// Optional BASICFILE or SECUREFILE
@@ -246,8 +246,8 @@ bool SqlParser::ParseOracleLobStorageClause(Token *lob)
 		// DISABLE | ENABLE STORAGE IN ROW
 		if(next->Compare("DISABLE", L"DISABLE", 7) == true || next->Compare("ENABLE", L"ENABLE", 6) == true)
 		{
-			Token *storage = GetNextWordToken("STORAGE", L"STORAGE", 7);
-			Token *in = GetNextWordToken("IN", L"IN", 2);
+			/*Token *storage*/ (void) GetNextWordToken("STORAGE", L"STORAGE", 7);
+			/*Token *in*/ (void) GetNextWordToken("IN", L"IN", 2);
 			Token *row = GetNextWordToken("ROW", L"ROW", 3);
 
 			if(_target != SQL_ORACLE && row != NULL)
@@ -418,7 +418,7 @@ bool SqlParser::ParseOraclePartitionsBy(Token *token, int stmt_scope)
 	if(partition == NULL && subpartition == NULL)
 		return false;
 
-	Token *by = GetNextWordToken("BY", L"BY", 2);
+	/*Token *by */ (void) GetNextWordToken("BY", L"BY", 2);
 
 	// RANGE, HASH or LIST
 	Token *range = GetNextWordToken("RANGE", L"RANGE", 5);
@@ -517,7 +517,7 @@ bool SqlParser::ParseOraclePartition(Token *partition, Token *subpartition, int 
 			Token *less = GetNextWordToken("LESS", L"LESS", 4);
 			Token *than = GetNextWordToken("THAN", L"THAN", 4);
 
-			Token *open_range = GetNextCharToken('(', L'(');
+			/*Token *open_range */ (void) GetNextCharToken('(', L'(');
 			Token *exp = GetNextToken();
 
 			// Check for MAXVALUE
@@ -809,7 +809,7 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor)
 				break;
 
 			// Optional IN keyword
-			Token *in = GetNextWordToken("IN", L"IN", 2);
+			/*Token *in */ (void) GetNextWordToken("IN", L"IN", 2);
 
 			Token *data_type = GetNextToken();
 

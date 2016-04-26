@@ -311,7 +311,7 @@ bool SqlParser::ParseStatement(Token *token, int scope, int *result_sets)
 		return false;
 
 	// Optional delimiter at the end of the statement
-	Token *semi = GetNextCharToken(';', L';');
+	/*Token *semi */ (void) GetNextCharToken(';', L';');
 
 	return exists;
 }
@@ -353,7 +353,7 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 	// GLOBAL TEMPORARY is Oracle
 	if(next->Compare("GLOBAL", L"GLOBAL", 6) == true)
 	{
-		Token *temp = GetNextWordToken("TEMPORARY", L"TEMPORARY", 9);
+		/*Token *temp */ (void) GetNextWordToken("TEMPORARY", L"TEMPORARY", 9);
 		next = GetNextToken();
 		
 		obj_scope = SQL_SCOPE_TEMP_TABLE;
@@ -651,13 +651,13 @@ bool SqlParser::ParseAlterTableStatement(Token *alter, Token *table)
 }
 
 // ALTER INDEX statement
-bool SqlParser::ParseAlterIndexStatement(Token *alter, Token *index)
+bool SqlParser::ParseAlterIndexStatement(Token *alter, Token * /*index*/)
 {
 	int options = 0;
 	int removed = 0;
 
 	// Index name
-	Token *name = GetNextIdentToken();
+	/*Token *name */ (void) GetNextIdentToken();
 
 	while(true)
 	{
@@ -681,7 +681,7 @@ bool SqlParser::ParseAlterIndexStatement(Token *alter, Token *index)
 		// Oracle PARALLEL num
 		if(next->Compare("PARALLEL", L"PARALLEL", 8) == true)
 		{
-			Token *num = GetNextToken();
+			/*Token *num */ (void) GetNextToken();
 
 			options++;
 
@@ -726,7 +726,7 @@ bool SqlParser::ParseAllocateStatement(Token *allocate)
 	Token *for_ = GetNextWordToken(cursor, "FOR", L"FOR", 3);
 
 	Token *result = GetNextWordToken(for_, "RESULT", L"RESULT", 6);
-	Token *set = GetNextWordToken(result, "SET", L"SET", 3);
+	/*Token *set */ (void) GetNextWordToken(result, "SET", L"SET", 3);
 
 	// Result set locator variable
 	Token *locator_name = GetNextToken();
@@ -805,7 +805,7 @@ bool SqlParser::ParseAssociateStatement(Token *associate)
 		return false;
 
 	// List of locators
-	Token *open = GetNextCharToken('(', '(');
+	/*Token *open */ (void) GetNextCharToken('(', '(');
 
 	ListW locs;
 
@@ -825,10 +825,10 @@ bool SqlParser::ParseAssociateStatement(Token *associate)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', ')');
+	/*Token *close */ (void) GetNextCharToken(')', ')');
 
 	// WITH PROCEDURE
-	Token *with = GetNextWordToken("WITH", L"WITH", 4);
+	/*Token *with */ (void) GetNextWordToken("WITH", L"WITH", 4);
 	Token *procedure = GetNextWordToken(result, "PROCEDURE", L"PROCEDURE", 9);
 
 	// Procedure name
@@ -920,7 +920,7 @@ bool SqlParser::ParseCallStatement(Token *call)
 				break;
 		}
 
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	_spl_sp_calls.Add(name, last_param_end);
@@ -979,7 +979,7 @@ bool SqlParser::ParseCaseStatement(Token *case_, bool stmt)
 			else
 				ParseBooleanExpression(SQL_BOOL_CASE);
 
-			Token *then = GetNextWordToken("THEN", L"THEN", 4);
+			/*Token *then */ (void) GetNextWordToken("THEN", L"THEN", 4);
 		}
 		// ELSE expression or block
 		else
@@ -1045,7 +1045,7 @@ bool SqlParser::ParseCloseStatement(Token *close)
 		Token *deallocate = GetNext("DEALLOCATE", L"DEALLOCATE", 10);
 
 		// Optional CURSOR keyword in Sybase ASE
-		Token *d_cursor = GetNext(deallocate, "CURSOR", L"CURSOR", 6);
+		/*Token *d_cursor */ (void) GetNext(deallocate, "CURSOR", L"CURSOR", 6);
 
 		Token *name = GetNext(deallocate);
 
@@ -1124,7 +1124,7 @@ bool SqlParser::ParseCommentStatement(Token *comment)
 			Token::ChangeNoFormat(is, "'MS_Description',", L"'MS_Description',", 17);
 
 			int cnt = GetIdentPartsCount(name);
-			int len = 0;
+			size_t len = 0;
 			TokenStr str;
 			TokenStr nm;
 
@@ -1460,7 +1460,7 @@ bool SqlParser::ParseCreateIndex(Token *create, Token *unique, Token *index)
 	// Save bookmark to the start of CREATE INDEX
 	Bookmark(BOOK_CI_START, name, create);
 
-	Token *on = GetNextWordToken("ON", L"ON", 2);
+	/*Token *on */ (void) GetNextWordToken("ON", L"ON", 2);
 
 	// Get table name
 	Token *table = GetNextIdentToken(SQL_IDENT_OBJECT, SQL_SCOPE_TABLE);
@@ -1488,7 +1488,7 @@ bool SqlParser::ParseCreateIndex(Token *create, Token *unique, Token *index)
 	}
 
 	// Open (
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	int count = 0;
 
@@ -1532,7 +1532,7 @@ bool SqlParser::ParseCreateIndex(Token *create, Token *unique, Token *index)
 	}	
 
 	// Close )
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	ParseCreateIndexOptions();
 
@@ -1993,7 +1993,7 @@ bool SqlParser::ParseFunctionParameters(Token *function_name)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -2297,7 +2297,7 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 
 			// OF keyword after INSTEAD
 			if(when != NULL)
-				Token *of = GetNextWordToken("OF", L"OF", 2);
+				/*Token *of */ (void) GetNextWordToken("OF", L"OF", 2);
 		}
 	}
 
@@ -2330,7 +2330,7 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 			// Column list
 			while(of != NULL)
 			{
-				Token *col = GetNextToken();
+				/*Token *col */ (void) GetNextToken();
 				Token *comma = GetNextCharToken(',', L',');
 
 				if(comma == NULL)
@@ -2382,7 +2382,7 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 		if(next->Compare("NEW", L"NEW", 3) == true)
 		{
 			// AS is optional in Oracle, DB2
-			Token *as = GetNextWordToken("AS", L"AS", 2);
+			/*Token *as */ (void) GetNextWordToken("AS", L"AS", 2);
 
 			_spl_new_correlation_name = GetNextToken();		
 
@@ -2396,7 +2396,7 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 		if(next->Compare("OLD", L"OLD", 3) == true)
 		{
 			// AS is optional in Oracle, DB2
-			Token *as = GetNextWordToken("AS", L"AS", 2);
+			/*Token *as */ (void) GetNextWordToken("AS", L"AS", 2);
 
 			_spl_old_correlation_name = GetNextToken();
 
@@ -2410,9 +2410,9 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 		if(next->Compare("NEW_TABLE", L"NEW_TABLE", 9) == true)
 		{
 			// AS is optional 
-			Token *as = GetNextWordToken("AS", L"AS", 2);
+			/*Token *as */ (void) GetNextWordToken("AS", L"AS", 2);
 
-			Token *name = GetNextToken();			
+			/*Token *name */ (void) GetNextToken();			
 			continue;
 		}
 		else
@@ -2420,9 +2420,9 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 		if(next->Compare("OLD_TABLE", L"OLD_TABLE", 9) == true)
 		{
 			// AS is optional
-			Token *as = GetNextWordToken("AS", L"AS", 2);
+			/*Token *as */ (void) GetNextWordToken("AS", L"AS", 2);
 
-			Token *name = GetNextToken();
+			/*Token *name */ (void) GetNextToken();
 			continue;
 		}
 
@@ -2508,7 +2508,7 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 
 // Body of CREATE TRIGGER statement
 bool SqlParser::ParseCreateTriggerBody(Token *create, Token *name, Token *table, Token *when, 
-											Token *insert, Token *update, Token *delete_, Token **end_out)
+											Token *insert, Token * /*update*/, Token * /*delete_*/, Token **end_out)
 {
 	// In DB2 block can start with a label 
 	ParseLabelDeclaration(NULL, true);
@@ -2537,7 +2537,7 @@ bool SqlParser::ParseCreateTriggerBody(Token *create, Token *name, Token *table,
 
 		Token *last = (semi == NULL) ? end : semi;
 
-		Token::Remove(create, semi);
+		Token::Remove(create, last);
 	}
 
 	// SQL Server, MySQL trigger may not have BEGIN, add it for other databases 
@@ -3271,7 +3271,7 @@ bool SqlParser::ParseExitStatement(Token *exit)
             Token::Change(notfound, "LEAVE", L"LEAVE", 5);
             AppendNoFormat(notfound, " label;", L" label;", 7);
 
-            Token *semi = GetNext(';', L';');
+            /*Token *semi */ (void) GetNext(';', L';');
             Append(notfound, " END IF;", L" END IF;", 7);
 
             Token::Remove(next, cent); 
@@ -3322,7 +3322,7 @@ bool SqlParser::ParseExportStatement(Token *export_)
 		return false;
 
 	// File name with double quotes
-	Token *filename = GetNextToken();
+	/*Token *filename */ (void) GetNextToken();
 
 	// OF filetype (DEL, IXF)
 	Token *of = GetNextWordToken("OF", L"OF", 2);
@@ -3529,7 +3529,7 @@ bool SqlParser::ParseCreateSchema(Token *create, Token *schema)
 			Token *set = GetNext("SET", L"SET", 3);
 
 			// Optional = 
-			Token *equal = GetNext(set, '=', L'=');
+			/*Token *equal */ (void) GetNext(set, '=', L'=');
 
 			// Default character set name
 			Token *name = GetNext(set);
@@ -3542,7 +3542,7 @@ bool SqlParser::ParseCreateSchema(Token *create, Token *schema)
 		if(next->Compare("COLLATE", L"COLLATE", 7) == true)
 		{
 			// Optional = 
-			Token *equal = GetNext('=', L'=');
+			/*Token *equal */ (void) GetNext('=', L'=');
 
 			// Default collate name
 			Token *name = GetNext();
@@ -3598,7 +3598,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		// START WITH
 		if(option->Compare("START", L"START", 5) == true)
 		{
-			Token *with = GetNextWordToken("WITH", L"WITH", 4);
+			/*Token *with */ (void) GetNextWordToken("WITH", L"WITH", 4);
 			start_with = GetNextNumberToken();
 
 			// Remove for MySQL
@@ -3612,7 +3612,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		// INCREMENT BY
 		if(option->Compare("INCREMENT", L"INCREMENT", 9) == true)
 		{
-			Token *by = GetNextWordToken("BY", L"BY", 2);
+			/*Token *by */ (void) GetNextWordToken("BY", L"BY", 2);
 			increment_by = GetNextNumberToken();
 
 			// Remove for MySQL
@@ -3772,7 +3772,7 @@ bool SqlParser::ParseCreateStogroup(Token *create, Token *stogroup)
 					break;
 			}
 
-			Token *close = GetNextCharToken(')', L')');
+			/*Token *close */ (void) GetNextCharToken(')', L')');
 
 			exists = true;
 			continue;
@@ -3781,7 +3781,7 @@ bool SqlParser::ParseCreateStogroup(Token *create, Token *stogroup)
 		// VCAT name
 		if(next->Compare("VCAT", L"VCAT", 4) == true)
 		{
-			Token *name = GetNextToken();
+			/*Token *name */ (void) GetNextToken();
 
 			exists = true;
 			continue;
@@ -3832,10 +3832,10 @@ bool SqlParser::ParseCreateView(Token *create, Token *view)
 			break;
 	}
 
-	Token *close = GetNext(open, ')', L')');
+	/*Token *close */ (void) GetNext(open, ')', L')');
 
 	// AS keyword
-	Token *as = GetNext("AS", L"AS", 2);
+	/*Token *as */ (void) GetNext("AS", L"AS", 2);
 
 	Token *select = GetNextSelectStartKeyword();
 
@@ -3895,7 +3895,7 @@ bool SqlParser::ParseDeclareCondition(Token *declare, Token *name, Token *condit
 		return false;
 
 	// VALUE keyword in Sybase ASA
-	Token *value = GetNextWordToken("VALUE", L"VALUE", 5);
+	/*Token *value */ (void) GetNextWordToken("VALUE", L"VALUE", 5);
 		
 	// String literal in DB2, Sybase ASA i.e. '23505'
 	Token *error = GetNextToken();
@@ -4304,7 +4304,7 @@ bool SqlParser::ParseDeclareHandler(Token *declare, Token *type)
 bool SqlParser::ParseDeclareTable(Token *declare, Token *name, Token *table)
 {
 	// Next token must be (
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	ListW pkcols;
 
@@ -4317,7 +4317,7 @@ bool SqlParser::ParseDeclareTable(Token *declare, Token *name, Token *table)
 	ParseCreateTableColumns(declare, name, pkcols, &id_col, &id_start, &id_inc, &id_default, NULL, NULL);
 
 	// Next token must be )
-	Token *close =  GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// In MySQL, use temporary table
 	if(_target == SQL_MYSQL)
@@ -4387,7 +4387,7 @@ bool SqlParser::ParseDeclareGlobalTemporaryTable(Token *declare, Token *global)
 	Token *as = GetNextWordToken("AS", L"AS", 2);
 
 	// Next token must be (
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	// Column definitions or SELECT statement can be specified
 	Token *select = GetNextSelectStartKeyword();
@@ -4407,7 +4407,7 @@ bool SqlParser::ParseDeclareGlobalTemporaryTable(Token *declare, Token *global)
 		ParseSelectStatement(select, 0, SQL_SEL_CREATE_TEMP_TABLE_AS, NULL, NULL, NULL, NULL, NULL, NULL, &from_end, &where_end);
 
 	// Next token must be )
-	Token *close =  GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	bool no_data;
 
@@ -4494,14 +4494,14 @@ bool SqlParser::ParseDeclareLocalTemporaryTable(Token *declare, Token *local)
 	_spl_declared_local_tables.Add(name);
 
 	// Next token must be (
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	ListW pkcols;
 
 	ParseCreateTableColumns(declare, name, pkcols, NULL, NULL, NULL, NULL, NULL, NULL);
 
 	// Next token must be )
-	Token *close =  GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Optional ON COMMIT DELETE | PRESERVE ROWS
 	ParseTempTableOptions(name, NULL, NULL, NULL);
@@ -4658,7 +4658,7 @@ bool SqlParser::ParseDeclareVariable(Token *declare, Token *name, Token *type, i
 	if(Target(SQL_DB2) == false &&
 		(Token::Compare(name, "SQLCODE", L"SQLCODE", 7) || Token::Compare(name, "SQLSTATE", L"SQLSTATE", 8)))
 	{
-		Token *semi = GetNextCharToken(';', L';');
+		/*Token *semi */ (void) GetNextCharToken(';', L';');
 		Token::Remove(declare, GetLastToken());
 	}
 	
@@ -4901,7 +4901,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 		else
 		{
 			ParseExpression(first);
-			Token *second = GetNextToken();
+			/*Token *second */ (void) GetNextToken();
 		}
 	}
 
@@ -5814,7 +5814,8 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 	{
 		ParseSelectStatement(select, 0, SQL_SEL_INSERT, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);	
 
-		Token *close2 = (open2 != NULL) ? GetNextCharToken(')', L')') : NULL;
+        if(open2 != NULL) 
+		    /*Token *close2 */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Implement CONTINUE handler in Oracle
@@ -5984,7 +5985,7 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 			Token::Change(procedure, "FUNCTION", L"FUNCTION", 8);
 
 		// Procedure or function name
-		Token *name = GetNextToken(on);
+		/*Token *name */ (void) GetNextToken(on);
 
 		// Parameters in Informix and PostgreSQL
 		Token *open = GetNextCharToken('(', L'(');
@@ -6008,7 +6009,7 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 	// USAGE ON LANGUAGE in Informix, PostgreSQL
 	if(priv->Compare("USAGE", L"USAGE", 5) == true)
 	{
-		Token *on = GetNextWordToken("ON", L"ON", 2);
+		/*Token *on */ (void) GetNextWordToken("ON", L"ON", 2);
 
 		// LANGUAGE keyword
 		Token *language = GetNextWordToken("LANGUAGE", L"LANGUAGE", 8);
@@ -6026,7 +6027,7 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 
 	// TO grantee
 	Token *to = GetNextWordToken("TO", L"TO", 2);
-	Token *grantee = GetNextToken(to);
+	/*Token *grantee */ (void) GetNextToken(to);
 
 	// Optional AS grantor in Informix
 	Token *as = GetNextWordToken("AS", L"AS", 2);
@@ -6060,7 +6061,7 @@ bool SqlParser::ParseLockStatement(Token *lock_)
 	}
 
 	// Table name
-	Token* name = GetNextIdentToken(SQL_IDENT_OBJECT);
+	/*Token *name */ (void) GetNextIdentToken(SQL_IDENT_OBJECT);
 
 	// Optional IN mode
 	Token *in = GetNext("IN", L"IN", 2);
@@ -6248,7 +6249,7 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 		if(declare != NULL)
 		{
 			Token *end = GetNext("END", L"END", 3);
-			Token *semi = GetNext(end, ';', L';');
+			/*Token *semi */ (void) GetNext(end, ';', L';');
 		}
 
 		if(add_end_if == true)
@@ -6686,7 +6687,7 @@ bool SqlParser::ParseRemStatement(Token *rem)
 		return false;
 
 	// Comment text
-	Token *comment = GetNextUntilNewlineToken();
+	/*Token *comment */ (void) GetNextUntilNewlineToken();
 
 	// Use -- in other databases
 	if(_target != SQL_ORACLE)
@@ -7029,7 +7030,7 @@ bool SqlParser::ParseRevokeStatement(Token *revoke)
 	// USAGE ON LANGUAGE in Informix, PostgreSQL
 	if(priv->Compare("USAGE", L"USAGE", 5) == true)
 	{
-		Token *on = GetNextWordToken("ON", L"ON", 2);
+		/*Token *on */ (void) GetNextWordToken("ON", L"ON", 2);
 
 		// LANGUAGE keyword
 		Token *language = GetNextWordToken("LANGUAGE", L"LANGUAGE", 8);
@@ -7047,7 +7048,7 @@ bool SqlParser::ParseRevokeStatement(Token *revoke)
 
 	// FROM grantee
 	Token *from = GetNextWordToken("FROM", L"FROM", 4);
-	Token *grantee = GetNextToken(from);
+	/*Token *grantee */ (void) GetNextToken(from);
 
 	// Optional AS revoker in Informix
 	Token *as = GetNextWordToken("AS", L"AS", 2);
@@ -8322,7 +8323,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 }
 
 // In Oracle procedure name, in DB2 label name can be specified after outer END
-bool SqlParser::ParseSplEndName(Token *name, Token *end)
+bool SqlParser::ParseSplEndName(Token *name, Token * /*end*/)
 {
 	if(name == NULL)
 		return false;
@@ -8943,7 +8944,7 @@ bool SqlParser::ParseProcedureOptions(Token *create)
 		if(next->Compare("FENCED", L"FENCED", 6) == true)
 		{
 			// Optional NOT THREADSAFE, THREADSAFE
-			Token *not_ = GetNextWordToken("NOT", L"NOT", 3);
+			/*Token *not_ */ (void) GetNextWordToken("NOT", L"NOT", 3);
 			
 			Token *fenced_type = GetNextWordToken("THREADSAFE", L"THREADSAFE", 10);
 			

@@ -479,7 +479,7 @@ bool SqlParser::ParseBigintType(Token *name, int clause_scope)
 	// MySQL BIGINT can include display size
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for BIGINT
@@ -518,7 +518,7 @@ bool SqlParser::ParseBigserialType(Token *name)
 	// Start is optional in Informix
 	if(open != NULL)
 	{
-		Token *start = GetNextNumberToken();
+		/*Token *start */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not Informix remove start for BIGSERIAL
@@ -769,7 +769,7 @@ bool SqlParser::ParseBitType(Token *name)
 	if(open != NULL)
 	{
 		num = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Calculating RAW and BINARY size in bytes
@@ -882,7 +882,7 @@ bool SqlParser::ParseBlobType(Token *name)
 	// Num and semantics are optional in DB2, MySQL
 	if(open != NULL)
 	{
-		Token *num = GetNextToken();
+		/*Token *num */ (void) GetNextToken();
 		Token *semantics = GetNextToken();
 
 		// DB2 allows specifying size (1024, 1M etc.)
@@ -1100,7 +1100,7 @@ bool SqlParser::ParseCharacterType(Token *name, int clause_scope)
 	// Check for DB2 FOR BIT DATA clause
 	if(for_ != NULL)
 	{
-		Token *bit = GetNextWordToken("BIT", L"BIT", 3);
+		/*Token *bit */ (void) GetNextWordToken("BIT", L"BIT", 3);
 		Token *data = GetNextWordToken("DATA", L"DATA", 4);
 
 		// Remove for other databases
@@ -1487,7 +1487,7 @@ bool SqlParser::ParseClobType(Token *name)
 	// Num and semantics are optional in DB2
 	if(open != NULL)
 	{
-		Token *num = GetNextToken();
+		/*Token *num */ (void) GetNextToken();
 		Token *semantics = GetNextToken();
 
 		// DB2 allows specifying size (1024, 1M etc.)
@@ -1633,8 +1633,8 @@ bool SqlParser::ParseDatetimeType(Token *name)
 
 	if(open != NULL)
 	{
-		Token *fraction = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *fraction */ (void) GetNextNumberToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Convert to TIMESTAMP in Oracle, PostgreSQL
@@ -1763,7 +1763,7 @@ bool SqlParser::ParseDatetime2Type(Token *name)
 	{
 		fraction = GetNextNumberToken();
 		fraction_int = fraction->GetInt();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Convert to DATETIME in MySQL
@@ -1865,7 +1865,7 @@ bool SqlParser::ParseDatetimeoffsetType(Token *name)
 		if(open == NULL)
 		{
 			// Fraction is 7 by default in SQL Server, but max fraction is 6 in MySQL
-			if(_source = SQL_SQL_SERVER)
+			if(_source == SQL_SQL_SERVER)
 				Append(name, "(6)", L"(6)", 3);
 		}
 		else
@@ -1933,7 +1933,7 @@ bool SqlParser::ParseDbclobType(Token *name)
 	// Num and semantics are optional in DB2
 	if(open != NULL)
 	{
-		Token *num = GetNextToken();
+		/*Token *num */ (void) GetNextToken();
 		Token *semantics = GetNextToken();
 
 		// DB2 allows specifying size (1024, 1M etc.)
@@ -2113,9 +2113,9 @@ bool SqlParser::ParseDoubleType(Token *name)
 	// MySQL DOUBLE PRECISION can include display size
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
-		Token *comma = GetNextCharToken(',', L',');
-		Token *scale = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
+		/*Token *comma */ (void) GetNextCharToken(',', L',');
+		/*Token *scale */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove size for DOUBLE PRECISION
@@ -2170,13 +2170,13 @@ bool SqlParser::ParseFixedType(Token *name)
 	// Precision and scale are optional in MySQL
 	if(open != NULL)
 	{
-		Token *precision = GetNextNumberToken();
+		/*Token *precision */ (void) GetNextNumberToken();
 		Token *comma = GetNextCharToken(',', L',');	
 			
 		if(comma != NULL)
-			Token *scale = GetNextNumberToken(); 
+			/*Token *scale */ (void) GetNextNumberToken(); 
 
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Convert to NUMBER in Oracle
@@ -2224,7 +2224,7 @@ bool SqlParser::ParseFloatType(Token *name)
 	// Precision is optional
 	if(open != NULL)
 	{
-		Token *precision = GetNextToken();
+		/*Token *precision */ (void) GetNextToken();
 		Token *comma = GetNextCharToken(',', L',');
 
 		// Scale can be specified for MySQL
@@ -2292,11 +2292,11 @@ bool SqlParser::ParseFloat4Type(Token *name)
 	// Precision and scale are optional in MySQL
 	if(open != NULL)
 	{
-		Token *precision = GetNextToken();
+		/*Token *precision */ GetNextToken();
 		Token *comma = GetNextCharToken(',', L',');
 
 		if(comma != NULL)
-			Token *scale = GetNextToken();
+			/*Token *scale */ GetNextToken();
 
 		Token *close = GetNextCharToken(')', L')');
 
@@ -2335,9 +2335,9 @@ bool SqlParser::ParseFloat8Type(Token *name)
 	// MySQL FLOAT8 can include display size
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
-		Token *comma = GetNextCharToken(',', L',');
-		Token *scale = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
+		/*Token *comma */ (void) GetNextCharToken(',', L',');
+		/*Token *scale */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove size for FLOAT8
@@ -2370,8 +2370,8 @@ bool SqlParser::ParseGraphicType(Token *name)
 	// Num is optional
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *num */ (void) GetNextNumberToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Convert to NCHAR in Oracle, SQL Server
@@ -2515,7 +2515,7 @@ bool SqlParser::ParseIntervalType(Token *name)
 		// Precision is optional in Oracle and Informix
 		if(open != NULL)
 		{
-			Token *precision = GetNextNumberToken();
+			/*Token *precision */ (void) GetNextNumberToken();
 			close = GetNextCharToken(')', L')');
 		}
 
@@ -2637,7 +2637,7 @@ bool SqlParser::ParseIntType(Token *name, int clause_scope)
 	// MySQL INT can include display size
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for INT
@@ -2687,7 +2687,7 @@ bool SqlParser::ParseInt1Type(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for INT1
@@ -2720,7 +2720,7 @@ bool SqlParser::ParseInt2Type(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for INT2
@@ -2753,7 +2753,7 @@ bool SqlParser::ParseInt3Type(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for INT3
@@ -2786,7 +2786,7 @@ bool SqlParser::ParseInt4Type(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for INT4
@@ -2819,7 +2819,7 @@ bool SqlParser::ParseInt8Type(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for INT8
@@ -3132,8 +3132,8 @@ bool SqlParser::ParseLvarcharType(Token *name)
 	// Num is optional in Informix
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *num */ (void) GetNextNumberToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Convert to VARCHAR2 in Oracle
@@ -3223,7 +3223,7 @@ bool SqlParser::ParseMediumintType(Token *name)
 
 	if(open != NULL)
 	{
-		Token *number = GetNextNumberToken();
+		/*Token *number */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for MEDIUMINT
@@ -3283,7 +3283,7 @@ bool SqlParser::ParseMiddleintType(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for MIDDLEINT
@@ -3336,7 +3336,7 @@ bool SqlParser::ParseMoneyType(Token *name)
 		Token *comma = GetNextCharToken(',', L',');
 
 		if(comma != NULL)
-			Token *scale = GetNextNumberToken();
+			/*Token *scale */ (void) GetNextNumberToken();
 		else
 		// Scale is 2 by default in Informix
 		if(_source == SQL_INFORMIX && _target != SQL_INFORMIX)
@@ -3696,7 +3696,7 @@ bool SqlParser::ParseNclobType(Token *name)
 	// Num and semantics are optional in DB2
 	if(open != NULL)
 	{
-		Token *num = GetNextToken();
+		/*Token *num */ (void) GetNextToken();
 		Token *semantics = GetNextToken();
 
 		// DB2 allows specifying size (1024, 1M etc.)
@@ -3964,7 +3964,7 @@ bool SqlParser::ParseNumericType(Token *name)
 				Append(precision, ",6", L",6", 2);
 		}
 
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Default precision and scale
@@ -4123,9 +4123,9 @@ bool SqlParser::ParseNvarchar2Type(Token *name)
 		return false;
 
 	// Size is mandatory in Oracle
-	Token *open = GetNextCharToken('(', L'(');
-	Token *size = GetNextNumberToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
+	/*Token *size */ (void) GetNextNumberToken();
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target != SQL_ORACLE)
 	{
@@ -4207,9 +4207,9 @@ bool SqlParser::ParseRealType(Token *name)
 
 	if(open != NULL)
 	{
-		Token *number = GetNextNumberToken();
-		Token *comma = GetNextCharToken(',', L',');
-		Token *scale = GetNextNumberToken();
+		/*Token *number */ (void) GetNextNumberToken();
+		/*Token *comma */ (void) GetNextCharToken(',', L',');
+		/*Token *scale */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 		
 		// If target type is not MySQL remove size for REAL
@@ -4330,7 +4330,7 @@ bool SqlParser::ParseSerialType(Token *name)
 	// Start is optional in Informix
 	if(open != NULL)
 	{
-		Token *start = GetNextNumberToken();
+		/*Token *start */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not Informix remove start for SERIAL8
@@ -4405,7 +4405,7 @@ bool SqlParser::ParseSerial8Type(Token *name)
 	// Start is optional in Informix
 	if(open != NULL)
 	{
-		Token *start = GetNextNumberToken();
+		/*Token *start */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not Informix remove start for SERIAL8
@@ -4523,7 +4523,7 @@ bool SqlParser::ParseSmallintType(Token *name, int clause_scope)
 	// MySQL SMALLINT can include display size
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for SMALLINT
@@ -4669,7 +4669,7 @@ bool SqlParser::ParseTextType(Token *name)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove num for TEXT
@@ -4732,7 +4732,7 @@ bool SqlParser::ParseTimeType(Token *name)
 	{
 		fraction = GetNextToken();
 		fraction_int = fraction->GetInt();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// WITHOUT TIME ZONE is optional for PostgreSQL
@@ -4742,7 +4742,7 @@ bool SqlParser::ParseTimeType(Token *name)
 
 	if(without != NULL || with != NULL)
 	{
-		Token *time = GetNextWordToken("TIME", L"TIME", 4);
+		/*Token *time */ (void) GetNextWordToken("TIME", L"TIME", 4);
 		Token *zone = GetNextWordToken("ZONE", L"ZONE", 4);
 
 		// If target is not PostgreSQL remove WITHOUT TIME ZONE
@@ -4824,7 +4824,7 @@ bool SqlParser::ParseTimetzType(Token *name)
 	// Precision is optional in PostgreSQL
 	if(open != NULL)
 	{
-		Token *precision = GetNextNumberToken();
+		/*Token *precision */ (void) GetNextNumberToken();
 		close = GetNextCharToken(')', L')');
 	}
 	
@@ -4867,8 +4867,8 @@ bool SqlParser::ParseTimestampType(Token *name)
 	// Optional fractional precision for SQL Server, MySQL, PostgreSQL
 	if(open != NULL)
 	{
-		Token *fraction = GetNextToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *fraction */ (void) GetNextToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// WITHOUT TIME ZONE is optional for PostgreSQL
@@ -4890,7 +4890,7 @@ bool SqlParser::ParseTimestampType(Token *name)
 
 	if(without != NULL || with != NULL)
 	{
-		Token *time = GetNextWordToken("TIME", L"TIME", 4);
+		/*Token *time */ (void) GetNextWordToken("TIME", L"TIME", 4);
 		zone = GetNextWordToken("ZONE", L"ZONE", 4);
 
 		// If target is not PostgreSQL remove WITHOUT TIME ZONE
@@ -4971,7 +4971,7 @@ bool SqlParser::ParseTimestamptzType(Token *name)
 	// Precision is optional in PostgreSQL
 	if(open != NULL)
 	{
-		Token *precision = GetNextNumberToken();
+		/*Token *precision */ (void) GetNextNumberToken();
 		close = GetNextCharToken(')', L')');
 	}
 	
@@ -5035,7 +5035,7 @@ bool SqlParser::ParseTinyintType(Token *name, int clause_scope)
 
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove the display size for TINYINT
@@ -5192,8 +5192,8 @@ bool SqlParser::ParseUnicharType(Token *name)
 	// Num is optional in Sybase ASE (default num is 1)
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *num */ (void) GetNextNumberToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 	
 	// Convert to NCHAR in Oracle, SQL Server
@@ -5300,8 +5300,8 @@ bool SqlParser::ParseUnivarcharType(Token *name)
 	// Num is optional in Sybase ASE (default num is 1)
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *num */ (void) GetNextNumberToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 	
 	// Convert to NVARCHAR in Oracle
@@ -5451,8 +5451,8 @@ bool SqlParser::ParseUrowidType(Token *name)
 	// Size is optional in Oracle
 	if(open != NULL)
 	{
-		Token *size = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *size */ (void) GetNextNumberToken();
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 	}
 
 	// Convert to VARCHAR in other databases
@@ -5585,7 +5585,7 @@ bool SqlParser::ParseVarbitType(Token *name)
 	if(open != NULL)
 	{
 		num = GetNextNumberToken();
-		Token *close = GetNextCharToken(')', ')');
+		/*Token *close */ (void) GetNextCharToken(')', ')');
 	}
 
 	// Calculating RAW and BINARY size in bytes
@@ -5893,9 +5893,9 @@ bool SqlParser::ParseVargraphicType(Token *name)
 		return false;
 
 	// Num is mandatory
-	Token *open = GetNextCharToken('(', L'(');
-	Token *num = GetNextNumberToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
+	/*Token *num */ (void) GetNextNumberToken();
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to NVARCHAR2 in Oracle
 	if(_target == SQL_ORACLE)
@@ -5980,7 +5980,7 @@ bool SqlParser::ParseYearType(Token *name)
 	// Num is optional in MySQL
 	if(open != NULL)
 	{
-		Token *num = GetNextNumberToken();
+		/*Token *num */ (void) GetNextNumberToken();
 		Token *close = GetNextCharToken(')', L')');
 
 		// If target type is not MySQL remove size for YEAR

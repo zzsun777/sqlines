@@ -222,9 +222,7 @@ int	FileList::FindFiles(std::string dir, std::string file, std::list<std::string
 					fileName[len-1] = '\x0'; 
 
 				int size = 0;
-
 				bool file = File::IsFile(fileName, &size);
-				bool dir = File::IsDirectory(fileName);
 
 				if(file == true)
 				{

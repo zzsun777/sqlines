@@ -30,9 +30,9 @@ void SqlParser::PostgresFormatToConcat(Token *format, ListW &params)
 
 	TokenStr str("'", L"'", 1);
 
-	int num = 0;
+	size_t num = 0;
 
-	for(int i = 1; i < format->len - 1; i++)
+	for(size_t i = 1; i < format->len - 1; i++)
 	{
 		// Next placeholder % matched
 		if(format->Compare('%', L'%', i) == true)

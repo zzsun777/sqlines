@@ -83,7 +83,7 @@ bool File::IsDirectory(const char *path)
 }
 
 // Check if the path points to an existing file
-bool File::IsFile(const char *path, int *size)
+bool File::IsFile(const char *path, size_t *size)
 {
 #ifdef WIN32
 
@@ -173,7 +173,7 @@ void File::SplitDirectoryAndFile(const char* path, std::string &dir, std::string
 	// Split directory and file
 	if(pos >= 0)
 	{
-		dir.assign(path, pos);
+		dir.assign(path, (size_t)pos);
 		file.assign(path + pos + 1);
 	}
 	else
@@ -246,7 +246,7 @@ int File::GetFileSize(const char* file)
 		return -1;
 	}
 
-	size = fileData.size;
+	size = (int)fileData.size;
 
 	_findclose(findHandle);
 
@@ -267,7 +267,7 @@ int File::GetFileSize(const char* file)
 }
 
 // Get content of the file (without terminating with 'x0')
-int File::GetContent(const char *file, void *input, int len)
+int File::GetContent(const char *file, void *input, size_t len)
 {
 	if(file == NULL)
 		return -1;
@@ -321,7 +321,7 @@ std::string File::GetRelativeName(const char* base, const char *file)
 }
 
 // Write the buffer to the file
-int File::Write(const char *file, const char* content, int size)
+int File::Write(const char *file, const char* content, size_t size)
 {
 	 if(file == NULL || content == NULL)
 		return -1;

@@ -27,7 +27,7 @@ char *g_symbols = (char*)" _\"'.,;:(){}[]=+-*<>!$~|~`@#%^&/\\\n\r\t";
 // Not valid words as an alias (all databases)
 const char *g_no_alias[] =      {  "END",  "GO",  "ORDER",  "SELECT",  "WHERE", NULL };
 const wchar_t *g_no_alias_w[] = { L"END", L"GO", L"ORDER", L"SELECT", L"WHERE", NULL };
-int g_no_alias_size[] =		 {      3,      2,     5,        6,         5,      0 };
+size_t g_no_alias_size[] =      {      3,      2,     5,        6,         5,      0 };
 
 // Constructor/Destructor
 SqlParser::SqlParser()
@@ -101,8 +101,6 @@ int SqlParser::Convert(const char *input, int size, const char **output, int *ou
 	// Try to define application type (Java, C#, PowerBuilder, COBOL etc.)
 	SetApplicationSource();
 
-	bool first_token = true;
-
 	// Process tokens until the end of input
 	while(true)
 	{
@@ -142,7 +140,7 @@ void SqlParser::CreateOutputString(const char **output, int *out_size)
 
 	Token *token = _tokens.GetFirst();
 
-	int len = 0;
+	size_t len = 0;
 
 	int not_removed = 0;
 	int removed = 0;
@@ -465,7 +463,7 @@ Token* SqlParser::GetNextPlusMinusAsOperatorToken(const char ch, const wchar_t w
 }
 
 // Get special character ', " i.e. as a separate token
-Token* SqlParser::GetNextSpecialCharToken(Token *prev, const char *str, const wchar_t *wstr, int len)
+Token* SqlParser::GetNextSpecialCharToken(Token *prev, const char *str, const wchar_t *wstr, size_t len)
 {
 	if(prev == NULL)
 		return NULL;
@@ -473,7 +471,7 @@ Token* SqlParser::GetNextSpecialCharToken(Token *prev, const char *str, const wc
 	return GetNextSpecialCharToken(str, wstr, len);
 }
 
-Token* SqlParser::GetNextSpecialCharToken(const char *str, const wchar_t *wstr, int len)
+Token* SqlParser::GetNextSpecialCharToken(const char *str, const wchar_t *wstr, size_t len)
 {
 	if(str == NULL || wstr == NULL || len == 0 )
 		return NULL;
@@ -488,7 +486,7 @@ Token* SqlParser::GetNextSpecialCharToken(const char *str, const wchar_t *wstr, 
 	bool found = false;
 
 	// Check if the next char is one of expected chars
-	for(int i = 0; i < len; i++)
+	for(size_t i = 0; i < len; i++)
 	{
 		if(str[i] == *cur)
 		{
@@ -519,7 +517,7 @@ Token* SqlParser::GetNextSpecialCharToken(const char *str, const wchar_t *wstr, 
 }
 
 // Get next token and make sure it contains the specified word
-Token* SqlParser::GetNextWordToken(const char *str, const wchar_t *wstr, int len)
+Token* SqlParser::GetNextWordToken(const char *str, const wchar_t *wstr, size_t len)
 {
 	Token *token = GetNextToken();
 
@@ -535,7 +533,7 @@ Token* SqlParser::GetNextWordToken(const char *str, const wchar_t *wstr, int len
 }
 
 // Get next token if the previous is set
-Token* SqlParser::GetNextWordToken(Token *prev, const char *str, const wchar_t *wstr, int len)
+Token* SqlParser::GetNextWordToken(Token *prev, const char *str, const wchar_t *wstr, size_t len)
 {
 	if(prev == NULL)
 		return NULL;
@@ -549,7 +547,7 @@ Token* SqlParser::GetNextUntilNewlineToken()
 	const char *start = _next_start;
 	const char *cur = start;
 
-	int len = 0;
+	size_t len = 0;
 
 	// Go until the end of line
 	while(_remain_size > 0)
@@ -846,7 +844,7 @@ bool SqlParser::GetQuotedIdentifier(Token *token, bool starts_as_unquoted)
 	const char *start = cur;
 
 	bool exists = false;
-	int len = 0;
+	size_t len = 0;
 
 	while(true)
 	{
@@ -954,7 +952,7 @@ bool SqlParser::GetStringLiteral(Token *token)
 
 	bool exists = false;
 
-	int len = 0;
+	size_t len = 0;
 
 	// 'literal'
 	if(*cur == '\'')
@@ -1072,7 +1070,7 @@ bool SqlParser::ParseComment()
 			}
 		
 			const char *text = cur;
-			int len = 0;
+			size_t len = 0;
 
 			// Go until the end of line
 			while(_remain_size > 0)
@@ -1105,7 +1103,7 @@ bool SqlParser::ParseComment()
 		if(_remain_size >= 2  && *cur == '/' && cur[1] == '*')
 		{
 			const char *start = cur;
-			int len = 0;
+			size_t len = 0;
 
 			_next_start += 2;
 			_remain_size -= 2;
@@ -1172,7 +1170,7 @@ bool SqlParser::ParseComment()
 			_remain_size--;
 			cur++;
 		
-			int len = 0;
+			size_t len = 0;
 			const char *text = cur;
 
 			// Go until }
@@ -1243,7 +1241,7 @@ bool SqlParser::ParseComment()
 			_remain_size -= 2;
 			cur += 2;
 		
-			int len = 0;
+			size_t len = 0;
 			const char *text = cur;
 
 			// Go until the end of line
@@ -1292,7 +1290,7 @@ bool SqlParser::ParseComment()
 			_remain_size--;
 			cur++;
 		
-			int len = 0;
+			size_t len = 0;
 			const char *text = cur;
 
 			// Go until the end of line
@@ -1341,7 +1339,7 @@ bool SqlParser::ParseComment()
 			_remain_size--;
 			cur++;
 		
-			int len = 0;
+			size_t len = 0;
 			const char *text = cur;
 
 			// Go until the end of line
@@ -1385,7 +1383,7 @@ bool SqlParser::GetWordToken(Token *token)
 	if(token == NULL)
 		return false;
 
-	int len = 0;
+	size_t len = 0;
 
 	const char *cur = _next_start;
 
@@ -1566,7 +1564,7 @@ void SqlParser::PushBack(Token *token)
 }
 
 // Append the token with the specified value
-Token* SqlParser::Append(Token *token, const char *str, const wchar_t *wstr, int len, Token *format)
+Token* SqlParser::Append(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format)
 {
 	if(token == NULL)
 		return NULL;
@@ -1649,7 +1647,7 @@ void SqlParser::Append(Token *token, TokenStr *str, Token *format)
 }
 
 // Append the token without formatting by appended token style
-Token* SqlParser::AppendNoFormat(Token *token, const char *str, const wchar_t *wstr, int len)
+Token* SqlParser::AppendNoFormat(Token *token, const char *str, const wchar_t * /*wstr*/, size_t len)
 {
 	if(token == NULL)
 		return NULL;
@@ -1679,7 +1677,7 @@ void SqlParser::AppendNoFormat(Token *token, TokenStr *str)
 }
 
 // Append the token without formatting immediately after specified token
-void SqlParser::AppendFirstNoFormat(Token *token, const char *str, const wchar_t *wstr, int len)
+void SqlParser::AppendFirstNoFormat(Token *token, const char *str, const wchar_t * /*wstr*/, size_t len)
 {
 	if(token == NULL)
 		return;
@@ -1808,7 +1806,7 @@ void SqlParser::Append(Token *token, Token *append)
 }
 
 // Prepend the token with the specified value
-Token* SqlParser::Prepend(Token *token, const char *str, const wchar_t *wstr, int len, Token *format)
+Token* SqlParser::Prepend(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format)
 {
 	if(token == NULL)
 		return NULL;
@@ -1853,7 +1851,7 @@ Token* SqlParser::Prepend(Token *token, const char *str, const wchar_t *wstr, in
 }
 
 // Prepend the token without formatting
-Token* SqlParser::PrependNoFormat(Token *token, const char *str, const wchar_t *wstr, int len)
+Token* SqlParser::PrependNoFormat(Token *token, const char *str, const wchar_t * /*wstr*/, size_t len)
 {
 	if(token == NULL)
 		return NULL;
@@ -1963,7 +1961,7 @@ void SqlParser::Prepend(Token *token, Token *prepend)
 }
 
 // Change the token and add spaces around it if they do not exist
-void SqlParser::ChangeWithSpacesAround(Token *token, const char *new_str, const wchar_t *new_wstr, int len, Token *format)
+void SqlParser::ChangeWithSpacesAround(Token *token, const char *new_str, const wchar_t *new_wstr, size_t len, Token *format)
 {
 	if(token == NULL)
 		return;
@@ -1991,7 +1989,7 @@ bool SqlParser::IsValidAlias(Token *token)
 		// List of not valid aliases for all databases
 		const char **a_array = g_no_alias;
 		const wchar_t **w_array = g_no_alias_w;
-		int *size = g_no_alias_size;
+		size_t *size = g_no_alias_size;
 
 		int i = 0;
 
@@ -2166,7 +2164,7 @@ void SqlParser::CommentNoSpaces(Token *first, Token *last)
 	AppendNoFormat(Nvl(last, first), "*/", L"*/", 2); 
 }
 
-void SqlParser::Comment(const char *word, const wchar_t *w_word, int len, Token *first, Token *last)
+void SqlParser::Comment(const char *word, const wchar_t *w_word, size_t len, Token *first, Token *last)
 {
 	PrependNoFormat(first, "/* ", L"/* ", 3);
 	PrependNoFormat(first, word, w_word, len);

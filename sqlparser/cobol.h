@@ -69,16 +69,16 @@ public:
 	Token* GetNextToken();
 	Token* GetNextToken(Token *prev);
 	Token* GetNextCharToken(const char ch, const wchar_t wch);
-	Token* GetNextWordToken(const char *str, const wchar_t *wstr, int len);
+	Token* GetNextWordToken(const char *str, const wchar_t *wstr, size_t len);
 	Token* GetNextUntilNewlineToken();
 
 	void PushBack(Token *token);
 	Token *GetLastToken();
 
-	Token* Append(Token *token, const char *str, const wchar_t *wstr, int len, Token *format = NULL);
+	Token* Append(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
 	Token* AppendCopy(Token *token, Token *append);
 
-	Token* Prepend(Token *token, const char *str, const wchar_t *wstr, int len, Token *format = NULL);
+	Token* Prepend(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
 	Token* PrependCopy(Token *token, Token *prepend);
 	Token* PrependCopy(Token *token, Token *first, Token *last, bool prepend_removed = true);
 };

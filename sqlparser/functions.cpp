@@ -992,7 +992,7 @@ bool SqlParser::ParseFunction(Token *name)
 }
 
 // Unknown function (probably use-defined)
-bool SqlParser::ParseUnknownFunction(Token *name, Token *open)
+bool SqlParser::ParseUnknownFunction(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1015,7 +1015,7 @@ bool SqlParser::ParseUnknownFunction(Token *name, Token *open)
 	}
 
 	// Must be close (
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -1102,7 +1102,7 @@ bool SqlParser::ParseFunctionWithoutParameters(Token *name)
 }
 
 // ABS in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionAbs(Token *name, Token *open)
+bool SqlParser::ParseFunctionAbs(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1115,13 +1115,13 @@ bool SqlParser::ParseFunctionAbs(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // ABSVAL in DB2
-bool SqlParser::ParseFunctionAbsval(Token *name, Token *open)
+bool SqlParser::ParseFunctionAbsval(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1134,7 +1134,7 @@ bool SqlParser::ParseFunctionAbsval(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to ABS in Oracle
 	if(_target == SQL_ORACLE)
@@ -1144,7 +1144,7 @@ bool SqlParser::ParseFunctionAbsval(Token *name, Token *open)
 }
 
 // ACOS in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionAcos(Token *name, Token *open)
+bool SqlParser::ParseFunctionAcos(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1157,7 +1157,7 @@ bool SqlParser::ParseFunctionAcos(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -1225,7 +1225,7 @@ bool SqlParser::ParseFunctionAddMonths(Token *name, Token *open)
 	ParseExpression(num);
 
 	Token *end_num = GetLastToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to DATEADD in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -1321,7 +1321,7 @@ bool SqlParser::ParseFunctionArgn(Token *name, Token *open)
 }
 
 // ASCII in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionAscii(Token *name, Token *open)
+bool SqlParser::ParseFunctionAscii(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1334,13 +1334,13 @@ bool SqlParser::ParseFunctionAscii(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // ASCIISTR in Oracle
-bool SqlParser::ParseFunctionAsciistr(Token *name, Token *open)
+bool SqlParser::ParseFunctionAsciistr(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1353,7 +1353,7 @@ bool SqlParser::ParseFunctionAsciistr(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -1384,7 +1384,7 @@ bool SqlParser::ParseFunctionAsehostname(Token *name, Token *open)
 }
 
 // ASIN in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionAsin(Token *name, Token *open)
+bool SqlParser::ParseFunctionAsin(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1397,13 +1397,13 @@ bool SqlParser::ParseFunctionAsin(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // ATAN in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionAtan(Token *name, Token *open)
+bool SqlParser::ParseFunctionAtan(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1416,7 +1416,7 @@ bool SqlParser::ParseFunctionAtan(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -1443,7 +1443,7 @@ bool SqlParser::ParseFunctionAtan2(Token *name, Token *open)
 	ParseExpression(num2);
 
 	Token *end_num2 = GetLastToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// DB2 and Oracle (Sybase ASA) have different parameter order
 	if(_source == SQL_DB2 && Target(SQL_ORACLE, SQL_SYBASE_ASA) == true)
@@ -1462,7 +1462,7 @@ bool SqlParser::ParseFunctionAtan2(Token *name, Token *open)
 }
 
 // DB2 ATANH
-bool SqlParser::ParseFunctionAtanh(Token *name, Token *open)
+bool SqlParser::ParseFunctionAtanh(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1475,13 +1475,13 @@ bool SqlParser::ParseFunctionAtanh(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // ATN2 in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionAtn2(Token *name, Token *open)
+bool SqlParser::ParseFunctionAtn2(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1501,7 +1501,7 @@ bool SqlParser::ParseFunctionAtn2(Token *name, Token *open)
 	// Parse second numeric expression
 	ParseExpression(num2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ GetNextCharToken(')', L')');
 
 	// Convert to ATAN2 in Oracle
 	if(_target == SQL_ORACLE)
@@ -1511,7 +1511,7 @@ bool SqlParser::ParseFunctionAtn2(Token *name, Token *open)
 }
 
 // BASE64_DECODE in Sybase ASA
-bool SqlParser::ParseFunctionBase64Decode(Token *name, Token *open)
+bool SqlParser::ParseFunctionBase64Decode(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1537,7 +1537,7 @@ bool SqlParser::ParseFunctionBase64Decode(Token *name, Token *open)
 }
 
 // BASE64_ENCODE in Sybase ASA
-bool SqlParser::ParseFunctionBase64Encode(Token *name, Token *open)
+bool SqlParser::ParseFunctionBase64Encode(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1563,7 +1563,7 @@ bool SqlParser::ParseFunctionBase64Encode(Token *name, Token *open)
 }
 
 // DB2 BIGINT
-bool SqlParser::ParseFunctionBigint(Token *name, Token *open)
+bool SqlParser::ParseFunctionBigint(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1588,7 +1588,7 @@ bool SqlParser::ParseFunctionBigint(Token *name, Token *open)
 }
 
 // BIGINTTOHEX in Sybase ASE
-bool SqlParser::ParseFunctionBiginttohex(Token *name, Token *open)
+bool SqlParser::ParseFunctionBiginttohex(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1621,7 +1621,7 @@ bool SqlParser::ParseFunctionBiginttohex(Token *name, Token *open)
 }
 
 // BIN_TO_NUM in Oracle
-bool SqlParser::ParseFunctionBinToNum(Token *name, Token *open)
+bool SqlParser::ParseFunctionBinToNum(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1651,13 +1651,13 @@ bool SqlParser::ParseFunctionBinToNum(Token *name, Token *open)
 		ParseExpression(bitn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // BINTOSTR in Sybase ASE
-bool SqlParser::ParseFunctionBintostr(Token *name, Token *open)
+bool SqlParser::ParseFunctionBintostr(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1670,13 +1670,13 @@ bool SqlParser::ParseFunctionBintostr(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // BITAND in Oracle, DB2
-bool SqlParser::ParseFunctionBitand(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitand(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1696,7 +1696,7 @@ bool SqlParser::ParseFunctionBitand(Token *name, Token *open)
 	// Parse second expression
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// User & function in MySQL
 	if(_target == SQL_MYSQL)
@@ -1709,7 +1709,7 @@ bool SqlParser::ParseFunctionBitand(Token *name, Token *open)
 }
 
 // DB2 BITANDNOT
-bool SqlParser::ParseFunctionBitandnot(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitandnot(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1722,7 +1722,7 @@ bool SqlParser::ParseFunctionBitandnot(Token *name, Token *open)
 	// Parse first expression
 	ParseExpression(exp);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 
 	Token *exp2 = GetNextToken();
 
@@ -1732,13 +1732,13 @@ bool SqlParser::ParseFunctionBitandnot(Token *name, Token *open)
 	// Parse second expression
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // BIT_LENGTH in Sybase ASA
-bool SqlParser::ParseFunctionBitLength(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitLength(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1771,7 +1771,7 @@ bool SqlParser::ParseFunctionBitLength(Token *name, Token *open)
 }
 
 // Oracle, DB2 BITNOT
-bool SqlParser::ParseFunctionBitnot(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitnot(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1784,7 +1784,7 @@ bool SqlParser::ParseFunctionBitnot(Token *name, Token *open)
 	// Parse first expression
 	ParseExpression(exp);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 
 	Token *exp2 = GetNextToken();
 
@@ -1794,13 +1794,13 @@ bool SqlParser::ParseFunctionBitnot(Token *name, Token *open)
 	// Parse second expression
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 BITOR
-bool SqlParser::ParseFunctionBitor(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitor(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1813,7 +1813,7 @@ bool SqlParser::ParseFunctionBitor(Token *name, Token *open)
 	// Parse first expression
 	ParseExpression(exp);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 
 	Token *exp2 = GetNextToken();
 
@@ -1823,13 +1823,13 @@ bool SqlParser::ParseFunctionBitor(Token *name, Token *open)
 	// Parse second expression
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // BIT_SUBSTR in Sybase ASA
-bool SqlParser::ParseFunctionBitSubstr(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitSubstr(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1861,7 +1861,7 @@ bool SqlParser::ParseFunctionBitSubstr(Token *name, Token *open)
 		ParseExpression(length);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SUBSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -1875,7 +1875,7 @@ bool SqlParser::ParseFunctionBitSubstr(Token *name, Token *open)
 }
 
 // DB2 BITXOR
-bool SqlParser::ParseFunctionBitxor(Token *name, Token *open)
+bool SqlParser::ParseFunctionBitxor(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1888,7 +1888,7 @@ bool SqlParser::ParseFunctionBitxor(Token *name, Token *open)
 	// Parse first expression
 	ParseExpression(exp);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 
 	Token *exp2 = GetNextToken();
 
@@ -1898,13 +1898,13 @@ bool SqlParser::ParseFunctionBitxor(Token *name, Token *open)
 	// Parse second expression
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 BLOB
-bool SqlParser::ParseFunctionBlob(Token *name, Token *open)
+bool SqlParser::ParseFunctionBlob(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1932,7 +1932,7 @@ bool SqlParser::ParseFunctionBlob(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_BLOB in Oracle
 	if(_target == SQL_ORACLE)
@@ -1948,7 +1948,7 @@ bool SqlParser::ParseFunctionBlob(Token *name, Token *open)
 }
 
 // BYTE_LENGTH in Sybase ASA
-bool SqlParser::ParseFunctionByteLength(Token *name, Token *open)
+bool SqlParser::ParseFunctionByteLength(Token *name, Token * /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -1961,7 +1961,7 @@ bool SqlParser::ParseFunctionByteLength(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LENGTHB in Oracle
 	if(_target == SQL_ORACLE)
@@ -1975,7 +1975,7 @@ bool SqlParser::ParseFunctionByteLength(Token *name, Token *open)
 }
 
 // BYTE_SUBSTR in Sybase ASA
-bool SqlParser::ParseFunctionByteSubstr(Token *name, Token *open)
+bool SqlParser::ParseFunctionByteSubstr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2007,7 +2007,7 @@ bool SqlParser::ParseFunctionByteSubstr(Token *name, Token *open)
 		ParseExpression(length);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SUBSTRB in Oracle
 	if(_target == SQL_ORACLE)
@@ -2058,7 +2058,7 @@ bool SqlParser::ParseFunctionCast(Token *cast, Token *open)
 	// Parse cast data type
 	ParseDataType(type, SQL_SCOPE_CASE_FUNC);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// CAST AS VARCHAR
 	if(type->Compare("VARCHAR", L"VARCHAR", 7) == true)
@@ -2094,7 +2094,7 @@ bool SqlParser::ParseFunctionCast(Token *cast, Token *open)
 }
 
 // CEIL in Oracle, DB2, MySQL, Sybase ASA
-bool SqlParser::ParseFunctionCeil(Token *name, Token *open)
+bool SqlParser::ParseFunctionCeil(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2109,7 +2109,7 @@ bool SqlParser::ParseFunctionCeil(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Remove dollar sign for Oracle CEIL
 	if(_target == SQL_ORACLE && sign != NULL)
@@ -2123,7 +2123,7 @@ bool SqlParser::ParseFunctionCeil(Token *name, Token *open)
 }
 
 // CEILING in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionCeiling(Token *name, Token *open)
+bool SqlParser::ParseFunctionCeiling(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2138,7 +2138,7 @@ bool SqlParser::ParseFunctionCeiling(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to CEIL in Oracle
 	if(_target == SQL_ORACLE)
@@ -2154,7 +2154,7 @@ bool SqlParser::ParseFunctionCeiling(Token *name, Token *open)
 }
 
 // CHAR in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionChar(Token *name, Token *open)
+bool SqlParser::ParseFunctionChar(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2172,7 +2172,7 @@ bool SqlParser::ParseFunctionChar(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *exp_end = GetLastToken();
+	/*Token *exp_end */ (void) GetLastToken();
 	Token *comma = GetNextCharToken(',', L',');
 	Token *format = NULL;
 	
@@ -2235,7 +2235,7 @@ bool SqlParser::ParseFunctionChar(Token *name, Token *open)
 
 // CHAR_LENGTH in DB2, Sybase ASE, Sybase ASA
 // CHARACTER_LENGTH in DB2
-bool SqlParser::ParseFunctionCharacterLength(Token *name, Token *open)
+bool SqlParser::ParseFunctionCharacterLength(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2256,7 +2256,7 @@ bool SqlParser::ParseFunctionCharacterLength(Token *name, Token *open)
 		// Second parameter specifies code units CODEUNITS16, CODEUNITS32, OCTETS	
 		unit = GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LENGTH in Oracle
 	if(_target == SQL_ORACLE)
@@ -2313,7 +2313,6 @@ bool SqlParser::ParseFunctionCharindex(Token *name, Token *open)
 	ParseExpression(string);
 
 	Token *comma2 = GetNextCharToken(',', L',');
-	Token *start = NULL;
 
 	// Start is optional in SQL Server, Sybase ASE
 	if(comma2 != NULL)
@@ -2327,7 +2326,7 @@ bool SqlParser::ParseFunctionCharindex(Token *name, Token *open)
 		ParseExpression(start);		
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to INSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -2353,7 +2352,7 @@ bool SqlParser::ParseFunctionCharindex(Token *name, Token *open)
 }
 
 // CHR in Oracle, DB2
-bool SqlParser::ParseFunctionChr(Token *name, Token *open)
+bool SqlParser::ParseFunctionChr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2388,7 +2387,7 @@ bool SqlParser::ParseFunctionChr(Token *name, Token *open)
 }
 
 // DB2 CLOB
-bool SqlParser::ParseFunctionClob(Token *name, Token *open)
+bool SqlParser::ParseFunctionClob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2426,7 +2425,7 @@ bool SqlParser::ParseFunctionClob(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CLOB in Oracle
 	if(_target == SQL_ORACLE)
@@ -2442,7 +2441,7 @@ bool SqlParser::ParseFunctionClob(Token *name, Token *open)
 }
 
 // COALESCE in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionCoalesce(Token *name, Token *open)
+bool SqlParser::ParseFunctionCoalesce(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2472,13 +2471,13 @@ bool SqlParser::ParseFunctionCoalesce(Token *name, Token *open)
 		ParseExpression(expn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // COL_LENGTH in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionColLength(Token *name, Token *open)
+bool SqlParser::ParseFunctionColLength(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2491,7 +2490,7 @@ bool SqlParser::ParseFunctionColLength(Token *name, Token *open)
 	// Parse table
 	ParseExpression(table);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 	Token *column = GetNextToken();
 
 	if(column == NULL)
@@ -2500,13 +2499,13 @@ bool SqlParser::ParseFunctionColLength(Token *name, Token *open)
 	// Parse column
 	ParseExpression(column);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // COL_NAME in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionColName(Token *name, Token *open)
+bool SqlParser::ParseFunctionColName(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2519,7 +2518,7 @@ bool SqlParser::ParseFunctionColName(Token *name, Token *open)
 	// Parse table_id
 	ParseExpression(table_id);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 	Token *column_id = GetNextToken();
 
 	if(column_id == NULL)
@@ -2547,7 +2546,7 @@ bool SqlParser::ParseFunctionColName(Token *name, Token *open)
 			Token::Remove(comma2, database_id);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -2713,14 +2712,14 @@ bool SqlParser::ParseFunctionConvert(Token *name, Token *open)
 		if(comma1 == NULL)
 			return false;
 
-		Token *dest_charset = GetNextToken();
+		/*Token *dest_charset */ (void) GetNextToken();
 		Token *comma2 = GetNextCharToken(',', L',');
 		Token *source_charset = NULL;
 
 		if(comma2 != NULL)
 			source_charset = GetNextToken();
 
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 
 		// Change syntax in MySQL
 		if(_target == SQL_MYSQL)
@@ -2736,7 +2735,7 @@ bool SqlParser::ParseFunctionConvert(Token *name, Token *open)
 }
 
 // CONVERT function in MySQL
-bool SqlParser::ParseFunctionConvertMySql(Token *name, Token *open)
+bool SqlParser::ParseFunctionConvertMySql(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2756,7 +2755,7 @@ bool SqlParser::ParseFunctionConvertMySql(Token *name, Token *open)
 
 	ParseDataType(datatype, SQL_SCOPE_CASE_FUNC);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Other databases use different order in CONVERT; Oracle does not support such conversion function
 	if(_target != SQL_MYSQL)
@@ -2769,7 +2768,7 @@ bool SqlParser::ParseFunctionConvertMySql(Token *name, Token *open)
 }
 
 // CONVERT for DATETIME in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token *open, Token *datatype)
+bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token * /*open*/, Token *datatype)
 {
 	Token *comma = GetNextCharToken(',', L',');
 
@@ -2777,11 +2776,11 @@ bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token *open, Token *da
 	Token *string = GetNextToken();
 	ParseExpression(string);
 
-	Token *comma2 = GetNextCharToken(',', L',');
+	/*Token *comma2 */ (void) GetNextCharToken(',', L',');
 
 	// Style
 	Token *style = GetNextNumberToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_MYSQL)
 	{
@@ -2816,7 +2815,7 @@ bool SqlParser::ParseFunctionConvertImage(Token *name, Token *open, Token *datat
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert IMAGE datatype to VARBINARY(max) in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -2837,7 +2836,7 @@ bool SqlParser::ParseFunctionConvertImage(Token *name, Token *open, Token *datat
 }
 
 // CONVERT for INTEGER in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionConvertInteger(Token *name, Token *open, Token *datatype)
+bool SqlParser::ParseFunctionConvertInteger(Token *name, Token *open, Token * /*datatype*/)
 {
 	// Comma after the data type
 	Token *comma = GetNextCharToken(',', L',');
@@ -2849,7 +2848,7 @@ bool SqlParser::ParseFunctionConvertInteger(Token *name, Token *open, Token *dat
 	Token *exp = GetNextToken();
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRUNC in Oracle
 	if(_target == SQL_ORACLE)
@@ -2875,7 +2874,7 @@ bool SqlParser::ParseFunctionConvertText(Token *name, Token *open, Token *dataty
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert TEXT datatype to VARCHAR(max) in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -2896,7 +2895,7 @@ bool SqlParser::ParseFunctionConvertText(Token *name, Token *open, Token *dataty
 }
 
 // CONVERT for VARCHAR and CHAR in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token *datatype)
+bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*datatype*/)
 {
 	// Length of the target data type
 	Token *open_bracket = GetNextCharToken('(', L'(');
@@ -2931,7 +2930,7 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token *dat
 	if(comma2 != NULL)
 		style = GetNextNumberToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle, PostgreSQL
 	if(Target(SQL_ORACLE, SQL_POSTGRESQL) == true)
@@ -2984,7 +2983,7 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token *dat
 }
 
 // COS in SQL Server, Oracle, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionCos(Token *name, Token *open)
+bool SqlParser::ParseFunctionCos(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -2997,13 +2996,13 @@ bool SqlParser::ParseFunctionCos(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // COSH in Oracle, DB2
-bool SqlParser::ParseFunctionCosh(Token *name, Token *open)
+bool SqlParser::ParseFunctionCosh(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -3032,7 +3031,7 @@ bool SqlParser::ParseFunctionCosh(Token *name, Token *open)
 }
 
 // COT in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionCot(Token *name, Token *open)
+bool SqlParser::ParseFunctionCot(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -3045,7 +3044,7 @@ bool SqlParser::ParseFunctionCot(Token *name, Token *open)
 	// Parse numeric
 	ParseExpression(numeric);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to COS/SIN in Oracle
 	if(_target == SQL_ORACLE)
@@ -3059,13 +3058,13 @@ bool SqlParser::ParseFunctionCot(Token *name, Token *open)
 }
 
 // COUNT aggregate and analytic function
-bool SqlParser::ParseFunctionCount(Token *name, Token *open)
+bool SqlParser::ParseFunctionCount(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
 	// Optional DISTINCT keyword
-	Token *distinct = GetNext("DISTINCT", L"DISTINCT", 8);
+	/*Token *distinct */ (void) GetNext("DISTINCT", L"DISTINCT", 8);
 
 	// Column, constant or *
 	Token *col = GetNextToken();
@@ -3073,7 +3072,7 @@ bool SqlParser::ParseFunctionCount(Token *name, Token *open)
 	if(col == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', ')');
+	/*Token *close */ (void) GetNextCharToken(')', ')');
 
 	// OVER keyword
 	Token *over = GetNextWordToken("OVER", L"OVER", 4);
@@ -3085,7 +3084,7 @@ bool SqlParser::ParseFunctionCount(Token *name, Token *open)
 }
 
 // CSCONVERT in Sybase ASA
-bool SqlParser::ParseFunctionCsconvert(Token *name, Token *open)
+bool SqlParser::ParseFunctionCsconvert(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -3100,7 +3099,7 @@ bool SqlParser::ParseFunctionCsconvert(Token *name, Token *open)
 	if(comma == NULL)
 		return false;
 
-	Token *target_charset = GetNextToken();
+	/*Token *target_charset */ (void) GetNextToken();
 	Token *comma2 = GetNextCharToken(',', L',');
 	Token *source_charset = NULL;
 
@@ -3108,7 +3107,7 @@ bool SqlParser::ParseFunctionCsconvert(Token *name, Token *open)
 	if(comma2 != NULL)
 		source_charset = GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to COS/SIN in Oracle
 	if(_target == SQL_ORACLE)
@@ -3123,7 +3122,7 @@ bool SqlParser::ParseFunctionCurdate(Token *name, Token *open)
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// TRUNC(SYSDATE) in Oracle
 	if(_target == SQL_ORACLE)
@@ -3609,7 +3608,7 @@ bool SqlParser::ParseFunctionCursorRowcount(Token *name, Token *open)
 }
 
 // DATALENGTH in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionDatalength(Token *name, Token *open)
+bool SqlParser::ParseFunctionDatalength(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -3622,7 +3621,7 @@ bool SqlParser::ParseFunctionDatalength(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LENGTHB in Oracle
 	if(_target == SQL_ORACLE)
@@ -4048,7 +4047,7 @@ bool SqlParser::ParseFunctionDatediff(Token *name, Token *open)
 }
 
 // MySQL DATE_FORMAT
-bool SqlParser::ParseFunctionDateFormat(Token *name, Token *open)
+bool SqlParser::ParseFunctionDateFormat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4074,13 +4073,13 @@ bool SqlParser::ParseFunctionDateFormat(Token *name, Token *open)
 
 	ParseExpression(format);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Format is a string literal
 	if(format->type == TOKEN_STRING)
 	{
 		TokenStr out;
-		int i = 0;
+		size_t i = 0;
 
 		while(i < format->len)
 		{
@@ -4188,7 +4187,7 @@ bool SqlParser::ParseFunctionDateformatASA(Token *name, Token *open)
 
 	Token *format = GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Default format
 	if(format == NULL)
@@ -4266,7 +4265,7 @@ bool SqlParser::ParseFunctionDatename(Token *name, Token *open)
 	// Parse date
 	ParseExpression(date);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -4397,7 +4396,7 @@ bool SqlParser::ParseFunctionDatetime(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_TIMESTAMP in Oracle
 	if(_target == SQL_ORACLE)
@@ -4512,7 +4511,7 @@ bool SqlParser::ParseFunctionDay(Token *name, Token *open)
 	// Parse date
 	ParseExpression(date);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to EXTRACT in Oracle
 	if(_target == SQL_ORACLE)
@@ -4532,7 +4531,7 @@ bool SqlParser::ParseFunctionDay(Token *name, Token *open)
 }
 
 // DAYNAME in DB2, Sybase ASA
-bool SqlParser::ParseFunctionDayname(Token *name, Token *open)
+bool SqlParser::ParseFunctionDayname(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4552,7 +4551,7 @@ bool SqlParser::ParseFunctionDayname(Token *name, Token *open)
 	if(comma != NULL)
 		locale = GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -4592,7 +4591,7 @@ bool SqlParser::ParseFunctionDayname(Token *name, Token *open)
 }
 
 // DB2 DAYOFWEEK
-bool SqlParser::ParseFunctionDayofweek(Token *name, Token *open)
+bool SqlParser::ParseFunctionDayofweek(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4605,7 +4604,7 @@ bool SqlParser::ParseFunctionDayofweek(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -4618,7 +4617,7 @@ bool SqlParser::ParseFunctionDayofweek(Token *name, Token *open)
 }
 
 // DB2 DAYOFWEEK_ISO
-bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token *open)
+bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4631,7 +4630,7 @@ bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -4644,7 +4643,7 @@ bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token *open)
 }
 
 // DB2 DAYOFYEAR
-bool SqlParser::ParseFunctionDayofyear(Token *name, Token *open)
+bool SqlParser::ParseFunctionDayofyear(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4657,7 +4656,7 @@ bool SqlParser::ParseFunctionDayofyear(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -4695,7 +4694,7 @@ bool SqlParser::ParseFunctionDays(Token *name, Token *open)
 		second_end = GetLastToken();
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_SQL_SERVER)
 	{
@@ -4740,12 +4739,12 @@ bool SqlParser::ParseFunctionDays(Token *name, Token *open)
 }
 
 // Oracle, DB2 DENSE_RANK function
-bool SqlParser::ParseFunctionDenseRank(Token *name, Token *open)
+bool SqlParser::ParseFunctionDenseRank(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// OVER keyword
 	Token *over = GetNextWordToken("OVER", L"OVER", 4);
@@ -4757,7 +4756,7 @@ bool SqlParser::ParseFunctionDenseRank(Token *name, Token *open)
 }
 
 // DB2 DBCLOB
-bool SqlParser::ParseFunctionDbclob(Token *name, Token *open)
+bool SqlParser::ParseFunctionDbclob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4785,7 +4784,7 @@ bool SqlParser::ParseFunctionDbclob(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CLOB in Oracle
 	if(_target == SQL_ORACLE)
@@ -4817,7 +4816,7 @@ bool SqlParser::ParseFunctionDbId(Token *name, Token *open)
 	else
 		ParseExpression(database_name);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SYS_CONTEXT('USERENV', 'CURRENT_SCHEMAID') in Oracle
 	if(_target == SQL_ORACLE)
@@ -4946,7 +4945,7 @@ bool SqlParser::ParseFunctionDbName(Token *name, Token *open)
 	else
 		ParseExpression(database_id);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SYS_CONTEXT('USERENV', 'CURRENT_SCHEMAID') in Oracle
 	if(_target == SQL_ORACLE)
@@ -4963,7 +4962,7 @@ bool SqlParser::ParseFunctionDbName(Token *name, Token *open)
 }
 
 // DB2 DECFLOAT
-bool SqlParser::ParseFunctionDecfloat(Token *name, Token *open)
+bool SqlParser::ParseFunctionDecfloat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -4991,7 +4990,7 @@ bool SqlParser::ParseFunctionDecfloat(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER in Oracle
 	if(_target == SQL_ORACLE)
@@ -5007,7 +5006,7 @@ bool SqlParser::ParseFunctionDecfloat(Token *name, Token *open)
 }
 
 // DB2 DECFLOAT_FORMAT
-bool SqlParser::ParseFunctionDecfloatFormat(Token *name, Token *open)
+bool SqlParser::ParseFunctionDecfloatFormat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5035,7 +5034,7 @@ bool SqlParser::ParseFunctionDecfloatFormat(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Format DB2 and Oracle the same
 	if(_target == SQL_ORACLE)
@@ -5045,7 +5044,7 @@ bool SqlParser::ParseFunctionDecfloatFormat(Token *name, Token *open)
 }
 
 // DB2 DECIMAL
-bool SqlParser::ParseFunctionDecimal(Token *name, Token *open)
+bool SqlParser::ParseFunctionDecimal(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5119,7 +5118,7 @@ bool SqlParser::ParseFunctionDecimal(Token *name, Token *open)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 		Token::Change(name, "TO_NUMBER", L"TO_NUMBER", 9);
@@ -5238,7 +5237,7 @@ bool SqlParser::ParseFunctionDecode(Token *decode, Token *open)
 }
 
 // DEGREES in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionDegrees(Token *name, Token *open)
+bool SqlParser::ParseFunctionDegrees(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5264,7 +5263,7 @@ bool SqlParser::ParseFunctionDegrees(Token *name, Token *open)
 }
 
 // DB2, Oracle DEREF
-bool SqlParser::ParseFunctionDeref(Token *name, Token *open)
+bool SqlParser::ParseFunctionDeref(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5277,13 +5276,13 @@ bool SqlParser::ParseFunctionDeref(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 DIGITS
-bool SqlParser::ParseFunctionDigits(Token *name, Token *open)
+bool SqlParser::ParseFunctionDigits(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5296,7 +5295,7 @@ bool SqlParser::ParseFunctionDigits(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRANSLATE in Oracle, if 3rd parameter is '' then everything removed
 	if(_target == SQL_ORACLE)
@@ -5309,7 +5308,7 @@ bool SqlParser::ParseFunctionDigits(Token *name, Token *open)
 }
 
 // DB2 DOUBLE
-bool SqlParser::ParseFunctionDouble(Token *name, Token *open)
+bool SqlParser::ParseFunctionDouble(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5322,7 +5321,7 @@ bool SqlParser::ParseFunctionDouble(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER in Oracle
 	if(_target == SQL_ORACLE)
@@ -5334,7 +5333,7 @@ bool SqlParser::ParseFunctionDouble(Token *name, Token *open)
 }
 
 // DOW in Sybase ASA
-bool SqlParser::ParseFunctionDow(Token *name, Token *open)
+bool SqlParser::ParseFunctionDow(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5347,7 +5346,7 @@ bool SqlParser::ParseFunctionDow(Token *name, Token *open)
 	// Parse date
 	ParseExpression(date);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -5375,34 +5374,34 @@ bool SqlParser::ParseFunctionDow(Token *name, Token *open)
 }
 
 // DB2, Oracle EMPTY_BLOB()
-bool SqlParser::ParseFunctionEmptyBlob(Token *name, Token *open)
+bool SqlParser::ParseFunctionEmptyBlob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	return true;	
 }
 
 // DB2, Oracle EMPTY_CLOB()
-bool SqlParser::ParseFunctionEmptyClob(Token *name, Token *open)
+bool SqlParser::ParseFunctionEmptyClob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	return true;	
 }
 
 // DB2, Oracle EMPTY_DBCLOB()
-bool SqlParser::ParseFunctionEmptyDbclob(Token *name, Token *open)
+bool SqlParser::ParseFunctionEmptyDbclob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// Convert to EMPTY_CLOB() in Oracle
 	if(_target == SQL_ORACLE)
@@ -5414,12 +5413,12 @@ bool SqlParser::ParseFunctionEmptyDbclob(Token *name, Token *open)
 }
 
 // DB2, Oracle EMPTY_NCLOB()
-bool SqlParser::ParseFunctionEmptyNclob(Token *name, Token *open)
+bool SqlParser::ParseFunctionEmptyNclob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// Convert to EMPTY_CLOB() in Oracle
 	if(_target == SQL_ORACLE)
@@ -5471,7 +5470,7 @@ bool SqlParser::ParseFunctionErrormsg(Token *name, Token *open)
 }
 
 // EXP in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionExp(Token *name, Token *open)
+bool SqlParser::ParseFunctionExp(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5484,31 +5483,31 @@ bool SqlParser::ParseFunctionExp(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // EXPRTYPE in Sybase ASA
-bool SqlParser::ParseFunctionExprtype(Token *name, Token *open)
+bool SqlParser::ParseFunctionExprtype(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *string = GetNextToken();
+	/*Token *string */ (void) GetNextToken();
 	Token *comma = GetNextCharToken(',', L',');
 
 	if(comma == NULL)
 		return false;
 
-	Token *integer = GetNextToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *integer */ (void) GetNextToken();
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // EXTRACT in Oracle, DB2
-bool SqlParser::ParseFunctionExtract(Token *name, Token *open)
+bool SqlParser::ParseFunctionExtract(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5526,7 +5525,7 @@ bool SqlParser::ParseFunctionExtract(Token *name, Token *open)
 	// Parse datetime
 	ParseExpression(datetime);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(Token::Compare(unit, "YEAR", L"YEAR", 4) == true)
 	{
@@ -5627,7 +5626,7 @@ bool SqlParser::ParseFunctionFirst(Token *name, Token *open)
 }
 
 // DB2 FLOAT
-bool SqlParser::ParseFunctionFloat(Token *name, Token *open)
+bool SqlParser::ParseFunctionFloat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5640,7 +5639,7 @@ bool SqlParser::ParseFunctionFloat(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER in Oracle
 	if(_target == SQL_ORACLE)
@@ -5652,7 +5651,7 @@ bool SqlParser::ParseFunctionFloat(Token *name, Token *open)
 }
 
 // FLOOR in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionFloor(Token *name, Token *open)
+bool SqlParser::ParseFunctionFloor(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5667,7 +5666,7 @@ bool SqlParser::ParseFunctionFloor(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(Target(SQL_ORACLE, SQL_MYSQL) == true)
 	{
@@ -5680,7 +5679,7 @@ bool SqlParser::ParseFunctionFloor(Token *name, Token *open)
 }
 
 // GET_BIT in Sybase ASA
-bool SqlParser::ParseFunctionGetBit(Token *name, Token *open)
+bool SqlParser::ParseFunctionGetBit(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5700,7 +5699,7 @@ bool SqlParser::ParseFunctionGetBit(Token *name, Token *open)
 	// Parse position
 	ParseExpression(position);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -5737,7 +5736,7 @@ bool SqlParser::ParseFunctionGetutcdate(Token *name, Token *open)
 		return false;
 
 	// Next is parentesis
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SYS_EXTRACT_UTC(SYSTIMESTAMP) in Oracle
 	if(_target == SQL_ORACLE)
@@ -5800,7 +5799,7 @@ bool SqlParser::ParseFunctionGreater(Token *name, Token *open)
 }
 
 // GREATEST in Oracle, DB2, MySQL
-bool SqlParser::ParseFunctionGreatest(Token *name, Token *open)
+bool SqlParser::ParseFunctionGreatest(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5830,7 +5829,7 @@ bool SqlParser::ParseFunctionGreatest(Token *name, Token *open)
 		ParseExpression(expn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -5856,7 +5855,7 @@ bool SqlParser::ParseFunctionHash(Token *name, Token *open)
 	if(comma != NULL)
 		algorithm = GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to HASHBYTES in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -5902,7 +5901,7 @@ bool SqlParser::ParseFunctionHash(Token *name, Token *open)
 }
 
 // DB2 HEX
-bool SqlParser::ParseFunctionHex(Token *name, Token *open)
+bool SqlParser::ParseFunctionHex(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -5915,7 +5914,7 @@ bool SqlParser::ParseFunctionHex(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -5990,7 +5989,7 @@ bool SqlParser::ParseFunctionHextoint(Token *name, Token *open)
 }
 
 // DB2, Oracle HEXTORAW
-bool SqlParser::ParseFunctionHextoraw(Token *name, Token *open)
+bool SqlParser::ParseFunctionHextoraw(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6003,13 +6002,13 @@ bool SqlParser::ParseFunctionHextoraw(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // HOST_ID in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionHostId(Token *name, Token *open)
+bool SqlParser::ParseFunctionHostId(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6064,7 +6063,7 @@ bool SqlParser::ParseFunctionHour(Token *name, Token *open)
 	// Parse datetime
 	ParseExpression(datetime);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to EXTRACT in Oracle
 	if(_target == SQL_ORACLE)
@@ -6091,7 +6090,7 @@ bool SqlParser::ParseFunctionHour(Token *name, Token *open)
 }
 
 // HTML_DECODE in Sybase ASA
-bool SqlParser::ParseFunctionHtmlDecode(Token *name, Token *open)
+bool SqlParser::ParseFunctionHtmlDecode(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6104,13 +6103,13 @@ bool SqlParser::ParseFunctionHtmlDecode(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // HTML_ENCODE in Sybase ASA
-bool SqlParser::ParseFunctionHtmlEncode(Token *name, Token *open)
+bool SqlParser::ParseFunctionHtmlEncode(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6123,7 +6122,7 @@ bool SqlParser::ParseFunctionHtmlEncode(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to HTF.ESCAPE_SC in Oracle
 	if(_target == SQL_ORACLE)
@@ -6140,7 +6139,7 @@ bool SqlParser::ParseFunctionHtmlEncode(Token *name, Token *open)
 }
 
 // HTTP_DECODE in Sybase ASA
-bool SqlParser::ParseFunctionHttpDecode(Token *name, Token *open)
+bool SqlParser::ParseFunctionHttpDecode(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6153,13 +6152,13 @@ bool SqlParser::ParseFunctionHttpDecode(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // HTTP_ENCODE in Sybase ASA
-bool SqlParser::ParseFunctionHttpEncode(Token *name, Token *open)
+bool SqlParser::ParseFunctionHttpEncode(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6172,7 +6171,7 @@ bool SqlParser::ParseFunctionHttpEncode(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -6302,7 +6301,7 @@ bool SqlParser::ParseFunctionIfnull(Token *name, Token *open)
 }
 
 // INDEX_COL in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionIndexCol(Token *name, Token *open)
+bool SqlParser::ParseFunctionIndexCol(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6315,7 +6314,7 @@ bool SqlParser::ParseFunctionIndexCol(Token *name, Token *open)
 	// Parse object
 	ParseExpression(object);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 	Token *index = GetNextToken();
 
 	if(index == NULL)
@@ -6324,7 +6323,7 @@ bool SqlParser::ParseFunctionIndexCol(Token *name, Token *open)
 	// Parse index
 	ParseExpression(index);
 
-	Token *comma2 = GetNextCharToken(',', L',');
+	/*Token *comma2 */ (void) GetNextCharToken(',', L',');
 	Token *key = GetNextToken();
 
 	if(key == NULL)
@@ -6334,7 +6333,6 @@ bool SqlParser::ParseFunctionIndexCol(Token *name, Token *open)
 	ParseExpression(key);
 
 	Token *comma3 = GetNextCharToken(',', L',');
-	Token *user = NULL;
 
 	// User is optional in Sybase ASE
 	if(comma3 != NULL)
@@ -6352,13 +6350,13 @@ bool SqlParser::ParseFunctionIndexCol(Token *name, Token *open)
 			Token::Remove(comma3, user);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // INDEX_COLORDER in Sybase ASE
-bool SqlParser::ParseFunctionIndexColorder(Token *name, Token *open)
+bool SqlParser::ParseFunctionIndexColorder(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6371,7 +6369,7 @@ bool SqlParser::ParseFunctionIndexColorder(Token *name, Token *open)
 	// Parse object
 	ParseExpression(object);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 	Token *index = GetNextToken();
 
 	if(index == NULL)
@@ -6380,7 +6378,7 @@ bool SqlParser::ParseFunctionIndexColorder(Token *name, Token *open)
 	// Parse index
 	ParseExpression(index);
 
-	Token *comma2 = GetNextCharToken(',', L',');
+	/*Token *comma2 */ (void) GetNextCharToken(',', L',');
 	Token *key = GetNextToken();
 
 	if(key == NULL)
@@ -6390,7 +6388,6 @@ bool SqlParser::ParseFunctionIndexColorder(Token *name, Token *open)
 	ParseExpression(key);
 
 	Token *comma3 = GetNextCharToken(',', L',');
-	Token *user = NULL;
 
 	// User is optional in Sybase ASE
 	if(comma3 != NULL)
@@ -6404,13 +6401,13 @@ bool SqlParser::ParseFunctionIndexColorder(Token *name, Token *open)
 		ParseExpression(user);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // INDEX_NAME in Sybase ASE
-bool SqlParser::ParseFunctionIndexName(Token *name, Token *open)
+bool SqlParser::ParseFunctionIndexName(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6423,7 +6420,7 @@ bool SqlParser::ParseFunctionIndexName(Token *name, Token *open)
 	// Parse dbid
 	ParseExpression(dbid);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 	Token *objid = GetNextToken();
 
 	if(objid == NULL)
@@ -6432,7 +6429,7 @@ bool SqlParser::ParseFunctionIndexName(Token *name, Token *open)
 	// Parse objid
 	ParseExpression(objid);
 
-	Token *comma2 = GetNextCharToken(',', L',');
+	/*Token *comma2 */ (void) GetNextCharToken(',', L',');
 	Token *indid = GetNextToken();
 
 	if(indid == NULL)
@@ -6441,13 +6438,13 @@ bool SqlParser::ParseFunctionIndexName(Token *name, Token *open)
 	// Parse indid
 	ParseExpression(indid);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // INITCAP in Oracle, DB2
-bool SqlParser::ParseFunctionInitcap(Token *name, Token *open)
+bool SqlParser::ParseFunctionInitcap(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6460,13 +6457,13 @@ bool SqlParser::ParseFunctionInitcap(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 INSERT
-bool SqlParser::ParseFunctionInsert(Token *name, Token *open)
+bool SqlParser::ParseFunctionInsert(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6518,9 +6515,9 @@ bool SqlParser::ParseFunctionInsert(Token *name, Token *open)
 
 	// Character set is optional
 	if(comma4 != NULL)
-		Token *unit = GetNextToken();
+		/*Token *unit */ (void) GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -6782,7 +6779,7 @@ bool SqlParser::ParseFunctionInstr(Token *name, Token *open)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_MYSQL)
 	{
@@ -6801,7 +6798,7 @@ bool SqlParser::ParseFunctionInstr(Token *name, Token *open)
 }
 
 // DB2, Oracle INSTRB
-bool SqlParser::ParseFunctionInstrb(Token *name, Token *open)
+bool SqlParser::ParseFunctionInstrb(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6849,13 +6846,13 @@ bool SqlParser::ParseFunctionInstrb(Token *name, Token *open)
 
 	ParseExpression(instance);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 INTEGER
-bool SqlParser::ParseFunctionInteger(Token *name, Token *open)
+bool SqlParser::ParseFunctionInteger(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6914,7 +6911,7 @@ bool SqlParser::ParseFunctionInttohex(Token *name, Token *open)
 }
 
 // ISDATE in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionIsdate(Token *name, Token *open)
+bool SqlParser::ParseFunctionIsdate(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6927,13 +6924,13 @@ bool SqlParser::ParseFunctionIsdate(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	return true;	
 }
 
 // ISNULL in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionIsnull(Token *name, Token *open)
+bool SqlParser::ParseFunctionIsnull(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -6977,7 +6974,7 @@ bool SqlParser::ParseFunctionIsnull(Token *name, Token *open)
 		num++;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// In SQL Server, use ISNULL if there are 2 parameters, otherwise COALESCE
 	if(_target == SQL_SQL_SERVER && num > 2)
@@ -7008,7 +7005,7 @@ bool SqlParser::ParseFunctionIsnull(Token *name, Token *open)
 }
 
 // ISNUMERIC in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionIsnumeric(Token *name, Token *open)
+bool SqlParser::ParseFunctionIsnumeric(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7021,13 +7018,13 @@ bool SqlParser::ParseFunctionIsnumeric(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	return true;	
 }
 
 // IS_SINGLEUSERMODE in Sybase ASE
-bool SqlParser::ParseFunctionIsSingleusermode(Token *name, Token *open)
+bool SqlParser::ParseFunctionIsSingleusermode(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7041,7 +7038,7 @@ bool SqlParser::ParseFunctionIsSingleusermode(Token *name, Token *open)
 }
 
 // DB2 JULIAN_DAY
-bool SqlParser::ParseFunctionJulianDay(Token *name, Token *open)
+bool SqlParser::ParseFunctionJulianDay(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7054,7 +7051,7 @@ bool SqlParser::ParseFunctionJulianDay(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -7067,7 +7064,7 @@ bool SqlParser::ParseFunctionJulianDay(Token *name, Token *open)
 }
 
 // LAST_DAY in Oracle, DB2, MySQL
-bool SqlParser::ParseFunctionLastDay(Token *name, Token *open)
+bool SqlParser::ParseFunctionLastDay(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7080,13 +7077,13 @@ bool SqlParser::ParseFunctionLastDay(Token *name, Token *open)
 	// Parse date
 	ParseExpression(date);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // LCASE in DB2, Sybase ASA
-bool SqlParser::ParseFunctionLcase(Token *name, Token *open)
+bool SqlParser::ParseFunctionLcase(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7099,7 +7096,7 @@ bool SqlParser::ParseFunctionLcase(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LOWER in Oracle, SQL Server
 	if(Target(SQL_ORACLE, SQL_SQL_SERVER) == true)
@@ -7109,7 +7106,7 @@ bool SqlParser::ParseFunctionLcase(Token *name, Token *open)
 }
 
 // LEAST in Oracle, DB2, MySQL
-bool SqlParser::ParseFunctionLeast(Token *name, Token *open)
+bool SqlParser::ParseFunctionLeast(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7139,13 +7136,13 @@ bool SqlParser::ParseFunctionLeast(Token *name, Token *open)
 		ParseExpression(expn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // LEFT in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionLeft(Token *name, Token *open)
+bool SqlParser::ParseFunctionLeft(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7169,9 +7166,9 @@ bool SqlParser::ParseFunctionLeft(Token *name, Token *open)
 
 	// String unit is optional in DB2
 	if(comma2 != NULL)
-		Token *unit = GetNextToken();
+		/*Token *unit */ (void) GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SUBSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -7184,7 +7181,7 @@ bool SqlParser::ParseFunctionLeft(Token *name, Token *open)
 }
 
 // LEN in SQL Server, Sybase ASE, Sybase ASA, Informix
-bool SqlParser::ParseFunctionLen(Token *name, Token *open)
+bool SqlParser::ParseFunctionLen(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7233,7 +7230,7 @@ bool SqlParser::ParseFunctionLen(Token *name, Token *open)
 }
 
 // LENGTH in Oracle, DB2, Informix, Sybase ASA
-bool SqlParser::ParseFunctionLength(Token *name, Token *open)
+bool SqlParser::ParseFunctionLength(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7246,7 +7243,7 @@ bool SqlParser::ParseFunctionLength(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LEN in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -7260,7 +7257,7 @@ bool SqlParser::ParseFunctionLength(Token *name, Token *open)
 }
 
 // LENGTHB in Oracle
-bool SqlParser::ParseFunctionLengthb(Token *name, Token *open)
+bool SqlParser::ParseFunctionLengthb(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7273,7 +7270,7 @@ bool SqlParser::ParseFunctionLengthb(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LENGTH in MySQL
 	if(_target == SQL_MYSQL)
@@ -7391,7 +7388,7 @@ bool SqlParser::ParseFunctionList(Token *name, Token *open)
 }
 
 // LN in Oracle, DB2, MySQL
-bool SqlParser::ParseFunctionLn(Token *name, Token *open)
+bool SqlParser::ParseFunctionLn(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7404,7 +7401,7 @@ bool SqlParser::ParseFunctionLn(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -7430,7 +7427,7 @@ bool SqlParser::ParseFunctionLocaltimestamp(Token *name)
 		ParseExpression(prec);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Remove prec in MySQL
 	if(_target == SQL_MYSQL)
@@ -7498,7 +7495,7 @@ bool SqlParser::ParseFunctionLocate(Token *name, Token *open)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to INSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -7534,7 +7531,7 @@ bool SqlParser::ParseFunctionLocate(Token *name, Token *open)
 }
 
 // DB2 LOCATE_IN_STRING
-bool SqlParser::ParseFunctionLocateInString(Token *name, Token *open)
+bool SqlParser::ParseFunctionLocateInString(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7586,9 +7583,9 @@ bool SqlParser::ParseFunctionLocateInString(Token *name, Token *open)
 
 	// Character set is optional
 	if(comma4 != NULL)
-		Token *unit = GetNextToken();
+		/*Token *unit */ (void) GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to INSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -7600,7 +7597,7 @@ bool SqlParser::ParseFunctionLocateInString(Token *name, Token *open)
 }
 
 // LOG in Oracle, SQL Server, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionLog(Token *name, Token *open)
+bool SqlParser::ParseFunctionLog(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7628,7 +7625,7 @@ bool SqlParser::ParseFunctionLog(Token *name, Token *open)
 		ParseExpression(num2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LN in Oracle
 	if(_target == SQL_ORACLE && _source != SQL_ORACLE)
@@ -7651,7 +7648,7 @@ bool SqlParser::ParseFunctionLog10(Token *name, Token *open)
 	// Parse numeric
 	ParseExpression(numeric);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LOG in Oracle
 	if(_target == SQL_ORACLE)
@@ -7664,7 +7661,7 @@ bool SqlParser::ParseFunctionLog10(Token *name, Token *open)
 }
 
 // DB2 LONG_VARCHAR
-bool SqlParser::ParseFunctionLongVarchar(Token *name, Token *open)
+bool SqlParser::ParseFunctionLongVarchar(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7677,7 +7674,7 @@ bool SqlParser::ParseFunctionLongVarchar(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LOG in Oracle
 	if(_target == SQL_ORACLE)
@@ -7689,7 +7686,7 @@ bool SqlParser::ParseFunctionLongVarchar(Token *name, Token *open)
 }
 
 // DB2 LONG_VARGRAPHIC
-bool SqlParser::ParseFunctionLongVargraphic(Token *name, Token *open)
+bool SqlParser::ParseFunctionLongVargraphic(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7702,7 +7699,7 @@ bool SqlParser::ParseFunctionLongVargraphic(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LOG in Oracle
 	if(_target == SQL_ORACLE)
@@ -7714,7 +7711,7 @@ bool SqlParser::ParseFunctionLongVargraphic(Token *name, Token *open)
 }
 
 // LOWER in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionLower(Token *name, Token *open)
+bool SqlParser::ParseFunctionLower(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7727,13 +7724,13 @@ bool SqlParser::ParseFunctionLower(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // LPAD in Oracle, DB2, MySQL
-bool SqlParser::ParseFunctionLpad(Token *name, Token *open)
+bool SqlParser::ParseFunctionLpad(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7766,7 +7763,7 @@ bool SqlParser::ParseFunctionLpad(Token *name, Token *open)
 		ParseExpression(pad);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Add third parameter in MySQL
 	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
@@ -7807,7 +7804,7 @@ bool SqlParser::ParseFunctionLtrim(Token *name, Token *open)
 		end_set = GetLastToken();
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRIM in MySQL
 	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
@@ -7827,7 +7824,7 @@ bool SqlParser::ParseFunctionLtrim(Token *name, Token *open)
 }
 
 // DB2 MAX
-bool SqlParser::ParseFunctionMax(Token *name, Token *open)
+bool SqlParser::ParseFunctionMax(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7861,7 +7858,7 @@ bool SqlParser::ParseFunctionMax(Token *name, Token *open)
 		num++;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// If num > 1 it is not aggregate function
 	if(num > 1)
@@ -7965,7 +7962,7 @@ bool SqlParser::ParseFunctionMdy(Token *name, Token *open)
 }
 
 // DB2 MICROSECOND
-bool SqlParser::ParseFunctionMicrosecond(Token *name, Token *open)
+bool SqlParser::ParseFunctionMicrosecond(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -7978,7 +7975,7 @@ bool SqlParser::ParseFunctionMicrosecond(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -7991,7 +7988,7 @@ bool SqlParser::ParseFunctionMicrosecond(Token *name, Token *open)
 }
 
 // DB2 MIDNIGHT_SECONDS
-bool SqlParser::ParseFunctionMidnightSeconds(Token *name, Token *open)
+bool SqlParser::ParseFunctionMidnightSeconds(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8004,7 +8001,7 @@ bool SqlParser::ParseFunctionMidnightSeconds(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -8017,7 +8014,7 @@ bool SqlParser::ParseFunctionMidnightSeconds(Token *name, Token *open)
 }
 
 // DB2 MIN
-bool SqlParser::ParseFunctionMin(Token *name, Token *open)
+bool SqlParser::ParseFunctionMin(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8051,7 +8048,7 @@ bool SqlParser::ParseFunctionMin(Token *name, Token *open)
 		num++;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// If num > 1 it is not aggregate function
 	if(num > 1)
@@ -8078,7 +8075,7 @@ bool SqlParser::ParseFunctionMinute(Token *name, Token *open)
 	// Parse datetime
 	ParseExpression(datetime);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to EXTRACT in Oracle
 	if(_target == SQL_ORACLE)
@@ -8105,7 +8102,7 @@ bool SqlParser::ParseFunctionMinute(Token *name, Token *open)
 }
 
 // MOD in Oracle, DB2, Informix, MySQL, Sybase ASA
-bool SqlParser::ParseFunctionMod(Token *name, Token *open)
+bool SqlParser::ParseFunctionMod(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8131,7 +8128,7 @@ bool SqlParser::ParseFunctionMod(Token *name, Token *open)
 	// Parse divisor
 	ParseExpression(divisor);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_SQL_SERVER)
 	{
@@ -8153,7 +8150,7 @@ bool SqlParser::ParseFunctionMonth(Token *name, Token *open)
 	// Parse date
 	ParseExpression(date);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to EXTRACT in Oracle
 	if(_target == SQL_ORACLE)
@@ -8194,7 +8191,7 @@ bool SqlParser::ParseFunctionMonthname(Token *name, Token *open)
 	if(comma != NULL)
 		locale = GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -8234,7 +8231,7 @@ bool SqlParser::ParseFunctionMonthname(Token *name, Token *open)
 }
 
 // MONTHS_BETWEEN in Oracle, DB2
-bool SqlParser::ParseFunctionMonthsBetween(Token *name, Token *open)
+bool SqlParser::ParseFunctionMonthsBetween(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8260,7 +8257,7 @@ bool SqlParser::ParseFunctionMonthsBetween(Token *name, Token *open)
 	// Parse second date
 	ParseExpression(date2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// dbo.MONTHS_BETWEEN UDF in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -8270,7 +8267,7 @@ bool SqlParser::ParseFunctionMonthsBetween(Token *name, Token *open)
 }
 
 // DB2 MULTIPLY_ALT
-bool SqlParser::ParseFunctionMultiplyAlt(Token *name, Token *open)
+bool SqlParser::ParseFunctionMultiplyAlt(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8293,7 +8290,7 @@ bool SqlParser::ParseFunctionMultiplyAlt(Token *name, Token *open)
 
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to prduct in Oracle
 	if(_target == SQL_ORACLE)
@@ -8306,7 +8303,7 @@ bool SqlParser::ParseFunctionMultiplyAlt(Token *name, Token *open)
 }
 
 // NCHAR in SQL Server, DB2, Sybase ASA
-bool SqlParser::ParseFunctionNchar(Token *name, Token *open)
+bool SqlParser::ParseFunctionNchar(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8331,7 +8328,7 @@ bool SqlParser::ParseFunctionNchar(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 	{
@@ -8351,7 +8348,7 @@ bool SqlParser::ParseFunctionNchar(Token *name, Token *open)
 }
 
 // DB2 NCLOB
-bool SqlParser::ParseFunctionNclob(Token *name, Token *open)
+bool SqlParser::ParseFunctionNclob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8379,7 +8376,7 @@ bool SqlParser::ParseFunctionNclob(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CLOB in Oracle
 	if(_target == SQL_ORACLE)
@@ -8395,7 +8392,7 @@ bool SqlParser::ParseFunctionNclob(Token *name, Token *open)
 }
 
 // NEWID in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionNewid(Token *name, Token *open)
+bool SqlParser::ParseFunctionNewid(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8412,7 +8409,7 @@ bool SqlParser::ParseFunctionNewid(Token *name, Token *open)
 		// Parse flag
 		ParseExpression(flag);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// If target type is not Sybase ASE remove optional flag
 	if(flag != NULL && _target != SQL_SYBASE)
@@ -8429,7 +8426,7 @@ bool SqlParser::ParseFunctionNewid(Token *name, Token *open)
 }
 
 // NEXT_DAY in Oracle, DB2
-bool SqlParser::ParseFunctionNextDay(Token *name, Token *open)
+bool SqlParser::ParseFunctionNextDay(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8455,13 +8452,13 @@ bool SqlParser::ParseFunctionNextDay(Token *name, Token *open)
 	// Parse weekday
 	ParseExpression(weekday);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 		
 	return true;	
 }
 
 // NEXT_IDENTITY in Sybase ASE
-bool SqlParser::ParseFunctionNextIdentity(Token *name, Token *open)
+bool SqlParser::ParseFunctionNextIdentity(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8517,7 +8514,7 @@ bool SqlParser::ParseFunctionNow(Token *name, Token *open)
 }
 
 // NULLIF in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionNullif(Token *name, Token *open)
+bool SqlParser::ParseFunctionNullif(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8537,7 +8534,7 @@ bool SqlParser::ParseFunctionNullif(Token *name, Token *open)
 	// Parse second expression
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -8574,7 +8571,7 @@ bool SqlParser::ParseFunctionNumber(Token *name, Token *open)
 }
 
 // DB2 NVARCHAR
-bool SqlParser::ParseFunctionNvarchar(Token *name, Token *open)
+bool SqlParser::ParseFunctionNvarchar(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8602,7 +8599,7 @@ bool SqlParser::ParseFunctionNvarchar(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 	{
@@ -8615,7 +8612,7 @@ bool SqlParser::ParseFunctionNvarchar(Token *name, Token *open)
 }
 
 // NVL in Oracle, DB2
-bool SqlParser::ParseFunctionNvl(Token *name, Token *open)
+bool SqlParser::ParseFunctionNvl(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8657,10 +8654,10 @@ bool SqlParser::ParseFunctionNvl(Token *name, Token *open)
 		num++;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// 2 parameters in Oracle
-	if(num = 2)
+	if(num == 2)
 	{
 		// Convert to ISNULL in SQL Server
 		if(_target == SQL_SQL_SERVER)
@@ -8686,7 +8683,7 @@ bool SqlParser::ParseFunctionNvl(Token *name, Token *open)
 }
 
 // NVL2 in Oracle, DB2
-bool SqlParser::ParseFunctionNvl2(Token *name, Token *open)
+bool SqlParser::ParseFunctionNvl2(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8696,7 +8693,7 @@ bool SqlParser::ParseFunctionNvl2(Token *name, Token *open)
 	// Parse first expression
 	ParseExpression(exp1);
 
-	Token *end_exp1 = GetLastToken();
+	/*Token *end_exp1 */ (void) GetLastToken();
 	Token *comma = GetNextCharToken(',', L',');
 	
 	if(comma == NULL)
@@ -8717,13 +8714,13 @@ bool SqlParser::ParseFunctionNvl2(Token *name, Token *open)
 	// Parse third expression
 	ParseExpression(exp3);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // OBJECT_ID in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionObjectId(Token *name, Token *open)
+bool SqlParser::ParseFunctionObjectId(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8742,7 +8739,7 @@ bool SqlParser::ParseFunctionObjectId(Token *name, Token *open)
 }
 
 // OBJECT_NAME in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionObjectName(Token *name, Token *open)
+bool SqlParser::ParseFunctionObjectName(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8773,7 +8770,7 @@ bool SqlParser::ParseFunctionObjectName(Token *name, Token *open)
 }
 
 // OBJECT_OWNER_ID in Sybase ASE
-bool SqlParser::ParseFunctionObjectOwnerId(Token *name, Token *open)
+bool SqlParser::ParseFunctionObjectOwnerId(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8814,7 +8811,7 @@ bool SqlParser::ParseFunctionObjectOwnerId(Token *name, Token *open)
 }
 
 // DB2 OCTET_LENGTH
-bool SqlParser::ParseFunctionOctetLength(Token *name, Token *open)
+bool SqlParser::ParseFunctionOctetLength(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8827,7 +8824,7 @@ bool SqlParser::ParseFunctionOctetLength(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LENGTHB in Oracle
 	if(_target == SQL_ORACLE)
@@ -8837,7 +8834,7 @@ bool SqlParser::ParseFunctionOctetLength(Token *name, Token *open)
 }
 
 // DB2 OVERLAY
-bool SqlParser::ParseFunctionOverlay(Token *name, Token *open)
+bool SqlParser::ParseFunctionOverlay(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8904,7 +8901,7 @@ bool SqlParser::ParseFunctionOverlay(Token *name, Token *open)
 	if(unit == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// User-defined function in Oracle
 	if(_target == SQL_ORACLE)
@@ -8926,7 +8923,7 @@ bool SqlParser::ParseFunctionOverlay(Token *name, Token *open)
 }
 
 // PARTITION_ID in Sybase ASE
-bool SqlParser::ParseFunctionPartitionId(Token *name, Token *open)
+bool SqlParser::ParseFunctionPartitionId(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -8967,7 +8964,7 @@ bool SqlParser::ParseFunctionPartitionId(Token *name, Token *open)
 }
 
 // PARTITION_NAME in Sybase ASE
-bool SqlParser::ParseFunctionPartitionName(Token *name, Token *open)
+bool SqlParser::ParseFunctionPartitionName(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9008,7 +9005,7 @@ bool SqlParser::ParseFunctionPartitionName(Token *name, Token *open)
 }
 
 // PARTITION_OBJECT_ID in Sybase ASE
-bool SqlParser::ParseFunctionPartitionObjectId(Token *name, Token *open)
+bool SqlParser::ParseFunctionPartitionObjectId(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9112,7 +9109,7 @@ bool SqlParser::ParseFunctionPatindex(Token *name, Token *open)
 			Token::Remove(comma2, semantics);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to INSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -9187,7 +9184,7 @@ bool SqlParser::ParseFunctionPosition(Token *name, Token *open)
 	if(unit == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to INSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -9204,7 +9201,7 @@ bool SqlParser::ParseFunctionPosition(Token *name, Token *open)
 }
 
 // DB2 POSSTR
-bool SqlParser::ParseFunctionPosstr(Token *name, Token *open)
+bool SqlParser::ParseFunctionPosstr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9228,7 +9225,7 @@ bool SqlParser::ParseFunctionPosstr(Token *name, Token *open)
 
 	ParseExpression(search);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to INSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -9238,7 +9235,7 @@ bool SqlParser::ParseFunctionPosstr(Token *name, Token *open)
 }
 
 // POWER in Oracle, SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionPower(Token *name, Token *open)
+bool SqlParser::ParseFunctionPower(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9258,7 +9255,7 @@ bool SqlParser::ParseFunctionPower(Token *name, Token *open)
 	// Parse power
 	ParseExpression(power);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 		
 	return true;	
 }
@@ -9305,7 +9302,7 @@ bool SqlParser::ParseFunctionQuarter(Token *name, Token *open)
 }
 
 // RADIANS in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionRadians(Token *name, Token *open)
+bool SqlParser::ParseFunctionRadians(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9327,7 +9324,7 @@ bool SqlParser::ParseFunctionRadians(Token *name, Token *open)
 }
 
 // DB2 RAISE_ERROR
-bool SqlParser::ParseFunctionRaiseError(Token *name, Token *open)
+bool SqlParser::ParseFunctionRaiseError(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9339,7 +9336,7 @@ bool SqlParser::ParseFunctionRaiseError(Token *name, Token *open)
 
 	ParseExpression(sqlstate);
 
-	Token *comma = GetNextCharToken(',', L',');
+	/*Token *comma */ (void) GetNextCharToken(',', L',');
 
 	Token *exp = GetNextToken();
 
@@ -9348,7 +9345,7 @@ bool SqlParser::ParseFunctionRaiseError(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	if(_target == SQL_ORACLE)
 		Token::Change(name, "RAISE_APPLICATION_ERROR", L"RAISE_APPLICATION_ERROR", 23);
@@ -9378,7 +9375,7 @@ bool SqlParser::ParseFunctionRaiserror(Token *name, Token *open)
 
 	ParseExpression(severity);
 
-	Token *comma2 = GetNextCharToken(',', L',');
+	/*Token *comma2 */ (void) GetNextCharToken(',', L',');
 
 	Token *state = GetNextToken();
 
@@ -9400,12 +9397,12 @@ bool SqlParser::ParseFunctionRaiserror(Token *name, Token *open)
 }
 
 // RANK analytic function in DB2, Oracle
-bool SqlParser::ParseFunctionRank(Token *name, Token *open)
+bool SqlParser::ParseFunctionRank(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// OVER keyword
 	Token *over = GetNextWordToken("OVER", L"OVER", 4);
@@ -9480,7 +9477,7 @@ bool SqlParser::ParseFunctionRand2(Token *name, Token *open)
 }
 
 // DB2 REAL
-bool SqlParser::ParseFunctionReal(Token *name, Token *open)
+bool SqlParser::ParseFunctionReal(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9492,7 +9489,7 @@ bool SqlParser::ParseFunctionReal(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER in Oracle
 	if(_target == SQL_ORACLE)
@@ -9502,7 +9499,7 @@ bool SqlParser::ParseFunctionReal(Token *name, Token *open)
 }
 
 // REGEXP_SUBSTR in Oracle, Sybase ASA
-bool SqlParser::ParseFunctionRegexpSubstr(Token *name, Token *open)
+bool SqlParser::ParseFunctionRegexpSubstr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9560,13 +9557,13 @@ bool SqlParser::ParseFunctionRegexpSubstr(Token *name, Token *open)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // REMAINDER in Oracle, Sybase ASA
-bool SqlParser::ParseFunctionRemainder(Token *name, Token *open)
+bool SqlParser::ParseFunctionRemainder(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9576,7 +9573,7 @@ bool SqlParser::ParseFunctionRemainder(Token *name, Token *open)
 	// Parse dividend
 	ParseExpression(dividend);
 
-	Token *end_dividend = GetLastToken();
+	/*Token *end_dividend */ (void) GetLastToken();
 	Token *comma = GetNextCharToken(',', L',');
 	
 	if(comma == NULL)
@@ -9587,8 +9584,8 @@ bool SqlParser::ParseFunctionRemainder(Token *name, Token *open)
 	// Parse divisor
 	ParseExpression(divisor);
 
-	Token *end_divisor = GetLastToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *end_divisor */ (void) GetLastToken();
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to MOD in Oracle
 	if(_target == SQL_ORACLE && _source != SQL_ORACLE)
@@ -9604,7 +9601,7 @@ bool SqlParser::ParseFunctionRemainder(Token *name, Token *open)
 }
 
 // REPEAT in DB2, Sybase ASA
-bool SqlParser::ParseFunctionRepeat(Token *name, Token *open)
+bool SqlParser::ParseFunctionRepeat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9626,7 +9623,7 @@ bool SqlParser::ParseFunctionRepeat(Token *name, Token *open)
 	ParseExpression(num);
 
 	Token *end_num = GetLastToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// Convert to RPAD in Oracle
 	if(_target == SQL_ORACLE)
@@ -9647,7 +9644,7 @@ bool SqlParser::ParseFunctionRepeat(Token *name, Token *open)
 }
 
 // REPLACE in Oracle, SQL Server, DB2, MySQL, Sybase ASA
-bool SqlParser::ParseFunctionReplace(Token *name, Token *open)
+bool SqlParser::ParseFunctionReplace(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9680,7 +9677,7 @@ bool SqlParser::ParseFunctionReplace(Token *name, Token *open)
 		ParseExpression(replace);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Add third parameter in MySQL
 	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
@@ -9693,7 +9690,7 @@ bool SqlParser::ParseFunctionReplace(Token *name, Token *open)
 }
 
 // REPLICATE in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionReplicate(Token *name, Token *open)
+bool SqlParser::ParseFunctionReplicate(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9715,7 +9712,7 @@ bool SqlParser::ParseFunctionReplicate(Token *name, Token *open)
 	ParseExpression(num);
 
 	Token *end_num = GetLastToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// Convert to RPAD in Oracle
 	if(_target == SQL_ORACLE)
@@ -9732,7 +9729,7 @@ bool SqlParser::ParseFunctionReplicate(Token *name, Token *open)
 }
 
 // RESERVE_IDENTITY in Sybase ASE
-bool SqlParser::ParseFunctionReserveIdentity(Token *name, Token *open)
+bool SqlParser::ParseFunctionReserveIdentity(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9761,7 +9758,7 @@ bool SqlParser::ParseFunctionReserveIdentity(Token *name, Token *open)
 }
 
 // REVERSE in Oracle, SQL Server, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionReverse(Token *name, Token *open)
+bool SqlParser::ParseFunctionReverse(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9774,13 +9771,13 @@ bool SqlParser::ParseFunctionReverse(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // RIGHT in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionRight(Token *name, Token *open)
+bool SqlParser::ParseFunctionRight(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9805,7 +9802,7 @@ bool SqlParser::ParseFunctionRight(Token *name, Token *open)
 
 	// Character set is optional in DB2
 	if(comma2 != NULL)
-		Token *unit = GetNextToken();
+		/*Token *unit */ (void) GetNextToken();
 
 	Token *close = GetNextCharToken(')', L')');
 
@@ -9824,7 +9821,7 @@ bool SqlParser::ParseFunctionRight(Token *name, Token *open)
 }
 
 // ROUND in Oracle, SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionRound(Token *name, Token *open)
+bool SqlParser::ParseFunctionRound(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9849,13 +9846,13 @@ bool SqlParser::ParseFunctionRound(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 ROUND_TIMESTAMP
-bool SqlParser::ParseFunctionRoundTimestamp(Token *name, Token *open)
+bool SqlParser::ParseFunctionRoundTimestamp(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9880,7 +9877,7 @@ bool SqlParser::ParseFunctionRoundTimestamp(Token *name, Token *open)
 		ParseExpression(format);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to ROUND in Oracle
 	if(_target == SQL_ORACLE)
@@ -9890,7 +9887,7 @@ bool SqlParser::ParseFunctionRoundTimestamp(Token *name, Token *open)
 }
 
 // RPAD in Oracle, DB2, MySQL
-bool SqlParser::ParseFunctionRpad(Token *name, Token *open)
+bool SqlParser::ParseFunctionRpad(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -9923,7 +9920,7 @@ bool SqlParser::ParseFunctionRpad(Token *name, Token *open)
 		ParseExpression(pad);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Add third parameter in MySQL
 	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
@@ -9964,7 +9961,7 @@ bool SqlParser::ParseFunctionRtrim(Token *name, Token *open)
 		end_set = GetLastToken();
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRIM in MySQL
 	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
@@ -9984,12 +9981,12 @@ bool SqlParser::ParseFunctionRtrim(Token *name, Token *open)
 }
 
 // SCOPE_IDENTITY in SQL Server
-bool SqlParser::ParseFunctionScopeIdentity(Token *name, Token *open)
+bool SqlParser::ParseFunctionScopeIdentity(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_MYSQL)
 		Token::Change(name, "LAST_INSERT_ID", L"LAST_INSERT_ID", 14);
@@ -10051,7 +10048,7 @@ bool SqlParser::ParseFunctionSecond(Token *name, Token *open)
 }
 
 // SIGN in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionSign(Token *name, Token *open)
+bool SqlParser::ParseFunctionSign(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10064,13 +10061,13 @@ bool SqlParser::ParseFunctionSign(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // SIN in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionSin(Token *name, Token *open)
+bool SqlParser::ParseFunctionSin(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10083,7 +10080,7 @@ bool SqlParser::ParseFunctionSin(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -10118,7 +10115,7 @@ bool SqlParser::ParseFunctionSinh(Token *name, Token *open)
 }
 
 // DB2 SMALLINT
-bool SqlParser::ParseFunctionSmallint(Token *name, Token *open)
+bool SqlParser::ParseFunctionSmallint(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10142,7 +10139,7 @@ bool SqlParser::ParseFunctionSmallint(Token *name, Token *open)
 }
 
 // SOUNDEX in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionSoundex(Token *name, Token *open)
+bool SqlParser::ParseFunctionSoundex(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10155,7 +10152,7 @@ bool SqlParser::ParseFunctionSoundex(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -10174,7 +10171,7 @@ bool SqlParser::ParseFunctionSpace(Token *name, Token *open)
 	// Parse integer
 	ParseExpression(integer);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to RPAD in Oracle
 	if(_target == SQL_ORACLE)
@@ -10187,7 +10184,7 @@ bool SqlParser::ParseFunctionSpace(Token *name, Token *open)
 }
 
 // SPID_INSTANCE_ID in Sybase ASE
-bool SqlParser::ParseFunctionSpidInstanceId(Token *name, Token *open)
+bool SqlParser::ParseFunctionSpidInstanceId(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10261,7 +10258,7 @@ bool SqlParser::ParseFunctionSqlPercent(Token *name)
 }
 
 // SQRT in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionSqrt(Token *name, Token *open)
+bool SqlParser::ParseFunctionSqrt(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10274,13 +10271,13 @@ bool SqlParser::ParseFunctionSqrt(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // SQUARE in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionSquare(Token *name, Token *open)
+bool SqlParser::ParseFunctionSquare(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10306,7 +10303,7 @@ bool SqlParser::ParseFunctionSquare(Token *name, Token *open)
 }
 
 // STR in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionStr(Token *name, Token *open)
+bool SqlParser::ParseFunctionStr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10371,7 +10368,7 @@ bool SqlParser::ParseFunctionStr(Token *name, Token *open)
 }
 
 // STRING in Sybase ASA
-bool SqlParser::ParseFunctionString(Token *name, Token *open)
+bool SqlParser::ParseFunctionString(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10405,7 +10402,7 @@ bool SqlParser::ParseFunctionString(Token *name, Token *open)
 		ParseExpression(stringn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Remove name for Oracle
 	if(_target == SQL_ORACLE)
@@ -10460,7 +10457,7 @@ bool SqlParser::ParseFunctionStrip(Token *name, Token *open)
 		ParseExpression(character);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 	{
@@ -10500,7 +10497,7 @@ bool SqlParser::ParseFunctionStrip(Token *name, Token *open)
 }
 
 // STR_REPLACE in Sybase ASE
-bool SqlParser::ParseFunctionStrReplace(Token *name, Token *open)
+bool SqlParser::ParseFunctionStrReplace(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10557,7 +10554,7 @@ bool SqlParser::ParseFunctionStrReplace(Token *name, Token *open)
 }
 
 // STRTOBIN in Sybase ASE
-bool SqlParser::ParseFunctionStrtobin(Token *name, Token *open)
+bool SqlParser::ParseFunctionStrtobin(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10570,13 +10567,13 @@ bool SqlParser::ParseFunctionStrtobin(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // STUFF in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionStuff(Token *name, Token *open)
+bool SqlParser::ParseFunctionStuff(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10616,7 +10613,7 @@ bool SqlParser::ParseFunctionStuff(Token *name, Token *open)
 	// Parse replace
 	ParseExpression(replace);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// INSERT function in MySQL
 	if(_target == SQL_MYSQL)
@@ -10666,7 +10663,7 @@ bool SqlParser::ParseFunctionSubdate(Token *name, Token *open)
 }
 
 // SUBSTR in Oracle, DB2, Sybase ASA
-bool SqlParser::ParseFunctionSubstr(Token *name, Token *open)
+bool SqlParser::ParseFunctionSubstr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10697,7 +10694,7 @@ bool SqlParser::ParseFunctionSubstr(Token *name, Token *open)
 		ParseExpression(length);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to SUBSTRING in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -10707,7 +10704,7 @@ bool SqlParser::ParseFunctionSubstr(Token *name, Token *open)
 }
 
 // DB2, Oracle SUBSTR2
-bool SqlParser::ParseFunctionSubstr2(Token *name, Token *open)
+bool SqlParser::ParseFunctionSubstr2(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10744,13 +10741,13 @@ bool SqlParser::ParseFunctionSubstr2(Token *name, Token *open)
 		ParseExpression(length);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2, Oracle SUBSTRB
-bool SqlParser::ParseFunctionSubstrb(Token *name, Token *open)
+bool SqlParser::ParseFunctionSubstrb(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10787,13 +10784,13 @@ bool SqlParser::ParseFunctionSubstrb(Token *name, Token *open)
 		ParseExpression(length);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // SUBSTRING in SQL Server, DB2, Sybase ASE, Sybase ASA, Informix
-bool SqlParser::ParseFunctionSubstring(Token *name, Token *open)
+bool SqlParser::ParseFunctionSubstring(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10877,7 +10874,7 @@ bool SqlParser::ParseFunctionSubstring(Token *name, Token *open)
 			unit = GetNext();
 	}
 
-	Token *close = GetNext(')', L')');
+	/*Token *close */ (void) GetNext(')', L')');
 
 	// Convert to SUBSTR in Oracle
 	if(_target == SQL_ORACLE)
@@ -10973,7 +10970,7 @@ bool SqlParser::ParseFunctionSuserName(Token *name, Token *open)
 }
 
 // SWITCHOFFSET in SQL Server, Sybase ASA
-bool SqlParser::ParseFunctionSwitchoffset(Token *name, Token *open)
+bool SqlParser::ParseFunctionSwitchoffset(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -10993,7 +10990,7 @@ bool SqlParser::ParseFunctionSwitchoffset(Token *name, Token *open)
 	// Parse offset
 	ParseExpression(offset);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -11017,7 +11014,7 @@ bool SqlParser::ParseFunctionSysdatetimeoffset(Token *name, Token *open)
 }
 
 // SYS_GUID in Oracle returns GUID without -
-bool SqlParser::ParseFunctionSysGuid(Token *name, Token *open)
+bool SqlParser::ParseFunctionSysGuid(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11143,7 +11140,7 @@ bool SqlParser::ParseFunctionToday(Token *name)
 }
 
 // TAN in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionTan(Token *name, Token *open)
+bool SqlParser::ParseFunctionTan(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11156,7 +11153,7 @@ bool SqlParser::ParseFunctionTan(Token *name, Token *open)
 	// Parse num
 	ParseExpression(num);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -11188,7 +11185,7 @@ bool SqlParser::ParseFunctionTanh(Token *name, Token *open)
 }
 
 // TEXTPTR in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionTextptr(Token *name, Token *open)
+bool SqlParser::ParseFunctionTextptr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11207,7 +11204,7 @@ bool SqlParser::ParseFunctionTextptr(Token *name, Token *open)
 }
 
 // TEXTVALID in SQL Server, Sybase ASE
-bool SqlParser::ParseFunctionTextvalid(Token *name, Token *open)
+bool SqlParser::ParseFunctionTextvalid(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11236,7 +11233,7 @@ bool SqlParser::ParseFunctionTextvalid(Token *name, Token *open)
 }
 
 // DB2 TIME
-bool SqlParser::ParseFunctionTime(Token *name, Token *open)
+bool SqlParser::ParseFunctionTime(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11248,7 +11245,7 @@ bool SqlParser::ParseFunctionTime(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_TIMESTAMP in Oracle
 	if(_target == SQL_ORACLE)
@@ -11258,7 +11255,7 @@ bool SqlParser::ParseFunctionTime(Token *name, Token *open)
 }
 
 // DB2 TIMESTAMP
-bool SqlParser::ParseFunctionTimestamp(Token *name, Token *open)
+bool SqlParser::ParseFunctionTimestamp(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11293,7 +11290,7 @@ bool SqlParser::ParseFunctionTimestamp(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_TIMESTAMP in Oracle
 	if(_target == SQL_ORACLE)
@@ -11303,7 +11300,7 @@ bool SqlParser::ParseFunctionTimestamp(Token *name, Token *open)
 }
 
 // DB2 TIMESTAMPDIFF
-bool SqlParser::ParseFunctionTimestampdiff(Token *name, Token *open)
+bool SqlParser::ParseFunctionTimestampdiff(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11327,13 +11324,13 @@ bool SqlParser::ParseFunctionTimestampdiff(Token *name, Token *open)
 
 	ParseExpression(exp2);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 TIMESTAMP_FORMAT
-bool SqlParser::ParseFunctionTimestampFormat(Token *name, Token *open)
+bool SqlParser::ParseFunctionTimestampFormat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11358,7 +11355,7 @@ bool SqlParser::ParseFunctionTimestampFormat(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_TIMESTAMP in Oracle
 	if(_target == SQL_ORACLE)
@@ -11368,7 +11365,7 @@ bool SqlParser::ParseFunctionTimestampFormat(Token *name, Token *open)
 }
 
 // DB2 TIMESTAMP_ISO
-bool SqlParser::ParseFunctionTimestampIso(Token *name, Token *open)
+bool SqlParser::ParseFunctionTimestampIso(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11380,7 +11377,7 @@ bool SqlParser::ParseFunctionTimestampIso(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_TIMESTAMP in Oracle
 	if(_target == SQL_ORACLE)
@@ -11499,7 +11496,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 		if(Target(SQL_MYSQL) == true)
 		{
 			TokenStr out;
-			int i = 0;
+			size_t i = 0;
 
 			bool datetime = false;
 
@@ -11622,7 +11619,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 		if(_source == SQL_INFORMIX && Target(SQL_ORACLE, SQL_DB2) == true)
 		{
 			TokenStr out;
-			int i = 0;
+			size_t i = 0;
 
 			while(i < format->len)
 			{
@@ -11686,7 +11683,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 }
 
 // DB2, Oracle TO_CLOB
-bool SqlParser::ParseFunctionToClob(Token *name, Token *open)
+bool SqlParser::ParseFunctionToClob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11712,7 +11709,7 @@ bool SqlParser::ParseFunctionToClob(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 	{
@@ -11760,7 +11757,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 		ParseExpression(nls);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// CONVERT(DATETIME, exp, style) in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -11790,7 +11787,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 		if(Target(SQL_MYSQL) == true)
 		{
 			TokenStr out;
-			int i = 0;
+			size_t i = 0;
 
 			while(i < format->len)
 			{
@@ -11881,7 +11878,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 }
 
 // TODATETIMEOFFSET in SQL Server, Sybase ASA
-bool SqlParser::ParseFunctionTodatetimeoffset(Token *name, Token *open)
+bool SqlParser::ParseFunctionTodatetimeoffset(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11901,7 +11898,7 @@ bool SqlParser::ParseFunctionTodatetimeoffset(Token *name, Token *open)
 	// Parse timezone
 	ParseExpression(timezone);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to FROM_TZ in Oracle
 	if(_target == SQL_ORACLE)
@@ -11942,7 +11939,7 @@ bool SqlParser::ParseFunctionToday(Token *name, Token *open)
 }
 
 // TO_LOB in Oracle
-bool SqlParser::ParseFunctionToLob(Token *name, Token *open)
+bool SqlParser::ParseFunctionToLob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -11955,7 +11952,7 @@ bool SqlParser::ParseFunctionToLob(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;	
 }
@@ -11986,7 +11983,7 @@ bool SqlParser::ParseFunctionToNchar(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to CONVERT in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -12002,7 +11999,7 @@ bool SqlParser::ParseFunctionToNchar(Token *name, Token *open)
 }
 
 // DB2 TO_NCLOB
-bool SqlParser::ParseFunctionToNclob(Token *name, Token *open)
+bool SqlParser::ParseFunctionToNclob(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12030,7 +12027,7 @@ bool SqlParser::ParseFunctionToNclob(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CLOB in Oracle
 	if(_target == SQL_ORACLE)
@@ -12046,7 +12043,7 @@ bool SqlParser::ParseFunctionToNclob(Token *name, Token *open)
 }
 
 // DB2, Oracle TO_NUMBER
-bool SqlParser::ParseFunctionToNumber(Token *name, Token *open)
+bool SqlParser::ParseFunctionToNumber(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12074,13 +12071,13 @@ bool SqlParser::ParseFunctionToNumber(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2, Oracle TO_SINGLE_BYTE
-bool SqlParser::ParseFunctionToSingleByte(Token *name, Token *open)
+bool SqlParser::ParseFunctionToSingleByte(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12092,13 +12089,13 @@ bool SqlParser::ParseFunctionToSingleByte(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2, Oracle TO_TIMESTAMP
-bool SqlParser::ParseFunctionToTimestamp(Token *name, Token *open)
+bool SqlParser::ParseFunctionToTimestamp(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12123,7 +12120,7 @@ bool SqlParser::ParseFunctionToTimestamp(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -12159,7 +12156,7 @@ bool SqlParser::ParseFunctionToUnichar(Token *name, Token *open)
 }
 
 // TRANSLATE in Oracle, DB2
-bool SqlParser::ParseFunctionTranslate(Token *name, Token *open)
+bool SqlParser::ParseFunctionTranslate(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12189,13 +12186,13 @@ bool SqlParser::ParseFunctionTranslate(Token *name, Token *open)
 	// Parse from
 	ParseExpression(from);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // TRIM in Oracle, DB2, Sybase ASA
-bool SqlParser::ParseFunctionTrim(Token *name, Token *open)
+bool SqlParser::ParseFunctionTrim(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12384,7 +12381,7 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 }
 
 // TRUNCATE in DB2, Sybase ASA
-bool SqlParser::ParseFunctionTruncate(Token *name, Token *open)
+bool SqlParser::ParseFunctionTruncate(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12409,7 +12406,7 @@ bool SqlParser::ParseFunctionTruncate(Token *name, Token *open)
 		ParseExpression(unit);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRUNC in Oracle
 	if(_target == SQL_ORACLE)
@@ -12419,7 +12416,7 @@ bool SqlParser::ParseFunctionTruncate(Token *name, Token *open)
 }
 
 // TRUNCNUM in Sybase ASA
-bool SqlParser::ParseFunctionTruncnum(Token *name, Token *open)
+bool SqlParser::ParseFunctionTruncnum(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12439,7 +12436,7 @@ bool SqlParser::ParseFunctionTruncnum(Token *name, Token *open)
 	// Parse integer
 	ParseExpression(integer);
 	
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRUNC in Oracle
 	if(_target == SQL_ORACLE)
@@ -12449,7 +12446,7 @@ bool SqlParser::ParseFunctionTruncnum(Token *name, Token *open)
 }
 
 // DB2 TRUNC_TIMESTAMP
-bool SqlParser::ParseFunctionTruncTimestamp(Token *name, Token *open)
+bool SqlParser::ParseFunctionTruncTimestamp(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12472,7 +12469,7 @@ bool SqlParser::ParseFunctionTruncTimestamp(Token *name, Token *open)
 			return false;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 		Token::Change(name, "TRUNC", L"TRUNC", 5);
@@ -12515,7 +12512,7 @@ bool SqlParser::ParseFunctionTsequal(Token *name, Token *open)
 }
 
 // UCASE in DB2, Sybase ASA
-bool SqlParser::ParseFunctionUcase(Token *name, Token *open)
+bool SqlParser::ParseFunctionUcase(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12528,7 +12525,7 @@ bool SqlParser::ParseFunctionUcase(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to UPPER in Oracle, SQL Server
 	if(Target(SQL_ORACLE, SQL_SQL_SERVER) == true)
@@ -12538,7 +12535,7 @@ bool SqlParser::ParseFunctionUcase(Token *name, Token *open)
 }
 
 // UHIGHSURR in Sybase ASE
-bool SqlParser::ParseFunctionUhighsurr(Token *name, Token *open)
+bool SqlParser::ParseFunctionUhighsurr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12558,13 +12555,13 @@ bool SqlParser::ParseFunctionUhighsurr(Token *name, Token *open)
 	// Parse start
 	ParseExpression(start);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // ULOWSURR in Sybase ASE
-bool SqlParser::ParseFunctionUlowsurr(Token *name, Token *open)
+bool SqlParser::ParseFunctionUlowsurr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12584,13 +12581,13 @@ bool SqlParser::ParseFunctionUlowsurr(Token *name, Token *open)
 	// Parse start
 	ParseExpression(start);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // UNICODE in SQL Server, Sybase ASA
-bool SqlParser::ParseFunctionUnicode(Token *name, Token *open)
+bool SqlParser::ParseFunctionUnicode(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12603,13 +12600,13 @@ bool SqlParser::ParseFunctionUnicode(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // UNISTR in Oracle, Sybase ASA
-bool SqlParser::ParseFunctionUnistr(Token *name, Token *open)
+bool SqlParser::ParseFunctionUnistr(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12623,7 +12620,7 @@ bool SqlParser::ParseFunctionUnistr(Token *name, Token *open)
 	ParseExpression(string);
 
 	Token *end_string = GetLastToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to NCHAR in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -12640,7 +12637,7 @@ bool SqlParser::ParseFunctionUnistr(Token *name, Token *open)
 }
 
 // UPPER in Oracle, SQL Server, DB2, MySQL, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionUpper(Token *name, Token *open)
+bool SqlParser::ParseFunctionUpper(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12653,13 +12650,13 @@ bool SqlParser::ParseFunctionUpper(Token *name, Token *open)
 	// Parse string
 	ParseExpression(string);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // USCALAR in Sybase ASE
-bool SqlParser::ParseFunctionUscalar(Token *name, Token *open)
+bool SqlParser::ParseFunctionUscalar(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12669,7 +12666,7 @@ bool SqlParser::ParseFunctionUscalar(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to UNICODE in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -12708,7 +12705,7 @@ bool SqlParser::ParseFunctionUtf8(Token *name)
 		return false;
 
 	// String literal in MySQL
-	Token *string = GetNextToken();
+	/*Token *string */ (void) GetNextToken();
 
 	return true;
 }
@@ -12747,7 +12744,7 @@ bool SqlParser::ParseFunctionUserId(Token *name, Token *open)
 }
 
 // USERENV in Oracle
-bool SqlParser::ParseFunctionUserenv(Token *name, Token *open)
+bool SqlParser::ParseFunctionUserenv(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12757,7 +12754,7 @@ bool SqlParser::ParseFunctionUserenv(Token *name, Token *open)
 	if(parameter == NULL)
 		return false;
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -12780,7 +12777,7 @@ bool SqlParser::ParseFunctionUserName(Token *name, Token *open)
 		// Parse user_id
 		ParseExpression(user_id);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 	
 	// Convert to SYS_CONTEXT('USERENV', 'OS_USER') in Oracle
 	if(_target == SQL_ORACLE)
@@ -12796,7 +12793,7 @@ bool SqlParser::ParseFunctionUserName(Token *name, Token *open)
 }
 
 // DB2 VALUE
-bool SqlParser::ParseFunctionValue(Token *name, Token *open)
+bool SqlParser::ParseFunctionValue(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12826,7 +12823,7 @@ bool SqlParser::ParseFunctionValue(Token *name, Token *open)
 		ParseExpression(expn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 		Token::Change(name, "COALESCE", L"COALESCE", 8);
@@ -12835,7 +12832,7 @@ bool SqlParser::ParseFunctionValue(Token *name, Token *open)
 }
 
 // DB2 VARCHAR
-bool SqlParser::ParseFunctionVarchar(Token *name, Token *open)
+bool SqlParser::ParseFunctionVarchar(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12870,7 +12867,7 @@ bool SqlParser::ParseFunctionVarchar(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -12880,7 +12877,7 @@ bool SqlParser::ParseFunctionVarchar(Token *name, Token *open)
 }
 
 // DB2 VARCHAR_BIT_FORMAT
-bool SqlParser::ParseFunctionVarcharBitFormat(Token *name, Token *open)
+bool SqlParser::ParseFunctionVarcharBitFormat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12904,11 +12901,11 @@ bool SqlParser::ParseFunctionVarcharBitFormat(Token *name, Token *open)
 			return false;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to HEXTORAW in Oracle
-	{
 	if(_target == SQL_ORACLE)
+    {
 		Token::Change(name, "HEXTORAW", L"HEXTORAW", 8);
 
 		// Format is removed
@@ -12920,7 +12917,7 @@ bool SqlParser::ParseFunctionVarcharBitFormat(Token *name, Token *open)
 }
 
 // DB2 VARCHAR_FORMAT
-bool SqlParser::ParseFunctionVarcharFormat(Token *name, Token *open)
+bool SqlParser::ParseFunctionVarcharFormat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12943,7 +12940,7 @@ bool SqlParser::ParseFunctionVarcharFormat(Token *name, Token *open)
 			return false;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_CHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -12953,7 +12950,7 @@ bool SqlParser::ParseFunctionVarcharFormat(Token *name, Token *open)
 }
 
 // DB2 VARCHAR_FORMAT_BIT
-bool SqlParser::ParseFunctionVarcharFormatBit(Token *name, Token *open)
+bool SqlParser::ParseFunctionVarcharFormatBit(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -12977,7 +12974,7 @@ bool SqlParser::ParseFunctionVarcharFormatBit(Token *name, Token *open)
 			return false;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to RAWTOHEX in Oracle
 	{
@@ -12993,7 +12990,7 @@ bool SqlParser::ParseFunctionVarcharFormatBit(Token *name, Token *open)
 }
 
 // DB2 VARGRAPHIC
-bool SqlParser::ParseFunctionVargraphic(Token *name, Token *open)
+bool SqlParser::ParseFunctionVargraphic(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13018,7 +13015,7 @@ bool SqlParser::ParseFunctionVargraphic(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NCHAR in Oracle
 	if(_target == SQL_ORACLE)
@@ -13028,7 +13025,7 @@ bool SqlParser::ParseFunctionVargraphic(Token *name, Token *open)
 }
 
 // VSIZE in Oracle
-bool SqlParser::ParseFunctionVsize(Token *name, Token *open)
+bool SqlParser::ParseFunctionVsize(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13041,13 +13038,13 @@ bool SqlParser::ParseFunctionVsize(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', ')');
+	/*Token *close */ (void) GetNextCharToken(')', ')');
 
 	return true;
 }
 
 // DB2 WEEK
-bool SqlParser::ParseFunctionWeek(Token *name, Token *open)
+bool SqlParser::ParseFunctionWeek(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13059,7 +13056,7 @@ bool SqlParser::ParseFunctionWeek(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -13072,7 +13069,7 @@ bool SqlParser::ParseFunctionWeek(Token *name, Token *open)
 }
 
 // DB2 WEEK_ISO
-bool SqlParser::ParseFunctionWeekIso(Token *name, Token *open)
+bool SqlParser::ParseFunctionWeekIso(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13084,7 +13081,7 @@ bool SqlParser::ParseFunctionWeekIso(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TO_NUMBER(TO_CHAR()) in Oracle
 	if(_target == SQL_ORACLE)
@@ -13097,7 +13094,7 @@ bool SqlParser::ParseFunctionWeekIso(Token *name, Token *open)
 }
 
 // XMLAGG in Oracle
-bool SqlParser::ParseFunctionXmlagg(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlagg(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13110,13 +13107,13 @@ bool SqlParser::ParseFunctionXmlagg(Token *name, Token *open)
 	// Parse instance
 	ParseExpression(instance);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2, Oracle XMLATTRIBUTES
-bool SqlParser::ParseFunctionXmlattributes(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlattributes(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13148,13 +13145,13 @@ bool SqlParser::ParseFunctionXmlattributes(Token *name, Token *open)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLCAST in Oracle
-bool SqlParser::ParseFunctionXmlcast(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlcast(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13169,14 +13166,14 @@ bool SqlParser::ParseFunctionXmlcast(Token *name, Token *open)
 	if(as == NULL)
 		return false;
 
-	Token *datatype = GetNextToken();
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *datatype */ (void) GetNextToken();
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLCDATA in Oracle
-bool SqlParser::ParseFunctionXmlcdata(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlcdata(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13189,13 +13186,13 @@ bool SqlParser::ParseFunctionXmlcdata(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLCOMMENT in Oracle, DB2
-bool SqlParser::ParseFunctionXmlcomment(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlcomment(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13207,13 +13204,13 @@ bool SqlParser::ParseFunctionXmlcomment(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLCONCAT in Oracle, DB2, Sybase ASA
-bool SqlParser::ParseFunctionXmlconcat(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlconcat(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13243,13 +13240,13 @@ bool SqlParser::ParseFunctionXmlconcat(Token *name, Token *open)
 		ParseExpression(expn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLDIFF in Oracle
-bool SqlParser::ParseFunctionXmldiff(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmldiff(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13293,13 +13290,13 @@ bool SqlParser::ParseFunctionXmldiff(Token *name, Token *open)
 		ParseExpression(string);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 XMLDOCUMENT
-bool SqlParser::ParseFunctionXmldocument(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmldocument(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13311,13 +13308,13 @@ bool SqlParser::ParseFunctionXmldocument(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLELEMENT in Oracle, DB2, Sybase ASA
-bool SqlParser::ParseFunctionXmlelement(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlelement(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13349,7 +13346,7 @@ bool SqlParser::ParseFunctionXmlelement(Token *name, Token *open)
 		ParseExpression(expn);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -13379,9 +13376,9 @@ bool SqlParser::ParseFunctionXmlextract(Token *name, Token *open)
 
 	// Returns is optional
 	if(returns != NULL)
-		Token *datatype = GetNextToken();
+		/*Token *datatype */ (void) GetNextToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to EXTRACT in Oracle
 	if(_target == SQL_ORACLE)
@@ -13397,7 +13394,7 @@ bool SqlParser::ParseFunctionXmlextract(Token *name, Token *open)
 }
 
 // XMLFOREST in Oracle, DB2, Sybase ASA
-bool SqlParser::ParseFunctionXmlforest(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlforest(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13437,16 +13434,16 @@ bool SqlParser::ParseFunctionXmlforest(Token *name, Token *open)
 
 		// Alias is optional
 		if(asn != NULL)
-			Token *aliasn = GetNextToken();
+			/*Token *aliasn */ (void) GetNextToken();
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLGEN in Sybase ASA
-bool SqlParser::ParseFunctionXmlgen(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlgen(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13474,7 +13471,7 @@ bool SqlParser::ParseFunctionXmlgen(Token *name, Token *open)
 
 		// AS is optional
 		if(as != NULL)
-			Token *aliasn = GetNextToken();
+			/*Token *aliasn */ (void) GetNextToken();
 
 		Token *comma = GetNextCharToken(',', L',');
 
@@ -13482,13 +13479,13 @@ bool SqlParser::ParseFunctionXmlgen(Token *name, Token *open)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLISVALID in Oracle
-bool SqlParser::ParseFunctionXmlisvalid(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlisvalid(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13526,13 +13523,13 @@ bool SqlParser::ParseFunctionXmlisvalid(Token *name, Token *open)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2, Oracle XMLNAMESPACES
-bool SqlParser::ParseFunctionXmlnamespaces(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlnamespaces(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13578,19 +13575,19 @@ bool SqlParser::ParseFunctionXmlnamespaces(Token *name, Token *open)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLPARSE in Oracle, DB2, Sybase ASE
-bool SqlParser::ParseFunctionXmlparse(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlparse(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
 	// DOCUMENT is mandatory in Oracle, DB2
-	Token *document = GetNextWordToken("DOCUMENT", L"DOCUMENT", 8);
+	/*Token *document */ (void) GetNextWordToken("DOCUMENT", L"DOCUMENT", 8);
 
 	Token *exp = GetNextToken();
 
@@ -13600,13 +13597,13 @@ bool SqlParser::ParseFunctionXmlparse(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 	
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLPATCH in Oracle
-bool SqlParser::ParseFunctionXmlpatch(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlpatch(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13626,13 +13623,13 @@ bool SqlParser::ParseFunctionXmlpatch(Token *name, Token *open)
 	// Parse second document
 	ParseExpression(doc2);
 	
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLPI in Oracle, DB2
-bool SqlParser::ParseFunctionXmlpi(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlpi(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13658,13 +13655,13 @@ bool SqlParser::ParseFunctionXmlpi(Token *name, Token *open)
 		ParseExpression(exp);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2, Oracle XMLQUERY
-bool SqlParser::ParseFunctionXmlquery(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlquery(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13742,11 +13739,11 @@ bool SqlParser::ParseFunctionXmlquery(Token *name, Token *open)
 	Token *empty = GetNextWordToken("EMPTY", L"EMPTY", 5);
 	if(empty != NULL)
 	{
-		Token *on = GetNextWordToken("ON", L"ON", 2);
-		Token *empty2 = GetNextWordToken("EMPTY", L"EMPTY", 5);
+		/*Token *on */ (void) GetNextWordToken("ON", L"ON", 2);
+		/*Token *empty2 */ (void) GetNextWordToken("EMPTY", L"EMPTY", 5);
 	}
 	
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 	{
@@ -13761,7 +13758,7 @@ bool SqlParser::ParseFunctionXmlquery(Token *name, Token *open)
 }
 
 // XMLREPRESENTATION in Sybase ASE
-bool SqlParser::ParseFunctionXmlrepresentation(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlrepresentation(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13774,13 +13771,13 @@ bool SqlParser::ParseFunctionXmlrepresentation(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLROOT in Oracle
-bool SqlParser::ParseFunctionXmlroot(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlroot(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13819,13 +13816,13 @@ bool SqlParser::ParseFunctionXmlroot(Token *name, Token *open)
 		ParseExpression(exp2);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 XMLROW
-bool SqlParser::ParseFunctionXmlrow(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlrow(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13842,7 +13839,7 @@ bool SqlParser::ParseFunctionXmlrow(Token *name, Token *open)
 		// As is optional
 		Token *as = GetNextWordToken("AS", L"AS", 2);
 		if(as != NULL)
-			Token *identifier = GetNextToken();
+			/*Token *identifier */ (void) GetNextToken();
 
 		Token *comma = GetNextCharToken(',', L',');
 
@@ -13855,20 +13852,20 @@ bool SqlParser::ParseFunctionXmlrow(Token *name, Token *open)
 	if(option != NULL)
 	{
 		Token *as = GetNextWordToken("AS", L"AS", 2);
-		Token *row = GetNextWordToken("ROW", L"ROW", 3);
+		/*Token *row */ (void) GetNextWordToken("ROW", L"ROW", 3);
 		if(as != NULL)
-			Token *attributes = GetNextWordToken("ATTRIBUTES", L"ATTRIBUTES", 10);
+			/*Token *attributes */ (void) GetNextWordToken("ATTRIBUTES", L"ATTRIBUTES", 10);
 		else
-			Token *row_name = GetNextToken();
+			/*Token *row_name */ (void) GetNextToken();
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLSEQUENCE in Oracle
-bool SqlParser::ParseFunctionXmlsequence(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlsequence(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13893,19 +13890,19 @@ bool SqlParser::ParseFunctionXmlsequence(Token *name, Token *open)
 		ParseExpression(fmt);
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLSERIALIZE in Oracle, DB2
-bool SqlParser::ParseFunctionXmlserialize(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlserialize(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
 	// CONTENT is optional in DB2
-	Token *content = GetNextWordToken("CONTENT", L"CONTENT", 7);
+	/*Token *content */ (void) GetNextWordToken("CONTENT", L"CONTENT", 7);
 
 	Token *exp = GetNextToken();
 
@@ -13916,20 +13913,20 @@ bool SqlParser::ParseFunctionXmlserialize(Token *name, Token *open)
 	ParseExpression(exp);
 
 	// AS must be specified in DB2, but optional in Oracle
-	Token *as = GetNextWordToken("AS", L"AS", 2);
+	/*Token *as */ (void) GetNextWordToken("AS", L"AS", 2);
 
 	Token *datatype = GetNextToken();
 
 	// Parse datatype
 	ParseDataType(datatype, SQL_SCOPE_XMLSERIALIZE_FUNC);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 XMLTEXT
-bool SqlParser::ParseFunctionXmltext(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmltext(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13941,13 +13938,13 @@ bool SqlParser::ParseFunctionXmltext(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // XMLTRANSFORM in Oracle
-bool SqlParser::ParseFunctionXmltransform(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmltransform(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -13967,18 +13964,18 @@ bool SqlParser::ParseFunctionXmltransform(Token *name, Token *open)
 	// Parse expression
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 XMLVALIDATE
-bool SqlParser::ParseFunctionXmlvalidate(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlvalidate(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
 
-	Token *document = GetNextWordToken("DOCUMENT", L"DOCUMENT", 8);
+	/*Token *document */ (void) GetNextWordToken("DOCUMENT", L"DOCUMENT", 8);
 
 	Token *exp = GetNextToken();
 
@@ -13991,36 +13988,36 @@ bool SqlParser::ParseFunctionXmlvalidate(Token *name, Token *open)
 	Token *according = GetNextWordToken("ACCORDING", L"ACCORDING", 9);
 	if(according != NULL)
 	{
-		Token *to = GetNextWordToken("TO", L"TO", 2);
-		Token *xmlschema = GetNextWordToken("XMLSCHEMA", L"XMLSCHEMA", 9);
+		/*Token *to */ (void) GetNextWordToken("TO", L"TO", 2);
+		/*Token *xmlschema */ (void) GetNextWordToken("XMLSCHEMA", L"XMLSCHEMA", 9);
 
 		Token *id = GetNextWordToken("ID", L"ID", 2);
 		Token *uri = GetNextWordToken("URI", L"URI", 3);
 		Token *no = GetNextWordToken("NO", L"NO", 2);
 		if(id != NULL)
-			Token *schema = GetNextToken();
+			/*Token *schema */ (void) GetNextToken();
 		else
 		if(uri != NULL)
 		{
-			Token *uri1 = GetNextToken();
-			Token *uri2 = GetNextToken();
+			/*Token *uri1 */ (void) GetNextToken();
+			/*Token *uri2 */ (void) GetNextToken();
 		}
 		else
 		if(no != NULL)
 		{
-			Token *nmespace = GetNextWordToken("NAMESPACE", L"NAMESPACE", 9);
-			Token *uri2 = GetNextToken();
+			/*Token *namespace_ */ (void) GetNextWordToken("NAMESPACE", L"NAMESPACE", 9);
+			/*Token *uri2 */ (void) GetNextToken();
 		}
 
-		Token *nmespace2 = GetNextWordToken("NAMESPACE", L"NAMESPACE", 9);
+		Token *namespace2 = GetNextWordToken("NAMESPACE", L"NAMESPACE", 9);
 		Token *no2 = GetNextWordToken("NO", L"NO", 2);
-		if(nmespace2 != NULL)
-			Token *uri3 = GetNextToken();
+		if(namespace2 != NULL)
+			/*Token *uri3 */ (void) GetNextToken();
 		else
 		if(no2 != NULL)
-			Token *nmespace3 = GetNextWordToken("NAMESPACE", L"NAMESPACE", 9);
+			/*Token *namespace3 */ (void) GetNextWordToken("NAMESPACE", L"NAMESPACE", 9);
 
-		Token *element = GetNextWordToken("ELEMENT", L"ELEMENT", 7);
+		/*Token *element */ (void) GetNextWordToken("ELEMENT", L"ELEMENT", 7);
 
 		Token *element_name = GetNextToken();
 
@@ -14028,7 +14025,7 @@ bool SqlParser::ParseFunctionXmlvalidate(Token *name, Token *open)
 			return false;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to XMLISVALID
 	if(_target == SQL_ORACLE)
@@ -14038,7 +14035,7 @@ bool SqlParser::ParseFunctionXmlvalidate(Token *name, Token *open)
 }
 
 // DB2 XMLXSROBJECTID
-bool SqlParser::ParseFunctionXmlxsrobjectid(Token *name, Token *open)
+bool SqlParser::ParseFunctionXmlxsrobjectid(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -14050,13 +14047,13 @@ bool SqlParser::ParseFunctionXmlxsrobjectid(Token *name, Token *open)
 
 	ParseExpression(exp);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
 
 // DB2 XSLTRANSFORM
-bool SqlParser::ParseFunctionXsltransform(Token *name, Token *open)
+bool SqlParser::ParseFunctionXsltransform(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -14106,7 +14103,7 @@ bool SqlParser::ParseFunctionXsltransform(Token *name, Token *open)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 	{
@@ -14131,7 +14128,7 @@ bool SqlParser::ParseFunctionYear(Token *name, Token *open)
 	// Parse date
 	ParseExpression(date);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to EXTRACT in Oracle
 	if(_target == SQL_ORACLE)
@@ -14151,7 +14148,7 @@ bool SqlParser::ParseFunctionYear(Token *name, Token *open)
 }
 
 // Teradata ZEROIFNULL function
-bool SqlParser::ParseFunctionZeroifnull(Token *name, Token *open)
+bool SqlParser::ParseFunctionZeroifnull(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;
@@ -14165,7 +14162,7 @@ bool SqlParser::ParseFunctionZeroifnull(Token *name, Token *open)
 
 	Token *exp_end = GetLastToken();
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// NVL(exp, 0) in Oracle
 	if(_target == SQL_ORACLE)

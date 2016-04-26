@@ -92,9 +92,7 @@ bool SqlParser::ParseProcedureSpAddType(Token *execute, Token *sp_addtype)
 
 		// NOT NULL
 		if(next->Compare("NOT", L"NOT", 3) == true)
-		{
-			Token *null = GetNextWordToken("NULL", L"NULL", 4);
-		}
+			/*Token *null */ (void) GetNextWordToken("NULL", L"NULL", 4);
 
 		Token *att_close = GetNextSpecialCharToken(att_open, "'\"", L"'\"", 2);
 

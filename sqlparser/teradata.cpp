@@ -170,7 +170,7 @@ bool SqlParser::ParseTeradataHelpStatistics(Token *help, Token *statistics)
 		return false;
 
 	// Table name
-	Token *table_name = GetNextIdentToken(SQL_IDENT_OBJECT);
+	/*Token *table_name */ (void) GetNextIdentToken(SQL_IDENT_OBJECT);
 
 	// Comment for other databases
 	if(_target != SQL_TERADATA)

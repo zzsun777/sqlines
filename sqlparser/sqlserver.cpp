@@ -37,7 +37,7 @@ void SqlParser::SqlServerConvertRowLevelTrigger(Token *table, Token *when, Token
 		decl_end = decl_end->next;
 	
 	int num = 0;
-	int old_prefix_len = 4;
+	size_t old_prefix_len = 4;
 
 	// Skip old. in column name references (old already prefixed with @ in target)
 	if(_spl_old_correlation_name != NULL)
@@ -247,7 +247,7 @@ bool SqlParser::ParseSqlServerSetOptions(Token *set)
 	// SET ANSI_NULLS ON | OFF
 	if(option->Compare("ANSI_NULLS", L"ANSI_NULLS", 10) == true)
 	{
-		Token *value = GetNextToken();
+		/*Token *value */ (void) GetNextToken();
 
 		if(_target != SQL_SQL_SERVER)
 			comment = true;
@@ -258,7 +258,7 @@ bool SqlParser::ParseSqlServerSetOptions(Token *set)
 	// SET ANSI_PADDING ON | OFF
 	if(option->Compare("ANSI_PADDING", L"ANSI_PADDING", 12) == true)
 	{
-		Token *value = GetNextToken();
+		/*Token *value */ (void) GetNextToken();
 
 		if(_target != SQL_SQL_SERVER)
 			comment = true;
@@ -269,7 +269,7 @@ bool SqlParser::ParseSqlServerSetOptions(Token *set)
 	// SET NOCOUNT ON | OFF
 	if(option->Compare("NOCOUNT", L"NOCOUNT", 7) == true)
 	{
-		Token *value = GetNextToken();
+		/*Token *value */ (void) GetNextToken();
 
 		if(_target != SQL_SQL_SERVER)
 			remove = true;
@@ -280,7 +280,7 @@ bool SqlParser::ParseSqlServerSetOptions(Token *set)
 	// SET QUOTED_IDENTIFIER ON | OFF
 	if(option->Compare("QUOTED_IDENTIFIER", L"QUOTED_IDENTIFIER", 17) == true)
 	{
-		Token *value = GetNextToken();
+		/*Token *value */ (void) GetNextToken();
 
 		if(_target != SQL_SQL_SERVER)
 			comment = true;
@@ -333,7 +333,7 @@ bool SqlParser::ParseSqlServerIndexOptions(Token *token)
 			break;
 
 		// = between option name and value
-		Token *equal = GetNext('=', L'=');
+		/*Token *equal */ (void) GetNext('=', L'=');
 
 		Token *value = NULL;
 

@@ -89,7 +89,7 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 	if(_source == SQL_POSTGRESQL)
 	{
 		TokenStr ident;
-		int len = 0;
+		size_t len = 0;
 
 		// Get number of parts in quailified identifier
 		int parts = GetIdentPartsCount(token);
@@ -125,7 +125,7 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 			*ident = '[';
 
 			// Copy the value within quotes
-			int i = 1;
+			size_t i = 1;
 			for(i = 1; i < token->len - 1; i++)
 				ident[i] = cur[i];
 
@@ -144,10 +144,10 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 		{
 			char *ident = new char[token->len + 1];
 
-			int i = 0;
+			size_t i = 0;
 
 			// Copy the value within quotes
-			for(int k = 1; k < token->len - 1; k++)
+			for(size_t k = 1; k < token->len - 1; k++)
 			{
 				if(cur[k] != '[' && cur[k] != ']' && cur[k] != '`')
 				{
@@ -176,7 +176,7 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 			char close = (*cur == '[') ? ']' : *cur;
 
 			// Copy the value within quotes
-			int i = 1;
+			size_t i = 1;
 			for(i = 1; i < token->len - 1; i++)
 			{
 				// Open or close quote is faced inside, can be qualified identifier
@@ -197,7 +197,7 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 }
 
 // Convert table, view, procedure, function etc. name
-void SqlParser::ConvertObjectIdentifier(Token *token, int scope)
+void SqlParser::ConvertObjectIdentifier(Token *token, int /*scope*/)
 {
 	if(token == NULL)
 		return;
@@ -215,7 +215,7 @@ void SqlParser::ConvertObjectIdentifier(Token *token, int scope)
 		return;
 
 	TokenStr ident;
-	int len = 0;
+	size_t len = 0;
 
 	// Package function or procedure, add a prefix
 	if(_spl_package != NULL && _target != SQL_ORACLE)
@@ -236,13 +236,13 @@ void SqlParser::ConvertObjectIdentifier(Token *token, int scope)
 }
 
 // Convert column name
-void SqlParser::ConvertColumnIdentifier(Token *token, int scope)
+void SqlParser::ConvertColumnIdentifier(Token *token, int /*scope*/)
 {
 	if(token == NULL)
 		return;
 
 	TokenStr ident;
-	int len = 0;
+	size_t len = 0;
 
 	// Get the number of parts in quailified identifier
 	int parts = GetIdentPartsCount(token);
@@ -365,7 +365,6 @@ bool SqlParser::ConvertImplicitForRecordVariable(Token *token)
 	if(i != NULL && i->value != NULL && i->value2 != NULL)
 	{
 		Token *rec = (Token*)i->value;
-		Token *field = (Token*)i->value2;
 
 		// Make sure name is not qualified
 		if(Token::Compare(token, rec, rec->len) == false)
@@ -440,7 +439,7 @@ bool SqlParser::ConvertTriggerNewOldColumn(Token *token)
 		{
 			TokenStr ident("@", L"@", 1);
 
-			int old_len = _spl_old_correlation_name->len;
+			size_t old_len = _spl_old_correlation_name->len;
 
 			// Append OLD name _ and column name 
 			ident.Append(token, 0, old_len);
@@ -688,7 +687,7 @@ bool SqlParser::ConvertTsqlVariable(Token *token)
 	*ident = 'v';
 
 	// Copy content except @
-	for(int i = 1; i < token->len; i++)
+	for(size_t i = 1; i < token->len; i++)
 		ident[i] = cur[i];
 
 	ident[token->len] = 0;
@@ -716,11 +715,11 @@ bool SqlParser::ConvertToTsqlVariable(Token *name)
 
 	*ident = '@';
 
-	int len = name->len + 1;
-	int pos = 1;
+	size_t len = name->len + 1;
+	size_t pos = 1;
 
 	// Copy content after @
-	for(int i = 0; i < name->len; i++)
+	for(size_t i = 0; i < name->len; i++)
 	{
 		// Check for a special character to be replaced by @ at first position rather than appended
 		if(i == 0 && cur[i] == '#')
@@ -746,7 +745,7 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 	if(token == NULL)
 		return false;
 
-	int len = token->len;
+	size_t len = token->len;
 
 	// .nextval reference
 	if(len > 8 && token->Compare(".nextval", L".nextval", len - 8, 8) == true)
@@ -866,7 +865,7 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 			{
 				// If start is specified, increment is mandatory
 				Token *start = GetNextToken();
-				Token *comma = GetNextCharToken(',', L',');
+				/*Token *comma */ (void) GetNextCharToken(',', L',');
 				Token *inc = GetNextToken();
 				Token *close = GetNextCharToken(')', L')');
 
@@ -968,7 +967,7 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 		else
 		if(cns->Compare("INLINE", L"INLINE", 6) == true)
 		{
-			Token *length = GetNextWordToken("LENGTH", L"LENGTH", 6);
+			/*Token *length */ (void) GetNextWordToken("LENGTH", L"LENGTH", 6);
 			Token *size = GetNextNumberToken();
 
 			// Remove for other databases
@@ -999,7 +998,7 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 			{			
 				Token *exp = GetNextToken();
 				ParseExpression(exp);
-				Token *close = GetNext(')', L')');
+				/*Token *close */ (void) GetNext(')', L')');
 
 				// Compute columns in SQL Server does not include data type and NULL/NOT NULL
 				if(_target == SQL_SQL_SERVER)
@@ -1219,8 +1218,8 @@ bool SqlParser::ParseDefaultExpression(Token *type, Token *type_end, Token *toke
 		Token *autoincrement = GetNext("AUTOINCREMENT", L"AUTOINCREMENT", 13);
 		if(autoincrement != NULL)
 		{
-			Token *open = GetNext('(', L'(');
-			Token *partition_size = GetNextToken();
+			/*Token *open */ (void) GetNext('(', L'(');
+			/*Token *partition_size */ (void) GetNextToken();
 			Token *close = GetNext(')', L')');
 
 			if(_target == SQL_SQL_SERVER)
@@ -1362,7 +1361,7 @@ bool SqlParser::ParseStandaloneColumnConstraints(Token *alter, Token *table_name
 		// Check for constraint name
 		if(cns->Compare("CONSTRAINT", L"CONSTRAINT", 10) == true)
 		{
-			Token *key = GetNextIdentToken();
+			/*Token *key */ (void) GetNextIdentToken();
 
 			// Now get constraint type keyword
 			cns = GetNextToken();
@@ -1460,7 +1459,7 @@ bool SqlParser::ParseInlineColumnConstraint(Token *type, Token *type_end, Token 
 }
 
 // Parse PRIMARY KEY, UNIQUE constraint clause, and INDEX/KEY in MySQL 
-bool SqlParser::ParseKeyConstraint(Token *alter, Token *table_name, Token *cns, ListW &pkcols, 
+bool SqlParser::ParseKeyConstraint(Token * /*alter*/, Token *table_name, Token *cns, ListW &pkcols, 
 									bool inline_cns, ListWM *inline_indexes)
 {
 	if(cns == NULL)
@@ -1478,7 +1477,7 @@ bool SqlParser::ParseKeyConstraint(Token *alter, Token *table_name, Token *cns, 
 	// PRIMARY KEY
 	if(cns->Compare("PRIMARY", L"PRIMARY", 7) == true)
 	{
-		Token *key = GetNextWordToken("KEY", L"KEY", 3);
+		/*Token *key */ (void) GetNextWordToken("KEY", L"KEY", 3);
 		primary = true;
 	}
 	else
@@ -1745,7 +1744,7 @@ bool SqlParser::ParseForeignKey(Token *foreign)
 	if(foreign == NULL || foreign->Compare("FOREIGN", L"FOREIGN", 7) == false)
 		return false;
 
-	Token *key = GetNextWordToken("KEY", L"KEY", 3);
+	/*Token *key */ (void) GetNextWordToken("KEY", L"KEY", 3);
 	Token *open = GetNextCharToken('(', L'(');
 
 	// Get foreign key columns
@@ -1766,7 +1765,7 @@ bool SqlParser::ParseForeignKey(Token *foreign)
 				break;
 		}
 
-		Token *close = GetNext(')', L')');
+		/*Token *close */ (void) GetNext(')', L')');
 	}
 
 	Token *references = GetNextWordToken("REFERENCES", L"REFERENCES", 10);
@@ -1794,7 +1793,7 @@ bool SqlParser::ParseForeignKey(Token *foreign)
 					break;
 			}
 
-			Token *close = GetNext(')', L')');
+			/*Token *close */ (void) GetNext(')', L')');
 		}
 	}
 
@@ -1842,7 +1841,7 @@ bool SqlParser::ParseForeignKey(Token *foreign)
 			else
 			// SET NULL
 			if(what->Compare("SET", L"SET", 3) == true)
-				Token *null = GetNextToken();
+				/*Token *null */ (void) GetNextToken();
 
 			continue;
 		}
@@ -1863,12 +1862,12 @@ bool SqlParser::ParseCheckConstraint(Token *check)
 	if(check == NULL || check->Compare("CHECK", L"CHECK", 5) == false)
 		return false;
 
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	// CHECK expression
 	ParseBooleanExpression(SQL_BOOL_CHECK);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close*/ (void) GetNextCharToken(')', L')');
 
 	return true;
 }
@@ -1966,7 +1965,7 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 		}
 
 		// Next should be )
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close*/ (void) GetNextCharToken(')', L')');
 
 		exists = true;
 	}
@@ -2252,7 +2251,7 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 	{
 		ParseBooleanExpression(scope, stmt_start, conditions_count, rowlimit);
 
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close*/ (void) GetNextCharToken(')', L')');
 	}
 	else
 	// IS NULL or IS NOT NULL
@@ -2312,7 +2311,7 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 			if(Token::Compare(next, "SELECT", L"SELECT", 6) == true)
 				ParseSelectStatement(next, 0, SQL_SEL_EXISTS_PREDICATE, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
-			Token *close = GetNextCharToken(')', L')');
+			/*Token *close*/ (void) GetNextCharToken(')', L')');
 		}
 
 		unary = true;
@@ -2325,9 +2324,9 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 		// Optionally enclosed in parentheses () 
 		Token *open = GetNextCharToken('(', L'(');
 
-		Token *pattern = GetNextToken();
+		/*Token *pattern */ (void) GetNextToken();
 
-		Token *close = GetNextCharToken(open, ')', L')');
+		/*Token *close*/ (void) GetNextCharToken(open, ')', L')');
 
 		unary = true;
 		count++;
@@ -2432,7 +2431,7 @@ bool SqlParser::ParseInPredicate(Token *in)
 	if(in == NULL)
 		return false;
 
-	Token *open = GetNextCharToken('(', '(');
+	/*Token *open */ (void) GetNextCharToken('(', '(');
 
 	// SELECT statement or list of expressions can be specified
 	Token *select = GetNextSelectStartKeyword();
@@ -2496,7 +2495,7 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 			{
 				ParseBlock(SQL_BLOCK_BEGIN, true, scope, result_sets);
 
-				Token *end = GetNext("END", L"END", 3);
+				/*Token *end */ (void) GetNext("END", L"END", 3);
 
 				continue;
 			}
@@ -2784,7 +2783,7 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 	if(first == NULL)
 		return false;
 	
-	Token *first_end = GetLastToken();
+	/*Token *first_end */ (void) GetLastToken();
 
 	Token *plus = GetNextPlusMinusAsOperatorToken('+', L'+');
 
@@ -2871,7 +2870,7 @@ bool SqlParser::ParseDivisionOperator(Token *first)
 	if(first == NULL)
 		return false;
 	
-	Token *first_end = GetLastToken();
+	/*Token *first_end */ (void) GetLastToken();
 
 	Token *div = GetNextCharToken('/', L'/');
 
@@ -3358,7 +3357,7 @@ bool SqlParser::ParseAnalyticFunctionOverClause(Token *over)
 
 	// Optional PARTITION clause
 	Token *partition = GetNextWordToken("PARTITION", L"PARTITION", 9);
-	Token *by = GetNextWordToken(partition, "BY", L"BY", 2);
+	/*Token *by */ (void) GetNextWordToken(partition, "BY", L"BY", 2);
 
 	if(partition != NULL)
 	{
@@ -3380,7 +3379,7 @@ bool SqlParser::ParseAnalyticFunctionOverClause(Token *over)
 	// ORDER BY clause
 	ParseSelectOrderBy(NULL);
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close*/ (void) GetNextCharToken(')', L')');
 
 	return true;
 }

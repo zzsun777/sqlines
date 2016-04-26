@@ -200,7 +200,7 @@ bool SqlParser::ParseSubSelect(Token *open, int select_scope)
 		if(exists == true)
 		{
 			// Nested )
-			Token *close = GetNextCharToken(')', L')');
+			/*Token *close */ (void) GetNextCharToken(')', L')');
 
 			// (SELECT ...) EXCEPT SELECT is possible
 			ParseSelectSetOperator(0, 0);
@@ -262,7 +262,7 @@ bool SqlParser::ParseSelectCteClause(Token *with)
 		if(table == NULL)
 			break;
 
-		Token *open = GetNextCharToken('(', L'(');
+		/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 		// Comma-separated list of colums
 		while(true)
@@ -278,12 +278,12 @@ bool SqlParser::ParseSelectCteClause(Token *with)
 				break;
 		}
 
-		Token *close = GetNextCharToken(')', L')');
+		/*Token *close */ (void) GetNextCharToken(')', L')');
 
 		// AS keyword
-		Token *as = GetNextWordToken("AS", L"AS", 2);
+		/*Token *as */ (void) GetNextWordToken("AS", L"AS", 2);
 
-		Token *open2 = GetNextCharToken('(', L'(');
+		/*Token *open2 */ (void) GetNextCharToken('(', L'(');
 
 		// SELECT statement
 		Token *select = GetNextSelectStartKeyword();
@@ -293,7 +293,7 @@ bool SqlParser::ParseSelectCteClause(Token *with)
 
 		ParseSelectStatement(select, 0, SQL_SEL_WITH_CTE, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
-		Token *close2 = GetNextCharToken(')', L')');
+		/*Token *close2 */ (void) GetNextCharToken(')', L')');
 
 		Token *comma = GetNextCharToken(',', L',');
 
@@ -388,7 +388,7 @@ bool SqlParser::ParseSelectList(Token *select, int select_scope, bool *select_in
 				// Parse assignment expression
 				ParseExpression(second);
 
-				Token *close = GetNextCharToken(open, ')', L')');
+				/*Token *close */ (void) GetNextCharToken(open, ')', L')');
 			}
 
 			tsql_assign_exists = true;
@@ -767,12 +767,12 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 
 			if(table_func != NULL)
 			{
-				Token *open = GetNextCharToken('(', L'(');
+				/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 				// Parse the table function
 				ParseExpression(GetNextToken());
 
-				Token *close = GetNextCharToken(')', L')');
+				/*Token *close */ (void) GetNextCharToken(')', L')');
 			}
 			else
 				// Table name
@@ -881,7 +881,7 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 }
 
 // Join clause in FROM clause of SELECT statement 
-bool SqlParser::ParseJoinClause(Token *first, Token *second)
+bool SqlParser::ParseJoinClause(Token * /*first*/, Token *second)
 {
 	if(second == NULL)
 		return false;
@@ -963,7 +963,7 @@ bool SqlParser::ParseJoinClause(Token *first, Token *second)
 		if(select != NULL)
 			ParseSelectStatement(select, 0, SQL_SEL_JOIN, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 
-		Token *close = GetNextCharToken(')', ')');
+		/*Token *close */ (void) GetNextCharToken(')', ')');
 	}
 
 	Token *fourth = NULL;
@@ -1143,7 +1143,7 @@ bool SqlParser::ParseSelectOrderBy(Token **order_out)
 }
 
 // UNION, UNION ALL, EXCEPT and MINUS operators
-bool SqlParser::ParseSelectSetOperator(int block_scope, int select_scope)
+bool SqlParser::ParseSelectSetOperator(int block_scope, int /*select_scope*/)
 {
 	bool exists = false;
 
@@ -1157,7 +1157,7 @@ bool SqlParser::ParseSelectSetOperator(int block_scope, int select_scope)
 		// UNION and UNION ALL
 		if(op->Compare("UNION", L"UNION", 5) == true)
 		{
-			Token *all = GetNextWordToken("ALL", L"ALL", 3);
+			/*Token *all */ (void) GetNextWordToken("ALL", L"ALL", 3);
 
 			exists = true;
 			break;
@@ -1195,7 +1195,7 @@ bool SqlParser::ParseSelectSetOperator(int block_scope, int select_scope)
 		{
 			ParseSubSelect(open, SQL_SEL_SET_UNION);
 
-			Token *close = GetNextCharToken(')', L')');
+			/*Token *close */ (void) GetNextCharToken(')', L')');
 		}
 		else
 		{
@@ -1210,7 +1210,7 @@ bool SqlParser::ParseSelectSetOperator(int block_scope, int select_scope)
 }
 
 // SELECT statements options at the end of the statement
-bool SqlParser::ParseSelectOptions(Token *select, Token *from_end, Token *where_, Token *order, 
+bool SqlParser::ParseSelectOptions(Token * /*select*/, Token * /*from_end*/, Token * /*where_*/, Token * /*order*/, 
 									Token **rowlimit_soptions, int *rowlimit)
 {
 	bool exists = false;

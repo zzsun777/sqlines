@@ -42,8 +42,8 @@ bool SqlParser::AlterColumnClause(Token *table, Token *table_name, Token *alter)
 	// RESTART WITH for identity column
 	if(next->Compare("RESTART", L"RESTART", 7) == true)
 	{
-		Token *with = GetNextWordToken("WITH", L"WITH", 4);
-		Token *value = GetNextNumberToken();
+		/*Token *with */ (void) GetNextWordToken("WITH", L"WITH", 4);
+		/*Token *value*/ (void) GetNextNumberToken();
 
 		// Change to ALTER SEQUENCE for PostgreSQL and Greenplum
 		if(_target == SQL_POSTGRESQL || _target == SQL_GREENPLUM)

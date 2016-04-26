@@ -305,7 +305,7 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 			// CHARSET
 			if(option->Compare("CHARSET", L"CHARSET", 7) == true)
 			{
-				Token *equal = GetNextCharToken('=', L'=');
+				/*Token *equal */ (void) GetNextCharToken('=', L'=');
 				Token *value = GetNextIdentToken();
 
 				if(_target != SQL_MYSQL)
@@ -315,8 +315,8 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 			// CHARACTER SET
 			if(option->Compare("CHARACTER", L"CHARACTER", 9) == true)
 			{
-				Token *set = GetNextWordToken("SET", L"SET", 3);
-				Token *equal = GetNextCharToken('=', L'=');
+				/*Token *set */ (void) GetNextWordToken("SET", L"SET", 3);
+				/*Token *equal */ (void) GetNextCharToken('=', L'=');
 				Token *value = GetNextIdentToken();
 
 				if(_target != SQL_MYSQL)
@@ -330,7 +330,7 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 		// COLLATE = value
 		if(next->Compare("COLLATE", L"COLLATE", 7) == true)
 		{
-			Token *equal = GetNextCharToken('=', L'=');
+			/*Token *equal */ (void) GetNextCharToken('=', L'=');
 			Token *value = GetNextIdentToken();
 
 			if(_target != SQL_MYSQL)
@@ -344,7 +344,7 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 		if(next->Compare("COMMENT", L"COMMENT", 7) == true)
 		{
 			// Equal sign = is optional in the clause
-			Token *equal = GetNextCharToken('=', L'=');
+			/*Token *equal */ (void) GetNextCharToken('=', L'=');
 			Token *text = GetNextToken();
 
 			if(comment_out != NULL)
@@ -362,7 +362,7 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 		if(next->Compare("PACK_KEYS", L"PACK_KEYS", 9) == true)
 		{
 			// Optional = 
-			Token *equal = GetNextCharToken('=', L'=');
+			/*Token *equal */ (void) GetNextCharToken('=', L'=');
 			Token *value = GetNextToken();
 
 			if(_target != SQL_MYSQL)
@@ -376,7 +376,7 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 		if(next->Compare("ROW_FORMAT", L"ROW_FORMAT", 10) == true)
 		{
 			// Optional = 
-			Token *equal = GetNextCharToken('=', L'=');
+			/*Token *equal */ (void) GetNextCharToken('=', L'=');
 			Token *value = GetNextToken();
 
 			if(_target != SQL_MYSQL)
@@ -715,7 +715,7 @@ bool SqlParser::ParseDb2StorageClause()
 		// INDEX IN tablespace
 		if(next->Compare("INDEX", L"INDEX", 5) == true)
 		{
-			Token *in = GetNextWordToken("IN", L"IN", 2);
+			/*Token *in */ (void) GetNextWordToken("IN", L"IN", 2);
 			Token *name = GetNextIdentToken();
 
 			if(_target != SQL_DB2)

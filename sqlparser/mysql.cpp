@@ -21,7 +21,7 @@
 #include "sqlparser.h"
 
 // User-defined delimiter can be specified for MySQL, often // @ (also used for DB2)
-bool SqlParser::ParseMySQLDelimiter(Token *create)
+bool SqlParser::ParseMySQLDelimiter(Token * /*create*/)
 {
     Token *char1 = NULL;
     Token *char2 = NULL;
@@ -249,7 +249,7 @@ bool SqlParser::ParseMysqlSetOptions(Token *set)
     // SET NAMES character_set
     if(Token::Compare(option, "NAMES", L"NAMES", 5) == true)
     {
-        Token *charset = GetNext();
+        /*Token *charset */ (void) GetNext();
 
         single_exists = true;
         exists = true;
@@ -332,7 +332,7 @@ bool SqlParser::MysqlCreateDatabase(Token *create, Token *database, Token *name)
             Token *set = GetNext("SET", L"SET", 3);
 
             // Optional = 
-            Token *equal = GetNext(set, '=', L'=');
+            /*Token *equal */ (void) GetNext(set, '=', L'=');
 
             // Default character set name
             Token *name = GetNext(set);
@@ -345,7 +345,7 @@ bool SqlParser::MysqlCreateDatabase(Token *create, Token *database, Token *name)
             if(next->Compare("COLLATE", L"COLLATE", 7) == true)
             {
                 // Optional = 
-                Token *equal = GetNext('=', L'=');
+                /*Token *equal */ (void) GetNext('=', L'=');
 
                 // Default collate name
                 Token *name = GetNext();

@@ -29,6 +29,8 @@ public:
 	void *value5;
 	void *value6;
 
+    int ivalue;
+
 	ListwmItem *prev;
 	ListwmItem *next;
 
@@ -40,6 +42,8 @@ public:
 		value4 = NULL;
 		value5 = NULL;
 		value6 = NULL;
+
+        ivalue = 0;
 
 		prev = NULL;
 		next = NULL;
@@ -91,7 +95,17 @@ public:
 	}
 
 	// Add a new item to the list
-	void Add(void* value, void* value2 = NULL, void* value3 = NULL, void* value4 = NULL, void* value5 = NULL, void* value6 = NULL)
+    void Add(void* value, void* value2 = NULL, void* value3 = NULL, void* value4 = NULL, void* value5 = NULL, void* value6 = NULL)
+	{
+        Add(value, value2, value3, value4, value5, value6, 0);
+    }
+
+    void Add(int ivalue)
+	{
+        Add(NULL, NULL, NULL, NULL, NULL, NULL, ivalue);
+    }
+
+	void Add(void* value, void* value2, void* value3, void* value4, void* value5, void* value6, int ivalue)
 	{
 		ListwmItem *item = new ListwmItem();
 
@@ -101,6 +115,8 @@ public:
 		item->value4 = value4;
 		item->value5 = value5;
 		item->value6 = value6;
+
+        item->ivalue = ivalue;
 
 		// check if it is the first item in the list
 		if(!first)

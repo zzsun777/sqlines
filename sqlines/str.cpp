@@ -213,7 +213,7 @@ char* Str::IntToString(int int_value, char *output)
 void Str::ReplaceFirst(std::string &str, std::string what, std::string with)
 {
 	// Find the substring starting from the first position of the original string
-	int pos = str.find(what, 0);
+	size_t pos = str.find(what, 0);
 
 	if(pos != std::string::npos)
 		str.replace(pos, what.size(), with);

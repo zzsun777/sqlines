@@ -74,9 +74,9 @@ bool SqlParser::SelectNextvalFromDual(Token **sequence, Token **column)
 	Token *col = GetNextIdentToken();
 
 	// FROM dual
-	Token *from = GetNextWordToken("FROM", L"FROM", 4);
+	/*Token *from */ (void) GetNextWordToken("FROM", L"FROM", 4);
 	Token *dual = GetNextWordToken("dual", L"dual", 4);
-	Token *semi1 = GetNextCharToken(';', L';');
+	/*Token *semi1 */ (void) GetNextCharToken(';', L';');
 
 	if(dual == NULL)
 		return false;

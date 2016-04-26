@@ -128,7 +128,7 @@ Token* SqlParser::Nvl(Token *first, Token *second, Token *third)
 }
 	
 // Create a new identifier by appending the specified word (handles delimiters)
-Token *SqlParser::AppendIdentifier(Token *source, const char *word, const wchar_t *w_word, int len)
+Token *SqlParser::AppendIdentifier(Token *source, const char *word, const wchar_t * /*w_word*/, size_t len)
 {
 	if(source == NULL || source->len <= 0)
 		return NULL;
@@ -146,8 +146,8 @@ Token *SqlParser::AppendIdentifier(Token *source, const char *word, const wchar_
 	// Append to the target value if set
 	const char *s = (source->t_str == NULL) ? source->str : source->t_str;
 
-	int s_len = (source->t_len == 0) ? source->len : source->t_len; 
-	int new_len = s_len + len;
+	size_t s_len = (source->t_len == 0) ? source->len : source->t_len; 
+	size_t new_len = s_len + len;
 
 	char *new_str = new char[new_len+1];
 	strncpy(new_str, s, s_len);
@@ -173,10 +173,10 @@ Token *SqlParser::AppendIdentifier(Token *source, const char *word, const wchar_
 }
 
 // Append a word to identifier (handles delimiters)
-void SqlParser::AppendIdentifier(TokenStr &source, const char *word, const wchar_t *w_word, int len)
+void SqlParser::AppendIdentifier(TokenStr &source, const char *word, const wchar_t *w_word, size_t len)
 {
-	int slen = source.str.size();
-	int wlen = source.wstr.size();
+	size_t slen = source.str.size();
+	size_t wlen = source.wstr.size();
 
 	// Identifier is empty, just append the value
 	if(slen == 0 && wlen == 0)
@@ -224,10 +224,10 @@ void SqlParser::SplitIdentifier(Token *source, Token *first, Token *second)
 	if(source == NULL || first == NULL || second == NULL)
 		return;
 
-	int dot = 0;
+	size_t dot = 0;
 
 	// Find the position of the last dot
-	for(int i = source->len - 1; i > 0; i--)
+	for(size_t i = source->len - 1; i > 0; i--)
 	{
 		if(source->str[i] == '.')
 		{
@@ -263,10 +263,10 @@ void SqlParser::SetObjectMappingFromFile(const char *file)
 	if(size == -1)
 		return;
  
-	char *input = new char[size + 1];
+	char *input = new char[(size_t)size + 1];
 
 	// Get content of the file (without terminating 'x0')
-	if(File::GetContent(file, input, size) == -1)
+	if(File::GetContent(file, input, (size_t)size) == -1)
 	{
 		delete input;
 		return;
@@ -328,10 +328,10 @@ void SqlParser::SetMetaFromFile(const char *file)
 	if(size == -1)
 		return;
  
-	char *input = new char[size + 1];
+	char *input = new char[(size_t)size + 1];
 
 	// Get content of the file (without terminating 'x0')
-	if(File::GetContent(file, input, size) == -1)
+	if(File::GetContent(file, input, (size_t)size) == -1)
 	{
 		delete input;
 		return;
@@ -553,8 +553,8 @@ bool SqlParser::CompareIdentifiersExistingParts(Token *first, Token *second)
 	TokenStr part1;
 	TokenStr part2;
 
-	int len1 = 0;
-	int len2 = 0;
+	size_t len1 = 0;
+	size_t len2 = 0;
 
 	// Skip exceeding first identifier parts
 	if(num1 > num2)
@@ -598,8 +598,8 @@ bool SqlParser::CompareIdentifiersExistingParts(Token *first, Token *second)
 // Compare a single part of identifier
 bool SqlParser::CompareIdentifierPart(TokenStr &first, TokenStr &second)
 {
-	int len1 = first.len;
-	int len2 = second.len;
+	size_t len1 = first.len;
+	size_t len2 = second.len;
 
 	const char *cur1 = first.str.c_str();
 	const char *cur2 = second.str.c_str();
@@ -627,7 +627,7 @@ bool SqlParser::CompareIdentifierPart(TokenStr &first, TokenStr &second)
 }
 
 // Convert schema name in identifier
-void SqlParser::ConvertSchemaName(Token *token, TokenStr &ident, int *len)
+void SqlParser::ConvertSchemaName(Token *token, TokenStr &ident, size_t *len)
 {
 	TokenStr schema;
 
@@ -691,7 +691,7 @@ void SqlParser::ConvertSchemaName(Token *token, TokenStr &ident, int *len)
 }
 
 // Convert object name in identifier
-void SqlParser::ConvertObjectName(Token *token, TokenStr &ident, int *len)
+void SqlParser::ConvertObjectName(Token *token, TokenStr &ident, size_t *len)
 {
 	TokenStr name;
 	TokenStr name2;
@@ -746,12 +746,12 @@ void SqlParser::ConvertObjectName(Token *token, TokenStr &ident, int *len)
 }
 
 // Convert next item in qualified identifier
-void SqlParser::GetNextIdentItem(Token *token, TokenStr &ident, int *len)
+void SqlParser::GetNextIdentItem(Token *token, TokenStr &ident, size_t *len)
 {
 	if(token == NULL || len == NULL)
 		return;
 
-	int i = *len;
+	size_t i = *len;
 
 	// Skip starting . from the previous item
 	if(i > 0 && token->Compare('.', L'.', i) == true)
@@ -807,10 +807,10 @@ void SqlParser::SplitIdentifierByLastPart(Token *token, TokenStr &lead, TokenStr
 	if(parts == -1)
 		parts = GetIdentPartsCount(token);
 
-	int len = token->len;
+	size_t len = token->len;
 	int c = parts - 1;
 
-	for(int i = 0; i < len; i++)
+	for(size_t i = 0; i < len; i++)
 	{
 		if(token->Compare('.', L'.', i) == true)
 		{
@@ -839,7 +839,7 @@ int SqlParser::GetIdentPartsCount(Token *token)
 	if(token->str != NULL && token->len > 0)
 	{
 		// Count number of . 
-		for(int i=0; i < token->len; i++)
+		for(size_t i = 0; i < token->len; i++)
 		{
 			if(token->str[i] == '.')
 				num++;
@@ -855,7 +855,7 @@ void SqlParser::ConvertIdentRemoveLeadingPart(Token *token)
 	if(token == NULL || token->len == 0)
 		return;
 
-	int pos = 0;
+	size_t pos = 0;
 	bool found = false;
 
 	// Find the position of the first dot (.)
@@ -883,7 +883,7 @@ void SqlParser::ConvertIdentRemoveLeadingPart(Token *token)
 	const char *new_str = NULL;
 	const wchar_t *new_wstr = NULL;
 	
-	int new_len = token->len - pos; 
+	size_t new_len = token->len - pos; 
 
 	if(token->str != NULL)
 		new_str = token->str + pos;
@@ -1272,7 +1272,7 @@ void SqlParser::SetApplicationSource()
 // Enter the specified scope
 void SqlParser::Enter(int scope)
 {
-	_scope.Add((void*)scope);
+	_scope.Add(scope);
 }
 
 // Leave the specified scope
@@ -1285,7 +1285,7 @@ void SqlParser::Leave(int scope)
 	// Search the first matching item from the end 
 	for(ListwmItem *i = _scope.GetLast(); i != NULL; i = i->prev)
 	{
-		if(scope == (int)i->value)
+		if(scope == i->ivalue)
 		{
 			ListwmItem *prev = NULL;
 
@@ -1319,7 +1319,7 @@ bool SqlParser::IsScope(int scope, int scope2)
 	// Search the first matching item from the end 
 	for(ListwmItem *i = _scope.GetLast(); i != NULL; i = i->prev)
 	{
-		int s = (int)i->value;
+		int s = i->ivalue;
 
 		if(s == scope || s == scope2)
 		{

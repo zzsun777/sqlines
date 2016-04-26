@@ -325,7 +325,7 @@ void SqlParser::InformixConvertReturning(Token *create, Token *procedure)
 
 // Define the name of parameter or column to be used for RETURNING value
 void SqlParser::InformixGetReturningName(Token *retvalue, TokenStr &name, const char *prefix, 
-											const wchar_t *wprefix, int plen, int num, bool always_prefix)
+											const wchar_t *wprefix, size_t plen, int num, bool always_prefix)
 {
 	if(retvalue == NULL)
 		return;
@@ -518,7 +518,7 @@ bool SqlParser::ParseInformixSetOptions(Token *set)
 
 		// Optional WITH APPEND
 		Token *with = GetNextWordToken(name, "WITH", L"WITH", 4);
-		Token *append = GetNextWordToken(with, "APPEND", L"APPEND", 6);
+		/*Token *append */ (void) GetNextWordToken(with, "APPEND", L"APPEND", 6);
 
 		// Comment for Oracle
 		if(name != NULL && _target == SQL_ORACLE)
@@ -577,7 +577,7 @@ bool SqlParser::ParseInformixUpdateStatistics(Token *update)
 	if(resolution != NULL)
 	{
 		Token *percent = GetNextNumberToken();
-		Token *confidence = GetNextNumberToken(percent);
+		/*Token *confidence */ (void) GetNextNumberToken(percent);
 	}
 
 	// Comment for Oracle
@@ -633,9 +633,9 @@ bool SqlParser::ParseInformixFragmentBy(Token *fragment)
 		return false;
 
 	// Partitioning by HASH in XPS
-	Token *hash = GetNextWordToken("HASH", L"HASH", 4);
+	/*Token *hash */ (void) GetNextWordToken("HASH", L"HASH", 4);
 
-	Token *open = GetNextCharToken('(', L'(');
+	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
 	// List of columns
 	while(true)
@@ -651,7 +651,7 @@ bool SqlParser::ParseInformixFragmentBy(Token *fragment)
 			break;
 	}
 
-	Token *close = GetNextCharToken(')', L')');
+	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	if(_target == SQL_ORACLE)
 		Token::Change(fragment, "PARTITION", L"PARTITION", 9);

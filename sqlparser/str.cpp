@@ -70,8 +70,8 @@ char* Str::SkipComments(const char *input)
 void Str::TrimTrailingSpaces(std::string &input)
 {
 	// Get the string length
-	int len = input.length();
-	int nlen = len;
+	size_t len = input.length();
+	size_t nlen = len;
 
 	if(len <= 0)
 		return;
@@ -90,7 +90,7 @@ char* Str::TrimTrailingSpaces(char *input)
 	if(!input)
 		return NULL;
 
-	int len = strlen(input);
+	size_t len = strlen(input);
 	char *cur = input;
 
 	while(len > 0)
@@ -149,7 +149,7 @@ const char* Str::SkipUntil(const char *input, char ch)
 }
 
 // Get copy of the input string
-char* Str::GetCopy(const char *input, int size)
+char* Str::GetCopy(const char *input, size_t size)
 {
 	if(input == NULL)
 		return NULL;
@@ -168,9 +168,7 @@ char* Str::GetCopy(const char *input)
 	if(input == NULL)
 		return NULL;
 	
-	int size = strlen(input);
-
-	return Str::GetCopy(input, size);
+	return Str::GetCopy(input, strlen(input));
 }
 
 // Replace character in string (returns the same string)
@@ -213,7 +211,7 @@ char* Str::IntToString(int int_value, char *output)
 void Str::ReplaceFirst(std::string &str, std::string what, std::string with)
 {
 	// Find the substring starting from the first position of the original string
-	int pos = str.find(what, 0);
+	size_t pos = str.find(what, 0);
 
 	if(pos != std::string::npos)
 		str.replace(pos, what.size(), with);
@@ -267,11 +265,11 @@ void Str::Dt2Ch(int dt, char *ch)
 		return;
 
 	// Get the first and second digits
-	int f = dt/10;
-	int s = dt%10;
+	char f = (char)dt/10;
+	char s = (char)dt%10;
 
 	ch[0] = '0' + f;
-	ch[1] = '0' + s;
+	ch[1] = '0' + s; 
 }
 
 // _strupr() and _strlwr() functions are not available on Linux

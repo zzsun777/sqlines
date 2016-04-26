@@ -77,8 +77,8 @@ public:
 	const wchar_t *t_wstr;
 
 	// Length of string data (0 for single char)
-	int len;
-	int t_len;
+	size_t len;
+	size_t t_len;
 
 	// Token flags
 	int flags;
@@ -99,21 +99,21 @@ public:
 	static Token* GetCopy(Token *source);
 
 	// Compare token value with the specified word or char
-	bool Compare(const char *word, const wchar_t *w_word, int len);
-	bool Compare(const char *word, const wchar_t *w_word, int start, int len);
+	bool Compare(const char *word, const wchar_t *w_word, size_t len);
+	bool Compare(const char *word, const wchar_t *w_word, size_t start, size_t len);
 	bool Compare(const char ch, const wchar_t wch);
-	bool Compare(const char ch, const wchar_t wch, int start);
+	bool Compare(const char ch, const wchar_t wch, size_t start);
 
-	static bool Compare(Token *token, const char *word, const wchar_t *w_word, int len);
-	static bool Compare(Token *token, const char *word, const wchar_t *w_word, int start, int len);
-	static bool CompareCS(Token *token, const char *word, const wchar_t *w_word, int start, int len);
+	static bool Compare(Token *token, const char *word, const wchar_t *w_word, size_t len);
+	static bool Compare(Token *token, const char *word, const wchar_t *w_word, size_t start, size_t len);
+	static bool CompareCS(Token *token, const char *word, const wchar_t *w_word, size_t start, size_t len);
 	static bool Compare(Token *token, const char ch, const wchar_t wch);
-	static bool Compare(Token *token, const char ch, const wchar_t wch, int start);
+	static bool Compare(Token *token, const char ch, const wchar_t wch, size_t start);
 	static bool Compare(Token *first, Token *second);
-	static bool Compare(Token *first, Token *second, int len);
+	static bool Compare(Token *first, Token *second, size_t len);
 	static bool Compare(Token *first, TokenStr *second);
 
-	static bool CompareTarget(Token *token, const char *word, const wchar_t *w_word, int len);
+	static bool CompareTarget(Token *token, const char *word, const wchar_t *w_word, size_t len);
 
 	bool IsNumeric();
 	bool IsNumericInString();
@@ -125,13 +125,13 @@ public:
 	static bool IsBlank(Token *token);
 
 	// Change the token value
-	static void Change(Token *token, const char *new_str, const wchar_t *new_wstr, int len, Token *format = NULL);
+	static void Change(Token *token, const char *new_str, const wchar_t *new_wstr, size_t len, Token *format = NULL);
 	static void Change(Token *token, int value);
 	static void Change(Token *token, Token *values);
 
-	static void ChangeNoFormat(Token *token, const char *new_str, const wchar_t *new_wstr, int len);
+	static void ChangeNoFormat(Token *token, const char *new_str, const wchar_t *new_wstr, size_t len);
 	static void ChangeNoFormat(Token *token, TokenStr &tstr);
-	static void ChangeNoFormat(Token *token, Token *source, int start, int len);
+	static void ChangeNoFormat(Token *token, Token *source, size_t start, size_t len);
 
 	// Replace the token value with spaces to preserve indent
 	static void ReplaceWithSpaces(Token *token);
@@ -141,7 +141,7 @@ public:
 	static void Remove(Token *from, Token *last);
 
 	// Get the target length of the token
-	int GetTargetLength();
+	size_t GetTargetLength();
 
 	// Remove the current target value
 	static void ClearTarget(Token *token);
@@ -157,7 +157,7 @@ public:
 
 	// Get value as int
 	int GetInt();
-	int GetInt(int start, int len);
+	int GetInt(size_t start, size_t len);
 
 	Token *prev;
 	Token *next;
@@ -169,31 +169,31 @@ public:
 	std::string str;
 	std::wstring wstr;
 
-	int len;
+	size_t len;
 
 	TokenStr() { len = 0; prev = NULL; next = NULL; }
-	TokenStr(const char *s, const wchar_t *w, int l) { Set(s, w, l); prev = NULL; next = NULL; }
+	TokenStr(const char *s, const wchar_t *w, size_t l) { Set(s, w, l); prev = NULL; next = NULL; }
 	TokenStr(Token *token);
 	
-	void Set(const char *str, const wchar_t *wstr, int len);
+	void Set(const char *str, const wchar_t *wstr, size_t len);
 	void Set(TokenStr &src);
 	
 	// Append a string
-	void Append(const char *str, const wchar_t *wstr, int len);
-	void Append(Token *token, int start, int len);
+	void Append(const char *str, const wchar_t *wstr, size_t len);
+	void Append(Token *token, size_t start, size_t len);
 	void Append(Token *token);
 	void Append(TokenStr &str);
-	void Append(TokenStr &str, int start, int len);
+	void Append(TokenStr &str, size_t start, size_t len);
 	void Append(int num);
 
 	void Clear() { str.clear(); wstr.clear(); len = 0; }
 
-	bool Compare(const char *word, const wchar_t *w_word, int len);
-	bool Compare(const char ch, const wchar_t wch, int pos);
+	bool Compare(const char *word, const wchar_t *w_word, size_t len);
+	bool Compare(const char ch, const wchar_t wch, size_t pos);
 
 	static bool Compare(TokenStr &first, TokenStr &second);
-	static bool Compare(TokenStr *tokenstr, const char *word, const wchar_t *w_word, int len);
-	static bool Compare(TokenStr *tokenstr, const char ch, const wchar_t wch, int pos);
+	static bool Compare(TokenStr *tokenstr, const char *word, const wchar_t *w_word, size_t len);
+	static bool Compare(TokenStr *tokenstr, const char ch, const wchar_t wch, size_t pos);
 
 	TokenStr *prev;
 	TokenStr *next;

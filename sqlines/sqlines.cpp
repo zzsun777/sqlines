@@ -37,7 +37,7 @@ Sqlines::Sqlines()
 	_total_files = 0;
 
 	_stdin = false;
-
+    
 	_exe = NULL;
 }
 
@@ -53,17 +53,16 @@ int Sqlines::Run(int argc, char** argv)
 	if(rc == -1)
 		return rc;
 
-	// Convert each file
-	if(_stdin == false)
-		rc = ConvertFiles();
+    if(_stdin == false)
+	    rc = ProcessFiles();
 	else
-		rc = ConvertStdin();
+	    rc = ProcessStdin();
 
 	return rc;
 }
 
-// Perform conversion
-int Sqlines::ConvertFiles()
+// Perform operations on files
+int Sqlines::ProcessFiles()
 {
 	FileList fileList;
 
@@ -84,7 +83,7 @@ int Sqlines::ConvertFiles()
 
 	int all_start = Os::GetTickCount();
 
-	// Convert each file
+	// Handle each file
 	for(std::list<std::string>::iterator i = fileList.Get().begin(); i != fileList.Get().end(); i++, num++)
 	{
 		int start = Os::GetTickCount();
@@ -100,7 +99,7 @@ int Sqlines::ConvertFiles()
 		int in_lines = 0;
 
 		// Convert the current file
-		ConvertFile(current, out_name, &in_size, &in_lines);
+	    rc = ProcessFile(current, out_name, &in_size, &in_lines);
 
 		total_lines += in_lines;
 
@@ -124,7 +123,7 @@ int Sqlines::ConvertFiles()
 
 	PrintCurrentTimestamp();
 
-	return 0;
+	return rc;
 }
 
 // Get output name of the file
@@ -191,8 +190,8 @@ std::string Sqlines::GetOutFileName(std::string &input, std::string &relative_na
 	return output;
 }
 
-// Convert file
-int Sqlines::ConvertFile(std::string &file, std::string &out_file, int *in_size, int *in_lines)
+// Process a file
+int Sqlines::ProcessFile(std::string &file, std::string &out_file, int *in_size, int *in_lines)
 {
 	if(_parser == NULL)
 		return -1;
@@ -219,12 +218,12 @@ int Sqlines::ConvertFile(std::string &file, std::string &out_file, int *in_size,
 	int lines;
 
 	// Convert the file
-	rc = ConvertSql(_parser, input, size, &output, &out_size, &lines);
+    rc = ConvertSql(_parser, input, size, &output, &out_size, &lines);
 
-	// Write the target content to the file
-	rc = File::Write(out_file.c_str(), output, out_size);
+    // Write the target content to the file
+    rc = File::Write(out_file.c_str(), output, out_size);
 
-	FreeOutput(output);
+    FreeOutput(output);
 
 	if(in_size != NULL)
 		*in_size = size;
@@ -238,7 +237,7 @@ int Sqlines::ConvertFile(std::string &file, std::string &out_file, int *in_size,
 }
 
 // Convert input from STDIN
-int Sqlines::ConvertStdin()
+int Sqlines::ProcessStdin()
 {
 	if(_parser == NULL)
 		return -1;
