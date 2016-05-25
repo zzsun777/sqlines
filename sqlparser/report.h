@@ -28,8 +28,8 @@
 
 class Report
 {
-    char *_tpl_path;
-    char *_report_path;
+    const char *_tpl_path;
+    const char *_report_path;
 
     const char *_summary;
 

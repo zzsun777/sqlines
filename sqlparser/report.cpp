@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include "report.h"
+#include "str.h"
 
 // Constructor
 Report::Report()

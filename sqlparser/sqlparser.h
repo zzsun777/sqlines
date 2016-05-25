@@ -166,23 +166,23 @@
 #define COPY_CONTINUE_HANDLER_FOR_SQLSTATE		9
 
 // Statistics
-#define DTYPE_STATS(value)    if(_stats != NULL) _stats->DataTypes(value);
-#define UDTYPE_STATS(value)   if(_stats != NULL) _stats->UdtDataTypes(value);
-#define FUNC_STATS(value)     if(_stats != NULL) _stats->Functions(value);
-#define UDF_FUNC_STATS(value) if(_stats != NULL) _stats->UdfFunctions(value);
-#define PROC_STATS(value)     if(_stats != NULL) _stats->Procedures(value);
+#define DTYPE_STATS(value)    { if(_stats != NULL) _stats->DataTypes(value); }
+#define UDTYPE_STATS(value)   { if(_stats != NULL) _stats->UdtDataTypes(value); }
+#define FUNC_STATS(value)     { if(_stats != NULL) _stats->Functions(value); }
+#define UDF_FUNC_STATS(value) { if(_stats != NULL) _stats->UdfFunctions(value); }
+#define PROC_STATS(value)     { if(_stats != NULL) _stats->Procedures(value); }
 
-#define STMS_STATS(value)            if(_stats != NULL) _stats->Statements(value);
-#define CREATE_TAB_STMS_STATS(value) if(_stats != NULL) _stats->CreateTabStatements(value);
-#define ALTER_TAB_STMS_STATS(value)  if(_stats != NULL) _stats->AlterTabStatements(value);
-#define PL_STMS_STATS(value)         if(_stats != NULL) _stats->ProceduralStatements(value);
+#define STMS_STATS(value)            { if(_stats != NULL) _stats->Statements(value); }
+#define CREATE_TAB_STMS_STATS(value) { if(_stats != NULL) _stats->CreateTabStatements(value); }
+#define ALTER_TAB_STMS_STATS(value)  { if(_stats != NULL) _stats->AlterTabStatements(value); }
+#define PL_STMS_STATS(value)         { if(_stats != NULL) _stats->ProceduralStatements(value); }
 
-#define DTYPE_DTL_STATS_0(start)  if(_stats != NULL) _stats->DataTypesDetail(start);
-#define DTYPE_DTL_STATS_L(start)  if(_stats != NULL) _stats->DataTypesDetail(start, GetLastToken());
-#define UDTYPE_DTL_STATS_L(start) if(_stats != NULL) _stats->UdtDataTypesDetail(start, GetLastToken());
+#define DTYPE_DTL_STATS_0(start)  { if(_stats != NULL) _stats->DataTypesDetail(start); }
+#define DTYPE_DTL_STATS_L(start)  { if(_stats != NULL) _stats->DataTypesDetail(start, GetLastToken()); }
+#define UDTYPE_DTL_STATS_L(start) { if(_stats != NULL) _stats->UdtDataTypesDetail(start, GetLastToken()); }
 
-#define FUNC_DTL_STATS(token) if(_stats != NULL) _stats->FunctionsDetail(token);
-#define PROC_DTL_STATS(token) if(_stats != NULL) _stats->ProceduresDetail(token);
+#define FUNC_DTL_STATS(token) { if(_stats != NULL) _stats->FunctionsDetail(token); }
+#define PROC_DTL_STATS(token) { if(_stats != NULL) _stats->ProceduresDetail(token); }
 
 #define TOKEN_GETNEXT(chr)        GetNext(chr, L##chr)
 #define TOKEN_CMP(token, string)  Token::Compare(token, string, L##string, sizeof(string) - 1)
