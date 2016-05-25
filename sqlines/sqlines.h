@@ -29,6 +29,7 @@
 #define IN_OPTION                   "-in"       // Input files/directory
 #define STDIN_OPTION                "-stdin"    // Read input from STDIN and output to STDOUT
 #define OUT_OPTION                  "-out"      // Output files/directory
+#define A_OPTION                    "-a"        // Assessment    
 #define LOG_OPTION                  "-log"      // Log file
 
 // Default log file name
@@ -45,6 +46,7 @@ class Sqlines
     std::string _out;
     std::string _logfile;
 
+    bool _a;
     bool _stdin;
 
     // Current executable file

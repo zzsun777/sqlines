@@ -38,16 +38,56 @@ bool SqlParser::ParseSystemProcedure(Token *execute, Token *name)
 	if(name == NULL)
 		return false;
 
-	if(name->Compare("SP_ADDTYPE", L"SP_ADDTYPE", 10) == true)
+    if(TOKEN_CMP(name, "RAISE_APPLICATION_ERROR") == true)
+        exists = ParseProcedureRaiseApplicationError(name);
+    else
+	if(TOKEN_CMP(name, "SP_ADDTYPE") == true)
 		exists = ParseProcedureSpAddType(execute, name);
 	else
-	if(name->Compare("SP_BINDRULE", L"SP_BINDRULE", 11) == true)
+	if(TOKEN_CMP(name, "SP_BINDRULE") == true)
 		exists = ParseProcedureSpBindRule(execute, name);
 	else
 	if(name_fetched == true)
 		PushBack(name);
 
 	return exists;
+}
+
+// Oracle RAISE_APPLICATION_ERROR system procedure
+bool SqlParser::ParseProcedureRaiseApplicationError(Token *name)
+{
+    Token *open = TOKEN_GETNEXT('(');
+
+    if(open == NULL)
+        return false;
+
+    // Error number
+    Token *error_num = ParseExpression();
+
+    Token *comma = TOKEN_GETNEXT(','); 
+
+    if(comma == NULL)
+        return false;
+
+    // Error message
+    /*Token *error_mess */ (void) ParseExpression();
+
+    /*Token *close */ (void) TOKEN_GETNEXT(')');
+
+    PROC_STATS(name) 
+
+    if(_stats != NULL)
+    {
+        TokenStr st;
+        st.Append(name);
+        st.Append(open);
+        st.Append(error_num);
+        st.Append(", text)", L", text)", 9);
+
+        PROC_DTL_STATS(&st)
+    }
+
+    return true;
 }
 
 // Sybase ASE sp_addtype

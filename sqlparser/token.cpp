@@ -798,6 +798,12 @@ void TokenStr::Append(Token *token)
 		str.append(token->str, token->len); 
 		len += token->len;
 	}
+    else
+    if(token->chr != 0)
+    {
+        str.append(1, token->chr);
+        len++;
+    }
 
 	if(token->wstr != NULL)
 	{

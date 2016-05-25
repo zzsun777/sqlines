@@ -39,6 +39,8 @@ SqlParser::SqlParser()
 	_target_app = 0;
 
 	_level = LEVEL_SQL;
+    _obj_scope = 0;
+    _stmt_scope = 0;
 
 	_start = NULL;
 	_next_start = NULL;
@@ -53,6 +55,8 @@ SqlParser::SqlParser()
 
 	_option_rems = false;
 
+    _stats = NULL;
+    _report = NULL;
 	_cobol = NULL;
 }
 
@@ -64,6 +68,13 @@ void SqlParser::SetOption(const char *option, const char *value)
 	if(option == NULL)
 		return;
 
+    // Perform an assessment
+    if(_stricmp(option, "-a") == 0)
+    {
+		_stats = new Stats();
+        _report = new Report();
+    }
+	else
 	// Remove schema name option
 	if(_stricmp(option, "-rems") == 0)
 		_option_rems = true;
@@ -2197,3 +2208,14 @@ Token* SqlParser::GetBomToken()
 	return token;
 }
 
+// Create report file
+int SqlParser::CreateReport(const char *summary)
+{
+    if(_report != NULL)
+    {
+        _report->CreateReport(_stats, summary);
+        return 0;
+    }
+
+    return -1;
+}

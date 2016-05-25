@@ -36,6 +36,7 @@ Sqlines::Sqlines()
 	_parser = CreateParserObject();
 	_total_files = 0;
 
+    _a = false;
 	_stdin = false;
     
 	_exe = NULL;
@@ -117,9 +118,20 @@ int Sqlines::ProcessFiles()
 	char total_time_fmt[21];
 	Str::FormatTime(Os::GetTickCount() - all_start, total_time_fmt);
 
-	if(_total_files > 0)
-		_log.Log("\n\nTotal: %d file%s, %s, %d line%s, %s", _total_files, SUFFIX(_total_files), total_size_fmt,
-					total_lines, SUFFIX(total_lines), total_time_fmt);
+    if(_total_files > 0)
+    {
+        char summary[1024];
+        sprintf(summary, "\n\nTotal: %d file%s, %s, %d line%s, %s", _total_files, SUFFIX(_total_files), 
+            total_size_fmt, total_lines, SUFFIX(total_lines), total_time_fmt);
+
+		_log.Log("\n\nTotal: %s", summary);
+
+        if(_a)
+        {
+            _log.Log("\n\nCreating assessment report");
+            CreateAssessmentReport(_parser, summary);
+        }
+    }
 
 	PrintCurrentTimestamp();
 
@@ -322,6 +334,12 @@ int Sqlines::SetParameters(int argc, char **argv)
 	if(value != NULL)
 		_out = value;
 
+    // Get -a option
+	value = _parameters.Get(A_OPTION);
+
+	if(value != NULL)
+		_a = true;
+
 	if(_parameters.Get(HELP_PARAMETER))
 	{
 		PrintHowToUse();
@@ -410,6 +428,9 @@ short Sqlines::DefineType(const char *name)
 	else
 	if(_stricmp(name, "netezza") == 0)
 		type = SQL_NETEZZA;
+    else
+	if(_stricmp(name, "mariadb") == 0)
+		type = SQL_MARIADB;
 
 	return type;
 }

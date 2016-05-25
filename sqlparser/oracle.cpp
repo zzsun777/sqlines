@@ -330,7 +330,7 @@ bool SqlParser::ParseOracleLobStorageClause(Token *lob)
 }
 
 // Oracle partitions definitions
-bool SqlParser::ParseOraclePartitions(Token *token, int stmt_scope)
+bool SqlParser::ParseOraclePartitions(Token *token)
 {
 	if(token == NULL)
 		return false;
@@ -358,7 +358,7 @@ bool SqlParser::ParseOraclePartitions(Token *token, int stmt_scope)
 	if(local == NULL)
 	{
 		// PARTITION BY clause
-		if(ParseOraclePartitionsBy(token, stmt_scope) == false)
+		if(ParseOraclePartitionsBy(token) == false)
 			return false;
 
 		subpartition = GetNextWordToken("SUBPARTITION", L"SUBPARTITION", 12);
@@ -366,7 +366,7 @@ bool SqlParser::ParseOraclePartitions(Token *token, int stmt_scope)
 		// SUBPARTITION clause can follow
 		if(subpartition != NULL)
 		{
-			ParseOraclePartitionsBy(subpartition, stmt_scope);
+			ParseOraclePartitionsBy(subpartition);
 
 			// SUBPARTITION TEMPLATE
 			Token *subpartition2 = GetNextWordToken("SUBPARTITION", L"SUBPARTITION", 12);
@@ -377,12 +377,12 @@ bool SqlParser::ParseOraclePartitions(Token *token, int stmt_scope)
 				template_ = GetNextWordToken("TEMPLATE", L"TEMPLATE", 8);
 
 				// Subpartition template definition
-				ParseOraclePartition(NULL, subpartition2, stmt_scope);
+				ParseOraclePartition(NULL, subpartition2);
 			}
 		}
 
 		// PARTITION definition including subpartitions
-		ParseOraclePartition(token, subpartition, stmt_scope);
+		ParseOraclePartition(token, subpartition);
 	}
 	else
 	{
@@ -397,14 +397,14 @@ bool SqlParser::ParseOraclePartitions(Token *token, int stmt_scope)
 		}
 
 		// PARTITION definition including subpartitions for LOCAL index
-		ParseOraclePartition(&part, &subpart, stmt_scope);
+		ParseOraclePartition(&part, &subpart);
 	}
 
 	return true;
 }
 
 // Oracle partition or subpartition type and columns 
-bool SqlParser::ParseOraclePartitionsBy(Token *token, int stmt_scope)
+bool SqlParser::ParseOraclePartitionsBy(Token *token)
 {
 	if(token == NULL)
 		return false;
@@ -470,7 +470,7 @@ bool SqlParser::ParseOraclePartitionsBy(Token *token, int stmt_scope)
 	if(_target == SQL_GREENPLUM)
 	{
 		// Greenplum does not support partitions on indexs and hash partitions
-		if(stmt_scope == SQL_SCOPE_INDEX || hash != NULL)
+		if(_obj_scope == SQL_SCOPE_INDEX || hash != NULL)
 			Token::Remove(token, close);
 	}
 
@@ -478,7 +478,7 @@ bool SqlParser::ParseOraclePartitionsBy(Token *token, int stmt_scope)
 }
 
 // Oracle PARTITION or SUBPARTITION definition clause 
-bool SqlParser::ParseOraclePartition(Token *partition, Token *subpartition, int stmt_scope)
+bool SqlParser::ParseOraclePartition(Token *partition, Token *subpartition)
 {
 	// Both partition and subpartition parameters can be NULL for LOCAL partitioned indexes
 	Token *open = GetNextCharToken('(', L'(');
@@ -545,11 +545,11 @@ bool SqlParser::ParseOraclePartition(Token *partition, Token *subpartition, int 
 		}
 
 		// Storage for the partition 
-		ParseOracleStorageClause(stmt_scope);
+		ParseOracleStorageClause();
 
 		// Now parse SUBPARTITION definitions for the current PARTITION recursively
 		if(partition != NULL && subpartition != NULL)
-			ParseOraclePartition(NULL, subpartition, stmt_scope);
+			ParseOraclePartition(NULL, subpartition);
 
 		// Partition definitions are comma separated
 		Token *comma = GetNextCharToken(',', L',');

@@ -63,6 +63,17 @@ int SetParserOption(void *parser, const char *option, const char *value)
 	return 0;
 }
 
+// Create report file
+int CreateAssessmentReport(void *parser, const char *summary)
+{
+	if(parser == NULL)
+		return -1;
+
+	SqlParser *sql_parser = (SqlParser*)parser;
+
+	return sql_parser->CreateReport(summary);
+}
+
 // Free allocated result
 void FreeOutput(const char *output)
 {

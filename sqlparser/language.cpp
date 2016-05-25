@@ -805,16 +805,23 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 			num++;
 		}
 		else
-		// Check for NOT NULL constraint
+		// Check for NOT NULL constraint, NOT LOGGED/COMPACT
 		if(cns->Compare("NOT", L"NOT", 3) == true)
 		{
 			Token *next = GetNextToken();
 
-			// DB2 NOT LOGGED and NOT COMPACT 
-			if(_target != SQL_DB2 && 
-				(Token::Compare(next, "LOGGED", L"LOGGED", 6) == true ||
-				Token::Compare(next, "COMPACT", L"COMPACT", 7) == true))
-				Token::Remove(cns, next);
+            if(TOKEN_CMP(next, "NULL") == true)
+            {
+                if(_obj_scope == SQL_SCOPE_TABLE)
+                    CREATE_TAB_STMS_STATS("NOT NULL constraints")
+            }
+            else
+            // DB2 NOT LOGGED and NOT COMPACT 
+            if(TOKEN_CMP(next, "LOGGED") == true || TOKEN_CMP(next, "COMPACT") == true)
+            {
+                if(_target != SQL_DB2)
+    				Token::Remove(cns, next);
+            }
 
 			num++;
 		}
@@ -1479,6 +1486,9 @@ bool SqlParser::ParseKeyConstraint(Token * /*alter*/, Token *table_name, Token *
 	{
 		/*Token *key */ (void) GetNextWordToken("KEY", L"KEY", 3);
 		primary = true;
+
+        if(_stmt_scope == SQL_STMT_ALTER_TABLE)
+            ALTER_TAB_STMS_STATS("Add PRIMARY KEY")
 	}
 	else
 	// UNIQUE
@@ -1513,6 +1523,9 @@ bool SqlParser::ParseKeyConstraint(Token * /*alter*/, Token *table_name, Token *
 				Token::Remove(index);
 			}
 		}
+
+        if(_stmt_scope == SQL_STMT_ALTER_TABLE)
+            ALTER_TAB_STMS_STATS("Add UNIQUE constraint")
 	}
 	else
 	// MySQL INDEX or KEY for inline non-unique index
@@ -1853,6 +1866,9 @@ bool SqlParser::ParseForeignKey(Token *foreign)
 	// Parse foreign key options
 	ParseKeyIndexOptions();
 
+    if(_stmt_scope == SQL_STMT_ALTER_TABLE)
+        ALTER_TAB_STMS_STATS("Add FOREIGN KEY")
+
 	return true;
 }
 
@@ -1868,6 +1884,9 @@ bool SqlParser::ParseCheckConstraint(Token *check)
 	ParseBooleanExpression(SQL_BOOL_CHECK);
 
 	/*Token *close*/ (void) GetNextCharToken(')', L')');
+
+    if(_stmt_scope == SQL_STMT_ALTER_TABLE)
+        ALTER_TAB_STMS_STATS("Add CHECK constraint")
 
 	return true;
 }
@@ -1934,6 +1953,18 @@ bool SqlParser::ParseConstraintOption()
 	}
 
 	return exists;
+}
+
+// Get and parse the next token as an expression
+Token* SqlParser::ParseExpression()
+{
+    Token *first = GetNext();
+
+    if(ParseExpression(first))
+        return first;
+
+    PushBack(first);
+    return NULL;
 }
 
 // Parse an expression

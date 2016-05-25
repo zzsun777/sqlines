@@ -90,8 +90,7 @@ bool SqlParser::ParseTeradataTableOptions()
 }
 
 // PRIMARY INDEX hash partitioning clause
-bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, int obj_scope, Token *last_colname,
-											Token *last_colend)
+bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *last_colname, Token *last_colend)
 {
 	if(primary == NULL)
 		return false;
@@ -136,13 +135,13 @@ bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, int obj
 	if(_target == SQL_ORACLE)
 	{
 		// In Oracle, temporary tables cannot be partitioned 
-		if(obj_scope != SQL_SCOPE_TEMP_TABLE)
+		if(_obj_scope != SQL_SCOPE_TEMP_TABLE)
 		{
 			Token::Change(primary, "PARTITION", L"PARTITION", 9);
 			Token::Change(index, "BY HASH", L"BY HASH", 7);
 		}
 		else
-			Token::Remove(primary, close);
+            COMMENT("Temporary table cannot be partitioned\n", primary, close);
 	}
 
 	return true;

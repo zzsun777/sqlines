@@ -5,3 +5,4 @@ EXPORTS
 	SetParserOption
 	ConvertSql
 	FreeOutput
+    CreateAssessmentReport

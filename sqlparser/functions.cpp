@@ -33,6 +33,7 @@ bool SqlParser::ParseFunction(Token *name)
 		return false;
 
 	bool exists = false;
+    bool udt_exists = false;
 
 	if(name->Compare("ABS", L"ABS", 3) == true)
 		exists = ParseFunctionAbs(name, open);
@@ -378,6 +379,8 @@ bool SqlParser::ParseFunction(Token *name)
 
 	if(exists)
 	{
+        FUNC_STATS(name);
+
 		name->type = TOKEN_FUNCTION;
 		return exists;
 	}
@@ -667,6 +670,8 @@ bool SqlParser::ParseFunction(Token *name)
 
 	if(exists)
 	{
+        FUNC_STATS(name);
+
 		name->type = TOKEN_FUNCTION;
 		return exists;
 	}
@@ -983,10 +988,20 @@ bool SqlParser::ParseFunction(Token *name)
 	if(name->Compare("ZEROIFNULL", L"ZEROIFNULL", 10) == true)
 		exists = ParseFunctionZeroifnull(name, open);
 	else
-		exists = ParseUnknownFunction(name, open);
+		udt_exists = ParseUnknownFunction(name, open);
 
-	if(exists)
+	if(exists || udt_exists)
+    {
+        if(udt_exists)
+        {
+            UDF_FUNC_STATS(name);
+            exists = true;
+        }
+        else
+            FUNC_STATS(name);
+
 		name->type = TOKEN_FUNCTION;
+    }
 	
 	return exists;
 }
@@ -11073,6 +11088,8 @@ bool SqlParser::ParseFunctionSysdate(Token *name)
 	name->data_type = TOKEN_DT_DATETIME;
 	name->nullable = false;
 
+    FUNC_STATS(name);
+
 	return true;
 }
 
@@ -11103,6 +11120,8 @@ bool SqlParser::ParseFunctionSystimestamp(Token *name)
 		Token::Change(name, "CURRENT_TIMESTAMP", L"CURRENT_TIMESTAMP", 17);
 
 	name->data_type = TOKEN_DT_DATETIME;
+
+    FUNC_STATS(name);
 
 	return true;
 }
@@ -11671,6 +11690,18 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 			// Set target format
 			Token::ChangeNoFormat(format, out);
 		}
+
+        if(_stats != NULL)
+        {
+            TokenStr st;
+            st.Append(name);
+            st.Append(open);
+            st.Append("value, ", L"value, ", 7);
+            st.Append(format);
+            st.Append(")", L")", 1);
+
+            FUNC_DTL_STATS(&st)
+        }
 	}
 
 	name->data_type = TOKEN_DT_STRING;

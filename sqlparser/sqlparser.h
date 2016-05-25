@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <map>
 #include "token.h"
+#include "stats.h"
+#include "report.h"
 #include "listt.h"
 #include "listw.h"
 #include "listwm.h"
@@ -123,10 +125,11 @@
 #define SQL_SEL_VIEW					17
 
 // SQL Statement scope
-#define SQL_STMT_SELECT					1
-#define SQL_STMT_INSERT					2
-#define SQL_STMT_UPDATE					3
-#define SQL_STMT_DELETE					4
+#define SQL_STMT_ALTER_TABLE            1
+#define SQL_STMT_SELECT					2
+#define SQL_STMT_INSERT					3
+#define SQL_STMT_UPDATE					4
+#define SQL_STMT_DELETE					5
 
 // Operators
 #define SQL_OPERATOR_CONCAT		1
@@ -161,6 +164,29 @@
 #define COPY_CURSOR_WITH_RETURN					7
 #define COPY_EXIT_HANDLER_FOR_SQLSTATE			8
 #define COPY_CONTINUE_HANDLER_FOR_SQLSTATE		9
+
+// Statistics
+#define DTYPE_STATS(value)    if(_stats != NULL) _stats->DataTypes(value);
+#define UDTYPE_STATS(value)   if(_stats != NULL) _stats->UdtDataTypes(value);
+#define FUNC_STATS(value)     if(_stats != NULL) _stats->Functions(value);
+#define UDF_FUNC_STATS(value) if(_stats != NULL) _stats->UdfFunctions(value);
+#define PROC_STATS(value)     if(_stats != NULL) _stats->Procedures(value);
+
+#define STMS_STATS(value)            if(_stats != NULL) _stats->Statements(value);
+#define CREATE_TAB_STMS_STATS(value) if(_stats != NULL) _stats->CreateTabStatements(value);
+#define ALTER_TAB_STMS_STATS(value)  if(_stats != NULL) _stats->AlterTabStatements(value);
+#define PL_STMS_STATS(value)         if(_stats != NULL) _stats->ProceduralStatements(value);
+
+#define DTYPE_DTL_STATS_0(start)  if(_stats != NULL) _stats->DataTypesDetail(start);
+#define DTYPE_DTL_STATS_L(start)  if(_stats != NULL) _stats->DataTypesDetail(start, GetLastToken());
+#define UDTYPE_DTL_STATS_L(start) if(_stats != NULL) _stats->UdtDataTypesDetail(start, GetLastToken());
+
+#define FUNC_DTL_STATS(token) if(_stats != NULL) _stats->FunctionsDetail(token);
+#define PROC_DTL_STATS(token) if(_stats != NULL) _stats->ProceduresDetail(token);
+
+#define TOKEN_GETNEXT(chr)        GetNext(chr, L##chr)
+#define TOKEN_CMP(token, string)  Token::Compare(token, string, L##string, sizeof(string) - 1)
+#define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
 
 typedef std::map<std::string, std::string> StringMap;
 typedef std::pair<std::string, std::string> StringMapPair;
@@ -235,6 +261,11 @@ class SqlParser
 
 	// Current conversion level (application, SQL code, dynamic string i.e.)
 	int _level;
+
+    // Current object scope (table, view, procedure etc.)
+    int _obj_scope;
+    // Current statement scope (CREATE TABLE, CREATE VIEW, ALTER TABLE etc.)
+    int _stmt_scope;
 
 	// Currently converted input
 	const char *_start;
@@ -400,6 +431,10 @@ class SqlParser
 	StringMap _object_map;
 	StringMap _schema_map;
 
+    // Statistics and report
+    Stats *_stats;
+    Report *_report;
+
 	// Application scope
 	Cobol *_cobol;
 
@@ -524,6 +559,7 @@ public:
 	bool ParseDataType(Token *type, int clause_scope = SQL_SCOPE_TAB_COLS);
 	bool ParseTypedVariable(Token *var, Token *ref_type);
 	bool ParseVarDataTypeAttribute();
+    Token* ParseExpression();
 	bool ParseExpression(Token *token, int prev_operator = 0);
 	bool ParseBooleanExpression(int scope, Token *stmt_start = NULL, int *conditions_count = NULL, int *rowlimit = NULL, Token *prev_open = NULL);
 	bool ParseBooleanAndOr(int scope, Token *stmt_start, int *conditions_count, int *rowlimit);
@@ -667,7 +703,7 @@ public:
 	bool ParseCreateDatabase(Token *create, Token *database);
 	bool ParseCreateFunction(Token *create, Token *or_, Token *replace, Token *function);
 	bool ParseCreateStatement(Token *token, int *result_sets, bool *proc);
-	bool ParseCreateTable(Token *create, Token *table, int obj_scope);
+	bool ParseCreateTable(Token *create, Token *table);
 	bool ParseCreateTablespace(Token *create, Token *tablespace);
 	bool ParseCreateIndex(Token *create, Token *unique, Token *index);
 	bool ParseCreatePackage(Token *create, Token *or_, Token *replace, Token *package);
@@ -1089,6 +1125,7 @@ public:
 	bool ParseFunctionUtf8(Token *name);
 
 	// System procedures
+    bool ParseProcedureRaiseApplicationError(Token *name);
 	bool ParseProcedureSpAddType(Token *execute, Token *sp_addtype);
 	bool ParseProcedureSpBindRule(Token *execute, Token *sp_bindrule);
 
@@ -1146,7 +1183,7 @@ public:
 	void SelectConvertRowlimit(Token *select, Token *from, Token *from_end, Token *where_, Token *where_end, Token *pre_order, Token *order, Token *rowlimit_slist, Token *rowlimit_soptions, int rowlimit, bool rowlimit_percent);
 	
 	bool ParseTempTableOptions(Token *table_name, Token **start, Token **end, bool *no_data);
-	bool ParseStorageClause(Token *table_name, int obj_scope, Token **id_start, Token **comment, Token *last_colname, Token *last_colend);
+	bool ParseStorageClause(Token *table_name, Token **id_start, Token **comment, Token *last_colname, Token *last_colend);
 	bool ParseCreateIndexOptions();
 
 	void SqlServerConvertRowLevelTrigger(Token *table, Token *when, Token *insert, Token *update, Token *delete_, Token *end);
@@ -1158,12 +1195,12 @@ public:
 	bool ParseSqlServerIndexOptions(Token *token);
 	bool ParseSqlServerStorageClause();
 
-	bool ParseOracleStorageClause(int stmt_scope);
+	bool ParseOracleStorageClause();
 	bool ParseOracleStorageClause(Token *storage);
 	bool ParseOracleLobStorageClause(Token *lob);
-	bool ParseOraclePartitions(Token *token, int stmt_scope);
-	bool ParseOraclePartitionsBy(Token *token, int stmt_scope);
-	bool ParseOraclePartition(Token *partition, Token *subpartition, int stmt_scope);
+	bool ParseOraclePartitions(Token *token);
+	bool ParseOraclePartitionsBy(Token *token);
+	bool ParseOraclePartition(Token *partition, Token *subpartition);
 	bool ParseOracleRownumCondition(Token *first, Token *op, Token *second, int *rowlimit);
 	bool RecognizeOracleDateFormat(Token *str, TokenStr &format);
 	void OracleEmulateIdentity(Token *create, Token *table, Token *column, Token *last, Token *id_start, Token *id_inc, bool id_default);
@@ -1228,8 +1265,8 @@ public:
 
 	// Teradata specific functions
 	bool ParseTeradataTableOptions();
-	bool ParseTeradataStorageClause(int obj_scope, Token *last_colname, Token *last_colend);
-	bool ParseTeradataPrimaryIndex(Token *unique, Token *primary, int obj_scope, Token *last_colname, Token *last_colend);
+	bool ParseTeradataStorageClause(Token *last_colname, Token *last_colend);
+	bool ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *last_colname, Token *last_colend);
 	bool ParseTeradataHelpStatement(Token *help);
 	bool ParseTeradataHelpStatistics(Token *help, Token *statistics);
 	bool ParseTeradataComparisonOperator(Token *op);
@@ -1318,6 +1355,9 @@ public:
 
 	// Define application type (Java, C#, PowerBuilder, COBOL etc.)
 	void SetApplicationSource();
+
+    // Create report file
+    int CreateReport(const char *summary); 
 };
 
 #endif // sqlines_sqlparser_h

@@ -331,9 +331,11 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 	Token *replace = NULL;
 	Token *unique = NULL;
 	Token *external = NULL;
-	
-	int obj_scope = 0;
 
+    int prev_object_scope = _obj_scope;
+
+    _obj_scope = 0;
+	
 	// OR REPLACE clause in Oracle
 	if(next->Compare("OR", L"OR", 2) == true)
 	{
@@ -356,7 +358,7 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 		/*Token *temp */ (void) GetNextWordToken("TEMPORARY", L"TEMPORARY", 9);
 		next = GetNextToken();
 		
-		obj_scope = SQL_SCOPE_TEMP_TABLE;
+		_obj_scope = SQL_SCOPE_TEMP_TABLE;
 	}
 	else
 	// PUBLIC SYNONYM in Oracle
@@ -389,7 +391,7 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 
 		next = GetNextToken();
 
-		obj_scope = SQL_SCOPE_TEMP_TABLE;
+		_obj_scope = SQL_SCOPE_TEMP_TABLE;
 	}
 	else
 	// EXTERNAL TABLE in Informix 
@@ -430,7 +432,7 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 
 		next = GetNextToken();
 
-		obj_scope = SQL_SCOPE_TEMP_TABLE;
+		_obj_scope = SQL_SCOPE_TEMP_TABLE;
 	}
 	else
 	// MySQL DEFINER, ALGORITHM clauses
@@ -476,6 +478,7 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 	// CREATE INDEX
 	if(next->Compare("INDEX", L"INDEX", 5) == true)
 	{
+        _obj_scope = SQL_SCOPE_INDEX;
 		exists = ParseCreateIndex(create, unique, next);
 	}
 	else
@@ -513,10 +516,11 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 	// CREATE TABLE
 	if(next->Compare("TABLE", L"TABLE", 5) == true)
 	{
-		if(obj_scope == 0)
-			obj_scope = SQL_SCOPE_TABLE;
+        // Scope can be already set to TEMP table i.e.
+        if(_obj_scope == 0)
+		    _obj_scope = SQL_SCOPE_TABLE;
 		
-		exists = ParseCreateTable(create, next, obj_scope);
+		exists = ParseCreateTable(create, next);
 	}
 	else
 	// CREATE TABLESPACE in Oracle and DB2
@@ -534,6 +538,8 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 	// CREATE VIEW
 	if(next->Compare("VIEW", L"VIEW", 4) == true)
 		exists = ParseCreateView(create, next);
+
+    _obj_scope = prev_object_scope;
 
 	return exists;
 }
@@ -598,6 +604,9 @@ bool SqlParser::ParseAlterStatement(Token *alter, int *result_sets, bool *proc)
 // ALTER TABLE statement
 bool SqlParser::ParseAlterTableStatement(Token *alter, Token *table)
 {
+    STMS_STATS("ALTER TABLE");
+    ALTER_TAB_STMS_STATS("ALTER TABLE statements")
+
 	// Get table name
 	Token *table_name = GetNextIdentToken();
 
@@ -608,6 +617,9 @@ bool SqlParser::ParseAlterTableStatement(Token *alter, Token *table)
 
 	if(next == NULL)
 		return false;
+
+    int prev_stmt_scope = _stmt_scope;
+    _stmt_scope = SQL_STMT_ALTER_TABLE;
 
 	bool gp_comment = false;
 
@@ -647,12 +659,16 @@ bool SqlParser::ParseAlterTableStatement(Token *alter, Token *table)
 		Comment(alter, last);
 	}
 
+    _stmt_scope = prev_stmt_scope;
+
 	return true;
 }
 
 // ALTER INDEX statement
 bool SqlParser::ParseAlterIndexStatement(Token *alter, Token * /*index*/)
 {
+    STMS_STATS("ALTER INDEX");
+
 	int options = 0;
 	int removed = 0;
 
@@ -717,6 +733,8 @@ bool SqlParser::ParseAllocateStatement(Token *allocate)
 {
 	if(allocate == NULL)
 		return false;
+
+    PL_STMS_STATS(allocate);
 
 	// Cursor name
 	Token *cursor_name = GetNextToken();
@@ -793,6 +811,8 @@ bool SqlParser::ParseAssociateStatement(Token *associate)
 {
 	if(associate == NULL)
 		return false;
+
+    PL_STMS_STATS(associate);
 
 	// RESULT SET is optional
 	Token *result = GetNextWordToken("RESULT", L"RESULT", 6);
@@ -881,6 +901,8 @@ bool SqlParser::ParseCallStatement(Token *call)
 {
 	if(call == NULL)
 		return false;
+
+    PL_STMS_STATS(call);
 
 	// Procedure name
 	Token *name = GetNextIdentToken();
@@ -1020,6 +1042,8 @@ bool SqlParser::ParseCloseStatement(Token *close)
 	if(close == NULL)
 		return false;
 
+    PL_STMS_STATS(close);
+
 	// Cursor name
 	Token *name = GetNextToken();
 
@@ -1103,6 +1127,8 @@ bool SqlParser::ParseCommentStatement(Token *comment)
 	// COMMENT ON TABLE
 	if(type->Compare("TABLE", L"TABLE", 5) == true)
 	{
+        STMS_STATS("COMMENT ON TABLE");
+
 		// ALTER TABLE name COMMENT text in MySQL
 		if(_target == SQL_MYSQL)
 		{
@@ -1115,6 +1141,8 @@ bool SqlParser::ParseCommentStatement(Token *comment)
 	// COMMENT ON COLUMN
 	if(type->Compare("COLUMN", L"COLUMN", 6) == true)
 	{
+        STMS_STATS("COMMENT ON COLUMN");
+
 		// execute sp_addextendedproperty in SQL Server
 		if(_target == SQL_SQL_SERVER)
 		{
@@ -1196,6 +1224,8 @@ bool SqlParser::ParseCommitStatement(Token *commit)
 	if(commit == NULL)
 		return false;
 
+    STMS_STATS(commit);
+
 	// Optional WORK keyword
 	Token *work = GetNextWordToken("WORK", L"WORK", 4);
 
@@ -1216,6 +1246,8 @@ bool SqlParser::ParseConnectStatement(Token *connect)
 
 	if(next == NULL)
 		return false;
+
+    STMS_STATS(connect);
 
 	// CONNECT TO
 	if(next->Compare("TO", L"TO", 2) == true)
@@ -1253,8 +1285,11 @@ bool SqlParser::ParseConnectStatement(Token *connect)
 }
 
 // CREATE TABLE statement
-bool SqlParser::ParseCreateTable(Token *create, Token *token, int obj_scope)
+bool SqlParser::ParseCreateTable(Token *create, Token *token)
 {
+    STMS_STATS("CREATE TABLE");
+    CREATE_TAB_STMS_STATS("CREATE TABLE statements")
+
 	if(token == NULL)
 		return false;
 
@@ -1332,7 +1367,7 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token, int obj_scope)
 	// Table comment in MySQL
 	Token *comment = NULL;
 
-	ParseStorageClause(table, obj_scope, &id_start, &comment, last_colname, last_colend);
+	ParseStorageClause(table, &id_start, &comment, last_colname, last_colend);
 
 	// Add statement delimiter if not set and handle GO when source is SQL Server, Sybase ASE
 	SqlServerDelimiter();
@@ -1385,6 +1420,8 @@ bool SqlParser::ParseCreateTableColumns(Token *create, Token *table_name, ListW 
 		// Parse a regular column definition
 		if(cns == false)
 		{
+            CREATE_TAB_STMS_STATS("Columns")
+
 			// Column name
 			Token *column = GetNextIdentToken();
 
@@ -1439,6 +1476,8 @@ bool SqlParser::ParseCreateTablespace(Token *create, Token *tablespace)
 {
 	bool exists = false;
 
+    STMS_STATS("CREATE TABLESPACE");
+
 	if(_source == SQL_DB2)
 		exists = ParseDb2CreateTablespace(create, tablespace);
 
@@ -1448,6 +1487,8 @@ bool SqlParser::ParseCreateTablespace(Token *create, Token *tablespace)
 // CREATE INDEX
 bool SqlParser::ParseCreateIndex(Token *create, Token *unique, Token *index)
 {
+    STMS_STATS("CREATE INDEX");
+
 	if(index == NULL)
 		return false;
 
@@ -1557,6 +1598,8 @@ bool SqlParser::ParseCreateAuxiliary(Token *create, Token *auxiliary)
 	if(create == NULL || auxiliary == NULL)
 		return false;
 
+    STMS_STATS("CREATE AUXILIARY TABLE");
+
 	// TABLE keyword
 	Token *table = GetNextWordToken("TABLE", L"TABLE", 5);
 
@@ -1606,6 +1649,8 @@ bool SqlParser::ParseCreateDatabase(Token *create, Token *database)
 	if(name == NULL)
 		return false;
 
+    STMS_STATS("CREATE DATABASE");
+
 	// IF NOT EXIST is optional for MySQL
 	if(name->Compare("IF", L"IF", 2) == true)
 	{
@@ -1640,6 +1685,8 @@ bool SqlParser::ParseCreateDatabase(Token *create, Token *database)
 // CREATE FUNCTION
 bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, Token *function)
 {
+    STMS_STATS("CREATE FUNCTION");
+
 	if(create == NULL || function == NULL)
 		return false;
 
@@ -2001,6 +2048,8 @@ bool SqlParser::ParseFunctionParameters(Token *function_name)
 // CREATE PACKAGE
 bool SqlParser::ParseCreatePackage(Token *create, Token *or_, Token *replace, Token *package)
 {
+    STMS_STATS("CREATE PACKAGE");
+
 	if(package == NULL)
 		return false;
 
@@ -2022,6 +2071,8 @@ bool SqlParser::ParseCreatePackage(Token *create, Token *or_, Token *replace, To
 // CREATE PACKAGE BODY
 bool SqlParser::ParseCreatePackageBody(Token *create, Token *or_, Token *replace, Token *package, Token *body)
 {
+    STMS_STATS("CREATE PACKAGE BODY");
+
 	if(body == NULL)
 		return false;
 
@@ -2082,6 +2133,8 @@ bool SqlParser::ParseCreatePackageBody(Token *create, Token *or_, Token *replace
 // CREATE PROCEDURE
 bool SqlParser::ParseCreateProcedure(Token *create, Token *or_, Token *replace, Token *procedure, int *result_sets)
 {
+    STMS_STATS("CREATE PROCEDURE");
+
 	if(procedure == NULL)
 		return false;
 
@@ -2253,6 +2306,8 @@ void SqlParser::SplPostActions()
 // CREATE TRIGGER statement 
 bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 {
+    STMS_STATS("CREATE TRIGGER");
+
 	if(trigger == NULL)
 		return false;
 
@@ -2692,6 +2747,8 @@ bool SqlParser::ParseDeleteStatement(Token *delete_)
 	if(delete_ == NULL)
 		return false;
 
+    STMS_STATS(delete_);
+
 	// FROM keyword
 	Token *from = GetNextWordToken("FROM", L"FROM", 4);
 
@@ -2801,6 +2858,8 @@ bool SqlParser::ParseDropDatabaseStatement(Token *drop, Token *database)
 	if(drop == NULL || database == NULL)
 		return false;
 
+    STMS_STATS("DROP DATABASE");
+
 	// IF EXISTS in MySQL
 	Token *if_ = GetNext("IF", L"IF", 2);
 	Token *exists = GetNext(if_, "EXISTS", L"EXISTS", 6);
@@ -2838,6 +2897,8 @@ bool SqlParser::ParseDropTableStatement(Token *drop, Token *table)
 {
 	if(drop == NULL || table == NULL)
 		return false;
+
+    STMS_STATS("DROP TABLE");
 
 	Token *table_name = GetNextIdentToken();
 
@@ -2907,6 +2968,8 @@ bool SqlParser::ParseDropTriggerStatement(Token *drop, Token *trigger)
 	if(drop == NULL || trigger == NULL)
 		return false;
 
+    STMS_STATS("DROP TRIGGER");
+
 	Token *trigger_name = GetNextIdentToken();
 
 	if(trigger_name == NULL)
@@ -2951,6 +3014,8 @@ bool SqlParser::ParseDropSchemaStatement(Token *drop, Token *schema)
 	if(drop == NULL || schema == NULL)
 		return false;
 
+    STMS_STATS("DROP SCHEMA");
+
 	// IF EXISTS in MySQL
 	Token *if_ = GetNext("IF", L"IF", 2);
 	Token *exists = GetNext(if_, "EXISTS", L"EXISTS", 6);
@@ -2978,6 +3043,8 @@ bool SqlParser::ParseDropSequenceStatement(Token *drop, Token *sequence)
 	if(drop == NULL || sequence == NULL)
 		return false;
 
+    STMS_STATS("DROP SEQUENCE");
+
 	Token *seq_name = GetNextIdentToken();
 
 	if(seq_name == NULL)
@@ -3001,6 +3068,8 @@ bool SqlParser::ParseDropStogroupStatement(Token *drop, Token *stogroup)
 {
 	if(drop == NULL || stogroup == NULL)
 		return false;
+
+    STMS_STATS("DROP STOGROUP");
 
 	Token *name = GetNextIdentToken();
 
@@ -3048,6 +3117,8 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 	
 	if(immediate != NULL)
 	{
+        PL_STMS_STATS("EXECUTE IMMEDIATE");
+
 		// In Oracle statement can enclose with ()
 		Token *open = GetNext('(', L'(');
 
@@ -3117,6 +3188,8 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 	// EXECUTE in SQL Server, PostgreSQL, MySQL, Teradata
 	else
 	{
+        PL_STMS_STATS("EXECUTE");
+
 		// Optional ()
 		Token *open = GetNextCharToken('(', L'(');
 		Token *close = NULL;
@@ -3217,6 +3290,8 @@ bool SqlParser::ParseExitStatement(Token *exit)
 	if(exit == NULL)
 		return false;
 
+    PL_STMS_STATS("EXIT");
+
 	// FOR, FOREACH, LOOP or WHILE keyword in Informix
 	Token *loop_type = GetNextWordToken("FOR", L"FOR", 3);
 	
@@ -3314,6 +3389,8 @@ bool SqlParser::ParseExportStatement(Token *export_)
 {
 	if(export_ == NULL)
 		return false;
+
+    STMS_STATS("EXPORT");
 
 	// TO file
 	Token *to = GetNextWordToken("TO", L"TO", 2);
@@ -3421,6 +3498,8 @@ bool SqlParser::ParseCreateType(Token *create, Token *type)
 	if(create == NULL || type == NULL)
 		return false;
 
+    STMS_STATS("CREATE TYPE");
+
 	// User-defined type name
 	Token *name = GetNextToken();
 
@@ -3471,6 +3550,8 @@ bool SqlParser::ParseCreateRule(Token *create, Token *rule)
 	if(create == NULL || rule == NULL)
 		return false;
 
+    STMS_STATS("CREATE RULE");
+
 	// Rule name
 	Token *name = GetNextToken();
 
@@ -3499,6 +3580,8 @@ bool SqlParser::ParseCreateSchema(Token *create, Token *schema)
 {
 	if(create == NULL || schema == NULL)
 		return false;
+
+    STMS_STATS("CREATE SCHEMA");
 
 	// IF NOT EXISTS in MySQL
 	Token *if_ = GetNext("IF", L"IF", 2);
@@ -3575,6 +3658,8 @@ bool SqlParser::ParseCreateSchema(Token *create, Token *schema)
 // Oracle CREATE SEQUENCE
 bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 {
+    STMS_STATS("CREATE SEQUENCE");
+
 	if(create == NULL || sequence == NULL)
 		return false;
 
@@ -3734,6 +3819,8 @@ bool SqlParser::ParseCreateStogroup(Token *create, Token *stogroup)
 	if(create == NULL || stogroup == NULL)
 		return false;
 
+    STMS_STATS("CREATE STOGROUP");
+
 	Token *name = GetNextIdentToken();
 
 	if(name == NULL)
@@ -3804,6 +3891,8 @@ bool SqlParser::ParseCreateStogroup(Token *create, Token *stogroup)
 // CREATE VIEW statement
 bool SqlParser::ParseCreateView(Token *create, Token *view)
 {
+    STMS_STATS("CREATE VIEW");
+
 	if(create == NULL || view == NULL)
 		return false;
 
@@ -3884,6 +3973,8 @@ bool SqlParser::ParseDeclareCondition(Token *declare, Token *name, Token *condit
 	if(declare == NULL || name == NULL || condition == NULL)
 		return false;
 
+    PL_STMS_STATS("DECLARE CONDITION");
+
 	// FOR SQLSTATE
 	Token *for_ = GetNextWordToken("FOR", L"FOR", 3);
 	Token *sqlstate = NULL;
@@ -3918,6 +4009,8 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 {
 	if(declare == NULL || name == NULL || cursor == NULL)
 		return false;
+
+    PL_STMS_STATS("DECLARE CURSOR");
 
 	_spl_declared_cursors.Add(name);
 	_spl_current_declaring_cursor = name;
@@ -4078,6 +4171,8 @@ bool SqlParser::ParseDeclareHandler(Token *declare, Token *type)
 	// Possible conflict with variable name
 	if(Source(SQL_DB2, SQL_MYSQL, SQL_TERADATA) == false)
 		return false;
+
+    PL_STMS_STATS("DECLARE HANDLER");
 
 	// CONTINUE, EXIT, UNDO possible handler types
 	bool continue_ = false;
@@ -4303,6 +4398,8 @@ bool SqlParser::ParseDeclareHandler(Token *declare, Token *type)
 // SQL Server DECLARE TABLE variable
 bool SqlParser::ParseDeclareTable(Token *declare, Token *name, Token *table)
 {
+    PL_STMS_STATS("DECLARE TABLE");
+
 	// Next token must be (
 	/*Token *open */ (void) GetNextCharToken('(', L'(');
 
@@ -4351,6 +4448,8 @@ bool SqlParser::ParseDeclareGlobalTemporaryTable(Token *declare, Token *global)
 
 	if(table == NULL)
 		return false;
+
+    PL_STMS_STATS("DECLARE GLOBAL TEMPORARY TABLE");
 
 	// Table name
 	Token *name = GetNextIdentToken();
@@ -4481,6 +4580,8 @@ bool SqlParser::ParseDeclareLocalTemporaryTable(Token *declare, Token *local)
 	if(table == NULL)
 		return false;
 
+    PL_STMS_STATS("DECLARE LOCAL TEMPORARY TABLE");
+
 	// Table name
 	Token *name = GetNextIdentToken();
 
@@ -4525,6 +4626,8 @@ bool SqlParser::ParseDeclareVariable(Token *declare, Token *name, Token *type, i
 {
 	if(name == NULL || type == NULL)
 		return false;
+
+    PL_STMS_STATS("DECLARE");
 
 	// In PostgreSQL DECLARE is specified once (start DECLARE section that goes until BEGIN)
 	// Make sure it is not the same DECLARE keyword (when variables are in a list)
@@ -4671,6 +4774,8 @@ bool SqlParser::ParseFetchStatement(Token *fetch)
 	if(fetch == NULL)
 		return false;
 
+    PL_STMS_STATS("FETCH");
+
 	// Optional FROM in DB2
 	Token *from = GetNextWordToken("FROM", L"FROM", 4);
 
@@ -4749,6 +4854,8 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 {
 	if(for_ == NULL)
 		return false;
+
+    PL_STMS_STATS(for_);
 
 	// Loop variable
 	Token *var = GetNextIdentToken();
@@ -5085,6 +5192,8 @@ bool SqlParser::ParseForeachStatement(Token *foreach_, int scope)
 	if(foreach_ == NULL)
 		return false;
 
+    PL_STMS_STATS(foreach_);
+
 	// Optional WITH HOLD option before SELECT
 	Token *with = GetNextWordToken("WITH", L"WITH", 4);
 	Token *hold = (with != NULL) ? GetNextWordToken("HOLD", L"HOLD", 4) : NULL;
@@ -5324,6 +5433,8 @@ bool SqlParser::ParseFreeStatement(Token *free)
 	if(free == NULL)
 		return false;
 
+    PL_STMS_STATS(free);
+
 	// Statement ID or cursor
 	Token *name = GetNextToken();
 
@@ -5358,6 +5469,8 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 {
 	if(if_ == NULL)
 		return false;
+
+    PL_STMS_STATS(if_)
 
 	// Force block scope to handle delimiters
 	if(_spl_scope == 0)
@@ -5569,6 +5682,8 @@ bool SqlParser::ParseWhileStatement(Token *while_, int scope)
 	if(while_ == NULL)
 		return false;
 
+    PL_STMS_STATS(while_);
+
 	ParseBooleanExpression(SQL_BOOL_WHILE);
 
 	// LOOP keyword in Oracle
@@ -5679,6 +5794,8 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 {
 	if(insert == NULL)
 		return false;
+
+    STMS_STATS(insert);
 
 	Token *into = GetNextWordToken("INTO", L"INTO", 4);
 
@@ -5831,6 +5948,8 @@ bool SqlParser::ParseLetStatement(Token *let)
 	if(let == NULL)
 		return false;
 
+    PL_STMS_STATS(let);
+
 	// Check for pattern LET var = DBINFO('sqlca.sqlerrd1') that gets the last SERIAL value
 	if(_target == SQL_ORACLE && InformixPatternAssignLastSerial(let) == true)
 		return true;
@@ -5847,6 +5966,8 @@ bool SqlParser::ParseLeaveStatement(Token *leave)
 {
 	if(leave == NULL)
 		return false;
+
+    PL_STMS_STATS(leave);
 
 	// Mandatory label name in DB2
 	Token *label = GetNextToken();
@@ -5880,6 +6001,8 @@ bool SqlParser::ParseGetStatement(Token *get)
 
 	if(diagnostics == NULL)
 		return false;
+
+    PL_STMS_STATS("GET DIAGNOSTICS");
 
 	// GET DIAGNOSTICS EXCEPTION 1 var = type in DB2
 	Token *exception = GetNextWordToken("EXCEPTION", L"EXCEPTION", 9);
@@ -5962,6 +6085,8 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 {
 	if(grant == NULL)
 		return false;
+
+    STMS_STATS(grant);
 
 	Token *priv = GetNextToken();
 
@@ -6050,6 +6175,8 @@ bool SqlParser::ParseLockStatement(Token *lock_)
 	if(lock_ == NULL)
 		return false;
 
+    STMS_STATS(lock_);
+
 	// TABLE keyword in Oracle
 	Token *table = GetNext("TABLE", L"TABLE", 5);
 
@@ -6103,6 +6230,8 @@ bool SqlParser::ParseLoopStatement(Token *loop, int scope)
 {
 	if(loop == NULL)
 		return false;
+
+    PL_STMS_STATS(loop);
 
 	// Use WHILE 1=1 BEGIN in SQL Server
 	if(_target == SQL_SQL_SERVER)
@@ -6162,6 +6291,8 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 {
 	if(exception == NULL)
 		return false;
+
+    PL_STMS_STATS(exception);
 
 	bool exists = false;
 
@@ -6283,6 +6414,8 @@ bool SqlParser::ParseOnExceptionStatement(Token *on, Token *exception)
 	if(on == NULL || exception == NULL)
 		return false;
 
+    PL_STMS_STATS("ON EXCEPTION");
+
 	// SET var clause can optionally follow to set error code to existing variable
 	Token *set = GetNextWordToken("SET", L"SET", 3);
 
@@ -6351,6 +6484,8 @@ bool SqlParser::ParseOpenStatement(Token *open)
 {
 	if(open == NULL)
 		return false;
+
+    PL_STMS_STATS(open);
 
 	// Cursor name
 	Token *name = GetNextIdentToken();
@@ -6565,6 +6700,8 @@ bool SqlParser::ParsePerformStatement(Token *perform)
 	if(perform == NULL)
 		return false;
 
+    PL_STMS_STATS(perform);
+
 	Token *func = GetNextToken();
 
 	if(func == NULL)
@@ -6585,6 +6722,8 @@ bool SqlParser::ParsePrepareStatement(Token *prepare)
 {
 	if(prepare == NULL)
 		return false;
+
+    PL_STMS_STATS(prepare);
 
 	// Statement ID that will be referenced in DECLARE CURSOR FOR stmt_id i.e.
 	Token *stmt_id = GetNextToken();
@@ -6623,6 +6762,8 @@ bool SqlParser::ParsePrintStatement(Token *print)
 	if(print == NULL)
 		return false;
 
+    PL_STMS_STATS(print);
+
 	// Expression can be specified
 	Token *exp = GetNext();
 
@@ -6640,6 +6781,8 @@ bool SqlParser::ParsePromptStatement(Token *prompt)
 {
 	if(prompt == NULL)
 		return false;
+
+    STMS_STATS(prompt);
 
 	Token *first = GetNextToken();
 	Token *last = NULL;
@@ -6686,6 +6829,8 @@ bool SqlParser::ParseRemStatement(Token *rem)
 	if(rem == NULL)
 		return false;
 
+    STMS_STATS(rem);
+
 	// Comment text
 	/*Token *comment */ (void) GetNextUntilNewlineToken();
 
@@ -6701,6 +6846,8 @@ bool SqlParser::ParseRaiseStatement(Token *raise)
 {
 	if(raise == NULL)
 		return false;
+
+    PL_STMS_STATS(raise);
 
 	// EXCEPTION, NOTICE etc.
 	Token *notice = GetNextWordToken("NOTICE", L"NOTICE", 6);
@@ -6813,6 +6960,8 @@ bool SqlParser::ParseRepeatStatement(Token *repeat, int scope)
 	if(repeat == NULL)
 		return false;
 
+    PL_STMS_STATS(repeat);
+
 	ParseBlock(SQL_BLOCK_REPEAT, true, scope, NULL);
 
 	// UNTIL keyword
@@ -6884,6 +7033,8 @@ bool SqlParser::ParseResignalStatement(Token *resignal)
 	if(resignal == NULL)
 		return false;
 
+    PL_STMS_STATS(resignal);
+
 	// RAISE in Oracle 
 	if(_target == SQL_ORACLE)
 		Token::Change(resignal, "RAISE", L"RAISE", 5);
@@ -6896,6 +7047,8 @@ bool SqlParser::ParseReturnStatement(Token *return_)
 {
 	if(return_ == NULL)
 		return false;
+
+    PL_STMS_STATS(return_);
 
 	// Check for RETURN without any expression
 	Token *semi = GetNextCharToken(';', L';');
@@ -7022,6 +7175,8 @@ bool SqlParser::ParseRevokeStatement(Token *revoke)
 	if(revoke == NULL)
 		return false;
 
+    STMS_STATS(revoke);
+
 	Token *priv = GetNextToken();
 
 	if(priv == NULL)
@@ -7071,6 +7226,8 @@ bool SqlParser::ParseRollbackStatement(Token *rollback)
 	if(rollback == NULL)
 		return false;
 
+    PL_STMS_STATS(rollback);
+
 	// WORK keyword in Informix
 	Token *work = GetNextWordToken("WORK", L"WORK", 4);
 
@@ -7087,9 +7244,11 @@ bool SqlParser::ParseSetStatement(Token *set)
 	if(set == NULL)
 		return false;
 
-	// First try to parse SET options such as SET ISOLATION ...
+   	// First try to parse SET options such as SET ISOLATION ...
 	if(Token::Compare(set, "SET", L"SET", 3) == true && ParseSetOptions(set) == true)
 		return true;	
+
+    PL_STMS_STATS(set);
 
 	// MySQL allows to have SELECT inside an expression as a parameter of a function
 	// SET var = IFNULL((SELECT ...), 0);
@@ -7403,6 +7562,8 @@ bool SqlParser::ParseShowStatement(Token *show)
 	if(show == NULL)
 		return false;
 
+    STMS_STATS(show);
+
 	Token *option = GetNext();
 
 	if(option == NULL)
@@ -7423,6 +7584,8 @@ bool SqlParser::ParseSignalStatement(Token *signal)
 {
 	if(signal == NULL)
 		return false;
+
+    PL_STMS_STATS(signal);
 
 	// SQLSTATE keyword in DB2
 	Token *sqlstate = GetNextWordToken("SQLSTATE", L"SQLSTATE", 8);
@@ -7501,6 +7664,8 @@ bool SqlParser::ParseSystemStatement(Token *system)
 	if(system == NULL)
 		return false;
 
+    PL_STMS_STATS(system);
+
 	// Command to execute
 	Token *cmd = GetNextToken();
 
@@ -7528,6 +7693,8 @@ bool SqlParser::ParseTerminateStatement(Token *terminate)
 	if(terminate == NULL)
 		return false;
 
+    STMS_STATS(terminate);
+
 	// Comment for Greenplum
 	if(_target == SQL_GREENPLUM)
 	{
@@ -7553,6 +7720,8 @@ bool SqlParser::ParseTruncateStatement(Token *truncate, int scope)
 	if(table == NULL)
 		return false;
 
+    STMS_STATS("TRUNCATE TABLE");
+
 	Token *name = GetNextIdentToken();
 
 	if(name == NULL)
@@ -7577,6 +7746,8 @@ bool SqlParser::ParseUpdateStatement(Token *update)
 	// UPDATE STATISTICS in Informix
 	if(_source == SQL_INFORMIX && ParseInformixUpdateStatistics(update) == true)
 		return true;
+
+    STMS_STATS(update);
 
 	// Table name
 	Token *name = GetNextIdentToken(SQL_IDENT_OBJECT);
@@ -7731,6 +7902,8 @@ bool SqlParser::ParseUseStatement(Token *use)
 {
 	if(use == NULL)
 		return false;
+
+    STMS_STATS(use);
 
 	// Database name
 	Token *name = GetNextIdentToken();

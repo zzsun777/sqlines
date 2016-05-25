@@ -179,10 +179,10 @@ bool SqlParser::ParseTempTableOptions(Token *table_name, Token **start_out, Toke
 }
 
 // Parse CREATE TABLE storage clause
-bool SqlParser::ParseStorageClause(Token *table_name, int obj_scope, Token **id_start, Token **comment,
+bool SqlParser::ParseStorageClause(Token *table_name, Token **id_start, Token **comment,
 									Token *last_colname, Token *last_colend)
 {
-	if(_source == SQL_ORACLE && ParseOracleStorageClause(obj_scope) == true)
+	if(_source == SQL_ORACLE && ParseOracleStorageClause() == true)
 		return true;
 
 	if(_source == SQL_SQL_SERVER && ParseSqlServerStorageClause() == true)
@@ -197,7 +197,7 @@ bool SqlParser::ParseStorageClause(Token *table_name, int obj_scope, Token **id_
 	if(_source == SQL_INFORMIX && ParseInformixStorageClause() == true)
 		return true;
 
-	if(_source == SQL_TERADATA && ParseTeradataStorageClause(obj_scope, last_colname, last_colend) == true)
+	if(_source == SQL_TERADATA && ParseTeradataStorageClause(last_colname, last_colend) == true)
 		return true;
 
 	return false;
@@ -419,7 +419,7 @@ bool SqlParser::ParseMysqlStorageClause(Token *table_name, Token **id_start, Tok
 }
 
 // Parse Oracle CREATE TABLE, CREATE INDEX, PARTITION definition storage clause
-bool SqlParser::ParseOracleStorageClause(int stmt_scope)
+bool SqlParser::ParseOracleStorageClause()
 {
 	bool exists = false;
 
@@ -622,7 +622,7 @@ bool SqlParser::ParseOracleStorageClause(int stmt_scope)
 		}
 		else
 		// Oracle partitioning clauses
-		if(ParseOraclePartitions(next, stmt_scope) == true)
+		if(ParseOraclePartitions(next) == true)
 		{
 			exists = true;
 			continue;
@@ -969,7 +969,7 @@ bool SqlParser::ParseInformixStorageClause()
 }
 
 // Parse Teradata CREATE TABLE storage clause
-bool SqlParser::ParseTeradataStorageClause(int obj_scope, Token *last_colname, Token *last_colend)
+bool SqlParser::ParseTeradataStorageClause(Token *last_colname, Token *last_colend)
 {
 	bool exists = false;
 
@@ -986,7 +986,7 @@ bool SqlParser::ParseTeradataStorageClause(int obj_scope, Token *last_colname, T
 			Token *primary = GetNext("PRIMARY", L"PRIMARY", 7);
 
 			if(primary != NULL)
-				ParseTeradataPrimaryIndex(next, primary, obj_scope, last_colname, last_colend);
+				ParseTeradataPrimaryIndex(next, primary, last_colname, last_colend);
 
 			exists = true;
 			continue;
@@ -995,7 +995,7 @@ bool SqlParser::ParseTeradataStorageClause(int obj_scope, Token *last_colname, T
 		// PRIMARY INDEX hash partitioning clause
 		if(next->Compare("PRIMARY", L"PRIMARY", 7) == true)
 		{
-			ParseTeradataPrimaryIndex(NULL, next, obj_scope, last_colname, last_colend);
+			ParseTeradataPrimaryIndex(NULL, next, last_colname, last_colend);
 
 			exists = true;
 			continue;
@@ -1012,7 +1012,7 @@ bool SqlParser::ParseTeradataStorageClause(int obj_scope, Token *last_colname, T
 // CREATE INDEX storage options
 bool SqlParser::ParseCreateIndexOptions()
 {
-	if(ParseOracleStorageClause(SQL_SCOPE_INDEX) == true)
+	if(ParseOracleStorageClause() == true)
 		return true;
 
 	if(ParseDb2CreateIndexOptions() == true)

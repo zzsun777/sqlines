@@ -31,11 +31,13 @@
 #define SQL_SYBASE_ASA			9
 #define SQL_TERADATA			10
 #define SQL_NETEZZA				11
+#define SQL_MARIADB             12            
 
 extern void* CreateParserObject();
 extern void SetParserTypes(void *parser, short source, short target);
 extern int SetParserOption(void *parser, const char *option, const char *value);
 extern int ConvertSql(void *parser, const char *input, int size, const char **output, int *out_size, int *lines);
 extern void FreeOutput(const char *output);
+extern int CreateAssessmentReport(void *parser, const char *summary);
 
 #endif // sqlines_sqlparserexp_h
