@@ -148,7 +148,7 @@ int	FileList::FindFiles(std::string dir, std::string file, std::list<std::string
 	// If the file does not contain a wildcard add as is
 	if(strchr(file.c_str(), '*') == NULL)
 	{
-		int size = 0;
+		size_t size = 0;
 
 		if(File::IsFile(path.c_str(), &size) == true)
 		{
@@ -221,7 +221,7 @@ int	FileList::FindFiles(std::string dir, std::string file, std::list<std::string
 				if(len && fileName[len-1] == '\n')
 					fileName[len-1] = '\x0'; 
 
-				int size = 0;
+				size_t size = 0;
 				bool file = File::IsFile(fileName, &size);
 
 				if(file == true)

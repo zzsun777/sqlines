@@ -38,7 +38,7 @@ public:
 	// Check if the path points to an existing directory
 	static bool IsDirectory(const char *path);	
 	// Check if the path points to an existing file
-	static bool IsFile(const char *path, int *size);	
+	static bool IsFile(const char *path, size_t *size);	
 
 #ifdef WIN32
 	// Check if the file is directory
@@ -63,13 +63,13 @@ public:
 	static int GetFileSize(const char* file);
 
 	// Get content of the file (without terminating with 'x0')
-	static int GetContent(const char* file, void *input, int len);
+	static int GetContent(const char* file, void *input, size_t len);
 
 	// Get relative name
 	static std::string GetRelativeName(const char* base, const char *file);
 
 	// Write the buffer to the file
-    static int Write(const char *file, const char* content, int size);
+    static int Write(const char *file, const char* content, size_t size);
 
 	// Create directories (supports nested directories)
 	static void CreateDirectories(const char *path);

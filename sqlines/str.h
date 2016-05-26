@@ -46,7 +46,7 @@ public:
 	static const char* SkipUntil(const char *input, char ch);
 
 	// Get copy of the input string
-	static char* GetCopy(const char *input, int size);
+	static char* GetCopy(const char *input, size_t size);
 	static char* GetCopy(const char *input);
 
 	// Replace character in string (returns the same string)
@@ -69,6 +69,9 @@ public:
 
 	// Convert 2 digit date time part (century, 2 digit year, month, day, hour, minute, second) to 2 chars
 	static void Dt2Ch(int dt, char *ch);
+
+	// Does character points to space, tab or new line
+	static bool IsSpace(char c) { if(c == ' ' || c == '\t' || c == '\r' || c == '\n') return true; return false; }
 };
 
 #endif // sqlines_str_h
