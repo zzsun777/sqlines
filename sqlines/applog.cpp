@@ -40,6 +40,9 @@ void AppLog::Log(const char *format, ...)
 	// QT tools seem to get delayed output
 	fflush(stdout);
 
+        va_end(args);
+        va_start(args, format);
+
 	// log message to file
 	LogFileVaList(format, args);
 
@@ -100,7 +103,7 @@ void AppLog::LogFileVaList(const char *format, va_list args)
 	FILE *file = fopen(_filename.c_str(), openMode);
 
 	// Log message to file
-	if(file)
+	if(file != NULL)
 	{
 		vfprintf(file, format, args);
 		fclose(file);
@@ -110,7 +113,7 @@ void AppLog::LogFileVaList(const char *format, va_list args)
 		// Show error message during the first call only  
 		if(firstCall)
 			printf("\n\nError:\n Opening log file %s - %s", _filename.c_str(), strerror(errno));
-	}
+	} 
 
 	firstCall = false;
 }
