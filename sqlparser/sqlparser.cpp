@@ -1071,7 +1071,7 @@ bool SqlParser::ParseComment()
 			cur += 2;
 
 			// MySQL requires a blank after --
-			if(_target == SQL_MYSQL && _remain_size > 0 && *cur != ' ' && *cur != '\t') 
+			if(Target(SQL_MARIADB, SQL_MYSQL) && _remain_size > 0 && *cur != ' ' && *cur != '\t') 
 			{
 				Token *space = new Token();
 				space->type = TOKEN_SYMBOL;
@@ -1603,14 +1603,14 @@ Token* SqlParser::Append(Token *token, const char *str, const wchar_t *wstr, siz
 #ifdef WIN32
 		newline.type = TOKEN_SYMBOL;
 		newline.chr = '\r';
-		
-		AppendCopy(token, &newline);
+
+	    AppendCopy(token, &newline);
 #endif
 
 		newline.type = TOKEN_SYMBOL;
 		newline.chr = '\n';
 		
-		AppendCopy(token, &newline);
+	    AppendCopy(token, &newline);
 
 		Token *prev = (format != NULL) ? format->prev : token->prev;
 
@@ -1627,7 +1627,7 @@ Token* SqlParser::Append(Token *token, const char *str, const wchar_t *wstr, siz
 	else
 		Token::Change(append, str, wstr, len);
 
-	Append(token, append);
+    Append(token, append);
 
 	return append;
 }
@@ -1791,6 +1791,18 @@ void SqlParser::AppendSpaceCopy(Token *token, Token *first, Token *last, bool ap
 		return;
 
 	AppendNoFormat(token, " ", L" ", 1);
+	AppendCopy(token, first, last, append_removed);
+}
+
+void SqlParser::AppendNewlineCopy(Token *token, Token *first, Token *last, size_t newlines, bool append_removed)
+{
+	if(token == NULL && newlines > 3)
+		return;
+
+    char c[3] = {'\n', '\n', '\n' };
+    wchar_t w[3] = {L'\n', L'\n', L'\n' };
+
+    AppendNoFormat(token, c, w, newlines);
 	AppendCopy(token, first, last, append_removed);
 }
 

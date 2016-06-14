@@ -79,6 +79,12 @@ public:
 		count = 0;
 	}
 
+    // Delete the last item
+    void DeleteLast()
+    {
+        DeleteSince(GetLast());
+    }
+
 	// Delete elements since the specified item including
 	void DeleteSince(ListwItem *since)
 	{

@@ -45,6 +45,8 @@
 #define SQL_SYBASE_ASA			9
 #define SQL_TERADATA			10
 #define SQL_NETEZZA				11
+#define SQL_MARIADB             12
+#define SQL_TRAFODION           13
 
 // Application types
 #define APP_JAVA				1
@@ -186,6 +188,8 @@
 
 #define TOKEN_GETNEXT(chr)        GetNext(chr, L##chr)
 #define TOKEN_CMP(token, string)  Token::Compare(token, string, L##string, sizeof(string) - 1)
+#define TOKEN_CHANGE(token, string)  Token::Change(token, string, L##string, sizeof(string) - 1)
+#define TOKEN_CHANGE_FMT(token, string, format)  Token::Change(token, string, L##string, sizeof(string) - 1, format)
 #define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
 
 typedef std::map<std::string, std::string> StringMap;
@@ -305,10 +309,16 @@ class SqlParser
 
 	// Outer BEGIN keyword
     Token *_spl_outer_begin;
+    // Standalone BEGIN levels in the current procedure (each BEGIN entry is cleared on block exit)
+    ListW _spl_begin_blocks;
+
     // Last declare statement before the first non-declare statement
 	Token *_spl_last_declare;
-	// First non-declare statement in procedure or function
+    // First non-declare statement in procedure or function
 	Token *_spl_first_non_declare;
+
+    // Last token of last declared variable (not cursor) in the outer PL/SQL DECLARE block
+    Token *_spl_last_outer_declare_var;
     
 	// Number of result sets returned from procedure
 	int _spl_result_sets;
@@ -398,6 +408,11 @@ class SqlParser
 	ListWM _spl_rs_locator_procedures;
 	// Cursors allocated for result set locators in DB2
 	ListWM _spl_rs_locator_cursors;
+
+    // Loops level in the current procedure (each loop entry is cleared on loop exit)
+    ListW _spl_loops;
+    // Number of loop labels already generated in the current procedure
+    int _spl_loop_labels;
 
 	// Stored procedures calls inside procedural block
 	ListWM _spl_sp_calls;
@@ -497,6 +512,7 @@ public:
 	Token *Append(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
 	void Append(Token *token, int value);
 	void Append(Token *token, TokenStr *str, Token *format = NULL);
+    void AppendFirst(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
 	Token* AppendNoFormat(Token *token, const char *str, const wchar_t *wstr, size_t len);
 	void AppendNoFormat(Token *token, TokenStr *str);
 	void AppendFirstNoFormat(Token *token, const char *str, const wchar_t *wstr, size_t len);
@@ -504,6 +520,7 @@ public:
 	Token* AppendCopy(Token *token, Token *first, Token *last, bool append_removed = true);
 	void AppendSpaceCopy(Token *token, Token *append);
 	void AppendSpaceCopy(Token *token, Token *first, Token *last, bool append_removed = true);
+    void AppendNewlineCopy(Token *token, Token *first, Token *last, size_t newlines = 1, bool append_removed = true);
 	void Append(Token *token, Token *append);
 	
 	// Prepend the token with the specified value
@@ -523,6 +540,7 @@ public:
 
 	// Return first not NULL
 	Token* Nvl(Token *first, Token *second, Token *third = NULL);
+    Token* NvlLast(Token *first);
 
 	// Enter, leave and check the specified scope
 	void Enter(int scope);
@@ -567,6 +585,7 @@ public:
 	bool ParseFunction(Token *token);
 	bool ParseFunctionWithoutParameters(Token *token);
 	bool ParseDatetimeLiteral(Token *token);
+    bool ParseNamedVarExpression(Token *token);
 	bool ParseBlock(int type, bool frontier, int scope, int *result_sets);
 	bool ParseComment();
 	bool ParseLabelDeclaration(Token *word, bool outer_sp_block);
@@ -1161,7 +1180,7 @@ public:
 	bool ParseProcedureBody(Token *create, Token *procedure, Token *name, Token *as, int *result_sets);
 	bool ParseSplEndName(Token *name, Token *end);
 	bool ParseOracleVariableDeclarationBlock(Token *declare);
-	bool ParseOracleCursorDeclaration(Token *cursor);
+	bool ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors);
 	bool ParseFunctionParameters(Token *function_name);
 	bool ParseFunctionReturns(Token *function);
 	bool ParseFunctionOptions();

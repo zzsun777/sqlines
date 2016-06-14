@@ -599,7 +599,7 @@ bool SqlParser::ParseFunctionDbmsOutput(Token *name, Token *open)
 		}
 		else
 		// PUT_LINE user-defined function (not built-in) in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Token::Change(name, "PUT_LINE", L"PUT_LINE", 8);
 		}
@@ -615,6 +615,20 @@ bool SqlParser::ParseFunctionDbmsOutput(Token *name, Token *open)
 			name->t_type = TOKEN_STATEMENT;
 		}
 	}
+    else
+    // DBMS_OUTPUT.ENABLE(buffer => NULL)
+	if(name->Compare("ENABLE", L"ENABLE", 12, 6) == true)
+	{
+		Token *exp = GetNextToken();
+
+		ParseExpression(exp);
+
+        Token *close = GetNext(')', L')');
+        Token *semi = GetNext(';', L';');
+
+        if(close != NULL)
+            Token::Remove(name, Nvl(semi, close));
+    }
 	
 	return true;
 }
@@ -629,7 +643,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 	// Remove DECLARE for SQL Server, MySQL as it will be specified before each variable
 	if(Token::Compare(declare, "DECLARE", L"DECLARE", 7) == true)
 	{
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			Token::Remove(declare);
 	}
 	else
@@ -655,6 +669,12 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		}
 	}
 
+    // Last token of last declared variable (not cursor) in the current PL/SQL DECLARE block
+    Token *last_declare_var = NULL;
+
+    // Cursor definitions
+	ListWM cursors;
+
 	// Process declaration statements until BEGIN
 	while(true)
 	{
@@ -672,7 +692,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		}
 
 		// CURSOR cur IS SELECT definition
-		if(ParseOracleCursorDeclaration(name) == true)
+		if(ParseOracleCursorDeclaration(name, &cursors) == true)
 		{
 			exists = true;
 			continue;
@@ -686,7 +706,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		exists = true;
 
 		// Add DECLARE before name in SQL Server, Sybase and MySQL
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL, SQL_SYBASE) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL, SQL_SYBASE) == true)
 			Prepend(name, "DECLARE ", L"DECLARE ", 8, declare);
 
 		Token *data_type = GetNextToken();
@@ -723,7 +743,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 				Prepend(equal, ":", L":", 1);
 			else
 			// In MySQL use DEFAULT keyword
-			if(_target == SQL_MYSQL && equal != NULL)
+			if(Target(SQL_MARIADB, SQL_MYSQL) && equal != NULL)
 			{
 				Token::Change(equal, " DEFAULT ", L" DEFAULT ", 9);
 				Token::Remove(colon);
@@ -733,12 +753,18 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		// ; after each declaration
 		Token *semi = GetNextCharToken(';', L';');
 
+        last_declare_var = Nvl(semi, GetLastToken());
+
+        // Check if we are in the outer BEGIN block
+        if(_spl_begin_blocks.GetCount() == 0)
+            _spl_last_outer_declare_var = last_declare_var;
+
 		if(semi == NULL)
 			break;
 	}
 
 	// Generate variables for cursor parameters 
-	if(exists == true && Target(SQL_SQL_SERVER, SQL_MYSQL) == true && _spl_cursor_params.GetCount() > 0)
+	if(exists == true && Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true && _spl_cursor_params.GetCount() > 0)
 	{
 		for(ListwmItem *i = _spl_cursor_params.GetFirst(); i != NULL; i = i->next)
 		{
@@ -765,6 +791,24 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		}
 	}
 
+    // Cursors must be after all variables in MySQL and MariaDB, so move them if required
+	if(exists == true && last_declare_var != NULL && Target(SQL_MARIADB, SQL_MYSQL) == true && 
+        cursors.GetCount() > 0)
+	{
+        for(ListwmItem *i = cursors.GetFirst(); i != NULL; i = i->next)
+		{
+            Token *cursor = (Token*)i->value;
+			Token *semi = (Token*)i->value2;
+
+            // Cursor goes before the last variable
+            if(cursor->remain_size > last_declare_var->remain_size)
+            {
+                AppendNewlineCopy(last_declare_var, cursor, semi, 2, false);
+                Token::Remove(cursor, semi);
+            }
+        }
+    }
+
 	_declare_format = declare;
 	_spl_last_declare = GetLastToken();
 
@@ -772,7 +816,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 }
 
 // CURSOR cur(params) IS SELECT definition
-bool SqlParser::ParseOracleCursorDeclaration(Token *cursor)
+bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 {
 	if(cursor == NULL)
 		return false;
@@ -823,7 +867,7 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor)
 			// to increase chance that SQL execution plan is re-used
 
 			// Define variable name to use instead of parameter 
-			if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+			if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			{
 				TokenStr str;
 
@@ -851,13 +895,13 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor)
 			if(comma == NULL)
 				break;
 
-			if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+			if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 				Token::Remove(comma);
 		}
 
 		Token *close = GetNextCharToken(')', L')');
 
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		{
 			Token::Remove(open);
 			Token::Remove(close);
@@ -867,11 +911,11 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor)
 	Token *is = GetNextWordToken("IS", L"IS", 2);
 
 	// FOR in SQL Server, MySQL
-	if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+	if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		Token::Change(is, "FOR", L"FOR", 3);
 
 	// For SQL Server, MySQL change to DECLARE name CURSOR
-	if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+	if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 	{
 		Token::Change(cursor, "DECLARE", L"DECLARE", 7);
 		Append(name, " CURSOR", L"CURSOR", 7, cursor); 
@@ -892,6 +936,10 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor)
 
 	// ; after each declaration
 	Token *semi = GetNextCharToken(';', L';');
+
+    // Save cursor definitions for the current declaration block
+    if(cursors != NULL)
+        cursors->Add(cursor, GetLastToken(semi));
 
 	// Netezza does not support cursors, they are converted to records and loops
 	if(_target == SQL_NETEZZA)

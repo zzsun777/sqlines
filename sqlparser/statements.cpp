@@ -576,7 +576,7 @@ bool SqlParser::ParseAlterStatement(Token *alter, int *result_sets, bool *proc)
 			Token::Change(alter, "CREATE OR REPLACE", L"CREATE OR REPLACE", 17);
 		else
 		// In MySQL ALTER FUNCTION does not allow to change body, so change to CREATE
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(alter, "CREATE", L"CREATE", 6);
 
 		exists = ParseCreateFunction(alter, NULL, NULL, next);
@@ -589,7 +589,7 @@ bool SqlParser::ParseAlterStatement(Token *alter, int *result_sets, bool *proc)
 			Token::Change(alter, "CREATE OR REPLACE", L"CREATE OR REPLACE", 17);
 		else
 		// In MySQL ALTER PROCEDURE does not allow to change body, so change to CREATE
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(alter, "CREATE", L"CREATE", 6);
 
 		exists = ParseCreateProcedure(alter, NULL, NULL, next, result_sets);
@@ -1130,7 +1130,7 @@ bool SqlParser::ParseCommentStatement(Token *comment)
         STMS_STATS("COMMENT ON TABLE");
 
 		// ALTER TABLE name COMMENT text in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Token::Change(comment, "ALTER", L"ALTER", 5);
 			Token::Remove(on);
@@ -1181,7 +1181,7 @@ bool SqlParser::ParseCommentStatement(Token *comment)
 		}
 		else
 		// Comment and move to CREATE TABLE in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			// Find the end of column in CREATE TABLE
 			Book *book = GetBookmark2(BOOK_CTC_END, name);
@@ -1319,7 +1319,7 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token)
 	// Temporary table in SQL Server starts with #
 	if(Token::Compare(table, '#', L'#', 0) == true)
 	{
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Append(create, " TEMPORARY", L" TEMPORARY", 10);
 		}
@@ -1724,7 +1724,7 @@ bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, T
 		}
 		else
 		// DROP FUNCTION IF EXISTS in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Prepend(create, "DROP FUNCTION IF EXISTS ", L"DROP FUNCTION IF EXISTS ", 24);
 			PrependCopy(create, name);	
@@ -1735,7 +1735,7 @@ bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, T
 	}
 
 	// Set delimiter for MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Prepend(create, "DELIMITER //\n\n", L"DELIMITER //\n\n", 14);
 
 	ParseFunctionParameters(name);
@@ -1801,7 +1801,7 @@ bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, T
 			Token::Change(pl_sql, "GO", L"GO", 2);
         else
         // For MySQL will be later replaced with DELIMITER
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
             Token::Remove(pl_sql);
 	}
 	else
@@ -1816,7 +1816,7 @@ bool SqlParser::ParseCreateFunction(Token *create, Token *or_, Token *replace, T
 	}
 	
 	// Reset delimiter for MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Append(GetLastToken(), "\n//\n\nDELIMITER ;\n\n", L"\n//\n\nDELIMITER ;\n\n", 18);
 	}
@@ -1906,7 +1906,7 @@ bool SqlParser::ParseFunctionParameters(Token *function_name)
 
 				// For SQL Server and MySQL IN is not supported, assumed by default, 
 				// In SQL Server OUT goes after default
-				if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+				if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 					Token::Remove(param_type);
 			}
 			else
@@ -1963,7 +1963,7 @@ bool SqlParser::ParseFunctionParameters(Token *function_name)
 				Token::Change(next, "DEFAULT", L"DEFAULT", 7);
 			else
 			// MySQL does not support default
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 			{
 				Token::Remove(next);
 				Token::Remove(default_exp);
@@ -2189,7 +2189,7 @@ bool SqlParser::ParseCreateProcedure(Token *create, Token *or_, Token *replace, 
 		}
 		else
 		// DROP PROCEDURE IF EXISTS in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Prepend(create, "DROP PROCEDURE IF EXISTS ", L"DROP PROCEDURE IF EXISTS ", 25);
 			PrependCopy(create, name);	
@@ -2200,7 +2200,7 @@ bool SqlParser::ParseCreateProcedure(Token *create, Token *or_, Token *replace, 
 	}
 
 	// Set delimiter for MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Prepend(create, "DELIMITER //\n\n", L"DELIMITER //\n\n", 14);
 
 	int param_count = 0;
@@ -2249,13 +2249,17 @@ bool SqlParser::ParseCreateProcedure(Token *create, Token *or_, Token *replace, 
 
 	if(pl_sql != NULL)
 	{
+        // Replace with MySQL delimiter // and reset it to ; 
+        if(Target(SQL_MARIADB, SQL_MYSQL))
+            TOKEN_CHANGE(pl_sql, "//\n\nDELIMITER ;\n\n");
+        else
 		// Replace with GO for SQL Server, as only one CREATE PROCEDURE is allowed in a batch
 		if(_target == SQL_SQL_SERVER)
-			Token::Change(pl_sql, "GO", L"GO", 2);
+			TOKEN_CHANGE(pl_sql, "GO");
 		else
 		// Replace with END_PROC; for Netezza
 		if(_target == SQL_NETEZZA)
-			Token::Change(pl_sql, "END_PROC;", L"END_PROC;", 9, create);
+			TOKEN_CHANGE_FMT(pl_sql, "END_PROC;", create);
 	}
 	else
 	// In DB2 procedure can be terminated without any special delimiter
@@ -2269,13 +2273,13 @@ bool SqlParser::ParseCreateProcedure(Token *create, Token *or_, Token *replace, 
 	}
 	else
 	// Reset delimiter for MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Append(GetLastToken(), "\n//\n\nDELIMITER ;\n\n", L"\n//\n\nDELIMITER ;\n\n", 18);
 	}
 
 	// Replace records with variable list
-	if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+	if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		DiscloseRecordVariables(create);
 
 	SplPostActions();
@@ -2596,7 +2600,7 @@ bool SqlParser::ParseCreateTriggerBody(Token *create, Token *name, Token *table,
 	}
 
 	// SQL Server, MySQL trigger may not have BEGIN, add it for other databases 
-	if(begin == NULL && Target(SQL_SQL_SERVER, SQL_MYSQL) == false)
+	if(begin == NULL && Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == false)
 		Append(GetLastToken(), "\nBEGIN", L"\nBEGIN", 6, create);
 
 	bool frontier = (begin != NULL) ? true : false;
@@ -3051,7 +3055,7 @@ bool SqlParser::ParseDropSequenceStatement(Token *drop, Token *sequence)
 		return false;
 
 	// A stored procedure call in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(drop, "CALL", L"CALL", 4);
 		Token::Remove(sequence);
@@ -3241,7 +3245,7 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 		}
 		else
 		// PREPARE, EXECUTE and DEALLOCATE PREPARE in MySQL
-		if(_source != SQL_MYSQL && _target == SQL_MYSQL)
+		if(_source != SQL_MYSQL && Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			if(exec_sp == false)
 			{
@@ -3338,13 +3342,32 @@ bool SqlParser::ParseExitStatement(Token *exit)
 		}
         else
         // Check generated NOT_FOUND variable 
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Change(exit, "IF NOT_FOUND = 1", L"IF NOT_FOUND = 1", 16);
             Token::Change(when, "THEN", L"THEN", 4);
 
+            // Generate the label name
+            TokenStr label("loop_label", L"loop_label", 10);
+
+            if(_spl_loop_labels > 0)
+                label.Append(_spl_loop_labels + 1);            
+                  
             Token::Change(notfound, "LEAVE", L"LEAVE", 5);
-            AppendNoFormat(notfound, " label;", L" label;", 7);
+            AppendNoFormat(notfound, " ", L" ", 1);
+            AppendNoFormat(notfound, &label);
+            AppendNoFormat(notfound, ";", L";", 1);
+
+            ListwItem *i = _spl_loops.GetLast();
+
+            if(i != NULL)
+            {
+                Token *loop = (Token*)i->value;
+                PrependNoFormat(loop, &label);
+                Prepend(loop, ":\n", L":\n", 2);
+            }
+
+            _spl_loop_labels++;
 
             /*Token *semi */ (void) GetNext(';', L';');
             Append(notfound, " END IF;", L" END IF;", 7);
@@ -3369,7 +3392,7 @@ bool SqlParser::ParseExitStatement(Token *exit)
         Token *last = GetLastToken();
 
         // IF-LEAVE in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Change(exit, "IF", L"IF", 2);
             Token::Remove(when);
@@ -3687,7 +3710,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			start_with = GetNextNumberToken();
 
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option, start_with);
 
 			exists = true;
@@ -3701,7 +3724,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			increment_by = GetNextNumberToken();
 
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option, increment_by);
 
 			exists = true;
@@ -3714,7 +3737,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			Token *value = GetNextToken();
 
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option, value);
 
 			exists = true;
@@ -3727,7 +3750,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			Token *value = GetNextToken();
 
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option, value);
 
 			exists = true;
@@ -3740,7 +3763,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			Token *value = GetNextToken();
 
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option, value);
 
 			exists = true;
@@ -3751,7 +3774,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		if(option->Compare("NOCYCLE", L"NOCYCLE", 7) == true)
 		{
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option);
 
 			exists = true;
@@ -3762,7 +3785,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		if(option->Compare("NOCACHE", L"NOCACHE", 7) == true)
 		{
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option);
 
 			exists = true;
@@ -3773,7 +3796,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		if(option->Compare("NOORDER", L"NOORDER", 7) == true)
 		{
 			// Remove for MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(option);
 
 			exists = true;
@@ -3785,7 +3808,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 	}
 	
 	// A stored procedure call in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(create, "CALL", L"CALL", 4);
 		Token::Remove(sequence);
@@ -3950,7 +3973,7 @@ bool SqlParser::ParseCreateView(Token *create, Token *view)
 			if(read != NULL && only != NULL)
 			{
 				// Remove for MySQL
-				if(_target == SQL_MYSQL)
+				if(Target(SQL_MARIADB, SQL_MYSQL))
 					Token::Remove(option, only);
 
 				exists = true;
@@ -4417,7 +4440,7 @@ bool SqlParser::ParseDeclareTable(Token *declare, Token *name, Token *table)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// In MySQL, use temporary table
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Prepend(declare, "DROP TEMPORARY TABLE IF EXISTS ", L"DROP TEMPORARY TABLE IF EXISTS ", 31);  
 		PrependCopy(declare, name); 
@@ -4948,7 +4971,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 			ListwmItem *formal_params = NULL;
 
 			// Get reference to formal cursor parameters
-			if(open != NULL && Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+			if(open != NULL && Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			{
 				formal_params = _spl_cursor_params.GetFirst();
 
@@ -4974,7 +4997,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 				Token *comma = GetNextCharToken(',', L',');
 
 				// Use assignment statement for variable for SQL Server, MySQL
-				if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+				if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 				{
 					Prepend(for_, "SET ", L"SET ", 4);
 
@@ -5002,7 +5025,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 				close = GetNextCharToken(')', L')');
 
 			// For SQL Server, MySQL cursor parameters are removed
-			if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+			if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 				Token::Remove(open, close);
 		}
 		else
@@ -5025,7 +5048,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 	if(loop == NULL)
 		do_ = GetNextWordToken("DO", L"DO", 2);
 
-	if(Target(SQL_SQL_SERVER, SQL_MYSQL))
+	if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL))
 	{
 		// DECLARE var CURSOR AS
 		Token::Change(for_, "DECLARE", L"DECLARE", 7);
@@ -5045,7 +5068,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
             if(_target == SQL_SQL_SERVER)
 			    Token::Change(loop, "BEGIN", L"BEGIN", 5);
             else
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
 			    Token::Change(loop, "DO", L"DO", 2);
 		}
 		else
@@ -5069,7 +5092,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
         if(_target == SQL_SQL_SERVER)
 		    Prepend(begin, "WHILE @@FETCH_STATUS=0\n", L"WHILE @@FETCH_STATUS=0\n", 23);
         else
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Prepend(begin, "WHILE not_found=0\n", L"WHILE not_found=0\n", 18);
 
@@ -5095,7 +5118,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 	}
 	else
 	// Use cursor and WHILE-FETCH in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		// OPEN cursor; FETCH cursor
 		Token::Change(for_, "OPEN", L"OPEN", 4);
@@ -5161,7 +5184,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 			Token::Change(for2, "LOOP", L"LOOP", 4);
 		else
 		// END WHILE in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			if(loop2 != NULL)
 				Token::Change(loop2, "WHILE", L"WHILE", 5);
@@ -6183,7 +6206,7 @@ bool SqlParser::ParseLockStatement(Token *lock_)
 	if(table != NULL)
 	{
 		// TABLES in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(table, "TABLES", L"TABLES", 6);
 	}
 
@@ -6204,7 +6227,7 @@ bool SqlParser::ParseLockStatement(Token *lock_)
 		// MODE in Oracle
 		Token *mode = GetNext("MODE", L"MODE", 4);
 
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			// WRITE in MySQL 
 			if(exclusive != NULL && mode != NULL)
@@ -6237,7 +6260,11 @@ bool SqlParser::ParseLoopStatement(Token *loop, int scope)
 	if(_target == SQL_SQL_SERVER)
 		Token::Change(loop, "WHILE 1=1 BEGIN", L"WHILE 1=1 BEGIN", 15);
 
+    _spl_loops.Add(loop);
+
 	ParseBlock(SQL_BLOCK_LOOP, true, scope, NULL);
+
+    _spl_loops.DeleteLast();
 
 	Token *end = GetNextWordToken("END", L"END", 3);
 
@@ -6317,7 +6344,7 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 		if(then == NULL)
 			break;
 
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Token::Change(when, "DECLARE EXIT HANDLER FOR", L"DECLARE EXIT HANDLER FOR", 24);
 			Token::Change(then, "BEGIN", L"BEGIN", 5);
@@ -6328,14 +6355,14 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 		// Duplicate key
 		if(Token::Compare(condition, "DUP_VAL_ON_INDEX", L"DUP_VAL_ON_INDEX", 16) == true)
 		{
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Change(condition, "SQLSTATE '23000'", L"SQLSTATE '23000'", 16);
 		}
 		else
 		// No rows found
 		if(Token::Compare(condition, "NO_DATA_FOUND", L"NO_DATA_FOUND", 13) == true)
 		{
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Change(condition, "NOT FOUND", L"NOT FOUND", 9);
 			else
 			if(_target == SQL_NETEZZA)
@@ -6352,7 +6379,7 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 		// All others
 		if(Token::Compare(condition, "OTHERS", L"OTHERS", 6) == true)
 		{
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Change(condition, "SQLEXCEPTION", L"SQLEXCEPTION", 12);
 		}
 
@@ -6369,7 +6396,7 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 			if(begin != NULL)
 			{
 				// For MySQL declaration put inside BEGIN-END and THEN was converted to BEGIN keyword
-				if(_target == SQL_MYSQL)
+				if(Target(SQL_MARIADB, SQL_MYSQL))
 					Token::Remove(begin);
 			}
 		}
@@ -6386,21 +6413,26 @@ bool SqlParser::ParseExceptionBlock(Token *exception)
 		if(add_end_if == true)
 			Append(GetLastToken(), "\nEND IF;", L"\nEND IF;", 8, when); 
 
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
 		    Append(GetLastToken(), "\nEND;", L"\nEND;", 5, when);
 
 		exists = true;
 	}
 
-    // Move to the declaration section
-    if(exists && Target(SQL_MYSQL))
+    // Move to the declaration section of the current block
+    if(exists && Target(SQL_MARIADB, SQL_MYSQL))
     {
-        Token *append = GetDeclarationAppend();
+        ListwItem *i = _spl_begin_blocks.GetLast();
+        Token *begin = NULL;
+
+        if(i != NULL)
+            begin = (Token*)i->value;
+
         Token *last = GetLastToken();
 
-		if(append != NULL)
+		if(begin != NULL)
 		{
-            AppendCopy(append, exception, last, false);
+            AppendCopy(begin, exception, last, false);
             Token::Remove(exception, last);
         }
     }
@@ -6598,7 +6630,7 @@ bool SqlParser::ParseOpenStatement(Token *open)
 		ListwmItem *formal_params = NULL;
 
 		// Get reference to the first formal parameter for this cursor
-		if(open2 != NULL && Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(open2 != NULL && Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		{
 			formal_params = _spl_cursor_params.GetFirst();
 
@@ -6626,7 +6658,7 @@ bool SqlParser::ParseOpenStatement(Token *open)
 			Token *comma = GetNextCharToken(',', L',');
 
 			// Use assignment statement for variable for SQL Server, MySQL
-			if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+			if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			{
 				Prepend(open, "SET ", L"SET ", 4);
 
@@ -6654,7 +6686,7 @@ bool SqlParser::ParseOpenStatement(Token *open)
 			close2 = GetNextCharToken(')', L')');
 
 		// For SQL Server, MySQL cursor parameters are removed
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			Token::Remove(open2, close2);
 
 		// FOR cur IN SELECT LOOP in Netezza
@@ -6770,7 +6802,7 @@ bool SqlParser::ParsePrintStatement(Token *print)
 	ParseExpression(exp);
 
 	// Comment for MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Comment(print, Nvl(GetNext(';', L';'), GetLastToken()));
 
 	return true;
@@ -8008,7 +8040,7 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 		// In SQL Server AS keyword can follow after parameter name
 		Token *as = GetNextWordToken("AS", L"AS", 2); 
 
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Remove(as);
 
 		// In Oracle IN, OUT or IN OUT follows the name
@@ -8094,7 +8126,7 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 				OracleChangeEqualToDefault(next);
 			else
 			// MySQL does not support default
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Comment(next, default_exp);
 		}
 
@@ -8134,7 +8166,7 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 			}
 			else
 			// In MySQL IN, OUT and IN OUT go before name
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 			{
 				// IN OUT in Oracle
 				if(in != NULL && out != NULL)
@@ -8279,7 +8311,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 		begin = GetNextWordToken("BEGIN", L"BEGIN", 5);
 
 		// In SQL Server, MySQL declaration is after BEGIN, append BEGIN after AS, and remove BEGIN
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true && declare == true && begin != NULL)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true && declare == true && begin != NULL)
 		{
 			// AS will be removed for MySQL
 			Append(as, "\nBEGIN", L"\nBEGIN", 6);
@@ -8339,7 +8371,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 	}
 
 	// MySQL does not allow AS
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		// If AS is followed by BEGIN, remove AS, otherwise change AS to BEGIN
 		if(begin != NULL)
@@ -8361,7 +8393,11 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 	if(Source(SQL_SQL_SERVER, SQL_INFORMIX) == true)
 		frontier = true;
 
+    _spl_begin_blocks.Add(GetLastToken(begin));
+
 	ParseBlock(SQL_BLOCK_PROC, frontier, SQL_SCOPE_PROC, result_sets);
+
+    _spl_begin_blocks.DeleteLast();
 
 	Token *end = GetNextWordToken("END", L"END", 3);
 
@@ -8402,7 +8438,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 			if(_target == SQL_ORACLE)
 				Token::Change(end, "END;\n/", L"END;\n/", 6);
 			else
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Change(end, "END;\n//", L"END;\n//", 7);
 		}
 		else
@@ -8414,7 +8450,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 			// GO exists
 			if(go != NULL)
 			{
-				if(_target == SQL_MYSQL)
+				if(Target(SQL_MARIADB, SQL_MYSQL))
 					Token::Change(go, "\nEND;", L"\nEND;", 5);
 			}
 			else
@@ -8424,7 +8460,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 				if(_target == SQL_ORACLE)
 					Append(last, "\nEND;", L"\nEND;", 5, create);
 				else
-				if(_target == SQL_MYSQL)
+				if(Target(SQL_MARIADB, SQL_MYSQL))
 					Append(last, "\nEND;", L"\nEND;", 5, create);
 			}
 		}
@@ -8439,7 +8475,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 				if(_target == SQL_ORACLE)
 					Token::Change(go, "/", L"/", 1);
 				else
-				if(_target == SQL_MYSQL)
+				if(Target(SQL_MARIADB, SQL_MYSQL))
 					Token::Remove(go);
 			}
 			else
@@ -8546,7 +8582,7 @@ bool SqlParser::ParseFunctionReturns(Token *function)
 	if(Token::Compare(returns, "RETURN", L"RETURN", 6) == true)
 	{
 		// Change to RETURNS in SQL Server, MySQL
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			Token::Change(returns, "RETURNS", L"RETURNS", 7);
 
 		// Return data type
@@ -9271,7 +9307,7 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 		begin = GetNextWordToken("BEGIN", L"BEGIN", 5);
 
 		// In SQL Server, MySQL declaration is after BEGIN, append BEGIN after AS, and remove BEGIN
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true && declarations == true && begin != NULL)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true && declarations == true && begin != NULL)
 		{
 			// AS will be removed for MySQL
 			Append(as, "\nBEGIN", L"\nBEGIN", 6);
@@ -9307,7 +9343,7 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 	}
 
 	// MySQL does not allow AS
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		// If AS is followed by BEGIN, remove AS, otherwise change AS to BEGIN
 		if(begin != NULL)
@@ -9317,7 +9353,7 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 	}
 
 	// MySQL function may not have BEGIN, add it for other databases including SQL Server; for Oracle added in OracleMoveBeginAfterDeclare
-	if(begin == NULL && Target(SQL_MYSQL, SQL_ORACLE, SQL_POSTGRESQL) == false)
+	if(begin == NULL && Target(SQL_MARIADB, SQL_MYSQL, SQL_ORACLE, SQL_POSTGRESQL) == false)
 		Append(Nvl(as, GetLastToken()), "\nBEGIN", L"\nBEGIN", 6);
 
 	bool frontier = (begin != NULL) ? true : false;
@@ -9326,7 +9362,11 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 	if(_source == SQL_INFORMIX)
 		frontier = true;
 
+    _spl_begin_blocks.Add(GetLastToken(begin));
+
 	ParseBlock(SQL_BLOCK_PROC, frontier, SQL_SCOPE_FUNC, NULL);
+
+    _spl_begin_blocks.DeleteLast();
 
 	Token *end = GetNextWordToken("END", L"END", 3);
 
@@ -9355,7 +9395,7 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 		if(Token::Compare(name, next) == true)
 		{
 			// Remove for SQL Server, MySQL
-			if(Target(SQL_SQL_SERVER, SQL_MYSQL))
+			if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL))
 				Token::Remove(next);
 
 			semi = GetNextCharToken(';', L';');

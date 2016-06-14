@@ -1255,7 +1255,7 @@ bool SqlParser::ParseFunctionAddMonths(Token *name, Token *open)
 	}
 	else
 	// Convert to TIMESTAMPADD in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "TIMESTAMPADD", L"TIMESTAMPADD", 12);
 
@@ -1714,7 +1714,7 @@ bool SqlParser::ParseFunctionBitand(Token *name, Token * /*open*/)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// User & function in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Remove(name);
 		Token::Change(comma, " &", L" &", 2);
@@ -2390,7 +2390,7 @@ bool SqlParser::ParseFunctionChr(Token *name, Token* /*open*/)
 	Token *close = GetNextCharToken(')', L')');
 
 	// Convert to CHAR in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "CHAR", L"CHAR", 4);
 
@@ -2737,7 +2737,7 @@ bool SqlParser::ParseFunctionConvert(Token *name, Token *open)
 		/*Token *close */ (void) GetNextCharToken(')', L')');
 
 		// Change syntax in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			if(comma2 == NULL)
 			{
@@ -2797,7 +2797,7 @@ bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token * /*open*/, Toke
 	Token *style = GetNextNumberToken();
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "STR_TO_DATE", L"STR_TO_DATE", 11);
 		Token::Remove(datatype);
@@ -2966,7 +2966,7 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*
 	}
 	else
 	// Convert to DATE_FORMAT in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "DATE_FORMAT", L"DATE_FORMAT", 11);
 		Prepend(exp, "(", L"(", 1);
@@ -3033,7 +3033,7 @@ bool SqlParser::ParseFunctionCosh(Token *name, Token* /*open*/)
 	Token *end_num = GetLastToken();
 	Token *close = GetNextCharToken(')', L')');
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Prepend(name, "(", L"(", 1);
 		Token::Change(name, "EXP", L"EXP", 3);
@@ -3178,7 +3178,7 @@ bool SqlParser::ParseFunctionCurrent(Token *name)
 			Token::Remove(second);
 		}
 		else
-		if(_target == SQL_MYSQL || _target == SQL_POSTGRESQL || _target == SQL_GREENPLUM)
+		if(Target(SQL_MARIADB, SQL_MYSQL) || _target == SQL_POSTGRESQL || _target == SQL_GREENPLUM)
 		{
 			Token::Change(name, "CURRENT_DATE", L"CURRENT_DATE", 12);
 			Token::Remove(second);
@@ -3241,7 +3241,7 @@ bool SqlParser::ParseFunctionCurrent(Token *name)
 		}
 		else
 		// Convert to CURRENT_TIMESTAMP in MySQL, PostgreSQL, Greenplum
-		if(Target(SQL_MYSQL, SQL_POSTGRESQL, SQL_GREENPLUM))
+		if(Target(SQL_MARIADB, SQL_MYSQL, SQL_POSTGRESQL, SQL_GREENPLUM))
 		{
 			Token::Change(second, "CURRENT_TIMESTAMP", L"CURRENT_TIMESTAMP", 17);
 			Token::Remove(name);
@@ -3395,7 +3395,7 @@ bool SqlParser::ParseFunctionCurrentDate(Token *name)
 		Token::Change(name, "CONVERT(DATE, GETDATE())", L"CONVERT(DATE, GETDATE())", 24);
 	else
 	// Convert Oracle CURRENT_DATE to NOW() in MySQL
-	if(_target == SQL_MYSQL && _source == SQL_ORACLE)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source == SQL_ORACLE)
 		Token::Change(name, "NOW()", L"NOW()", 5);
 
 	return true;
@@ -3437,7 +3437,7 @@ bool SqlParser::ParseFunctionCurrentTimestamp(Token *name)
 		Token::Change(name, "GETDATE()", L"GETDATE()", 9);
 	else
 	// Convert Oracle CURRENT_DATE to NOW() in MySQL
-	if(_target == SQL_MYSQL && _source == SQL_ORACLE)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source == SQL_ORACLE)
 		Token::Change(name, "NOW()", L"NOW()", 5);
 
 	name->data_type = TOKEN_DT_DATETIME;
@@ -3589,7 +3589,7 @@ bool SqlParser::ParseFunctionRowcount(Token *name)
 	if(name == NULL)
 		return false;
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "FOUND_ROWS()", L"FOUND_ROWS()", 12);
 
 	return true;
@@ -4029,7 +4029,7 @@ bool SqlParser::ParseFunctionDatediff(Token *name, Token *open)
 			}
 		}
 		else
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(name, "TIMESTAMPDIFF", L"TIMESTAMPDIFF", 13);
 	}
 	else
@@ -5545,7 +5545,7 @@ bool SqlParser::ParseFunctionExtract(Token *name, Token* /*open*/)
 	if(Token::Compare(unit, "YEAR", L"YEAR", 4) == true)
 	{
 		// Convert to YEAR function in SQL Server, MySQL
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		{
 			Token::Change(name, "YEAR", L"YEAR", 4);
 			
@@ -5557,7 +5557,7 @@ bool SqlParser::ParseFunctionExtract(Token *name, Token* /*open*/)
 	if(Token::Compare(unit, "MONTH", L"MONTH", 5) == true)
 	{
 		// Convert to MONTH function in SQL Server, MySQL
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		{
 			Token::Change(name, "MONTH", L"MONTH", 5);
 			
@@ -5569,7 +5569,7 @@ bool SqlParser::ParseFunctionExtract(Token *name, Token* /*open*/)
 	if(Token::Compare(unit, "DAY", L"DAY", 3) == true)
 	{
 		// Convert to DAY function in SQL Server, MySQL
-		if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		{
 			Token::Change(name, "DAY", L"DAY", 3);
 			
@@ -5761,7 +5761,7 @@ bool SqlParser::ParseFunctionGetutcdate(Token *name, Token *open)
 	}
 	else
 	// Convert to UTC_TIMESTAMP in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "UTC_TIMESTAMP", L"UTC_TIMESTAMP", 13);
 
 	return true;
@@ -6054,7 +6054,7 @@ bool SqlParser::ParseFunctionHostName(Token *name, Token *open)
 		Token::Remove(open);
 	}
 	else
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "@@HOSTNAME", L"@@HOSTNAME", 10);
 		Token::Remove(open);
@@ -6796,7 +6796,7 @@ bool SqlParser::ParseFunctionInstr(Token *name, Token *open)
 
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		// For 3 parameters, convert to LOCATE in MySQL
 		if(start != NULL && instance == NULL)
@@ -7005,7 +7005,7 @@ bool SqlParser::ParseFunctionIsnull(Token *name, Token* /*open*/)
 	}
 	else
 	// Convert to IFNULL in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "IFNULL", L"IFNULL", 6);
 	else
 	// Convert to COALESCE in PostgreSQL
@@ -7230,7 +7230,7 @@ bool SqlParser::ParseFunctionLen(Token *name, Token* /*open*/)
 	}
 	else
 	// Convert to CHAR_LENGTH in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		if(spaces_included == false)
 		{
@@ -7265,7 +7265,7 @@ bool SqlParser::ParseFunctionLength(Token *name, Token* /*open*/)
 		Token::Change(name, "LEN", L"LEN", 3);
 	else
 	// Convert to CHAR_LENGTH in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "CHAR_LENGTH", L"CHAR_LENGTH", 11);
 
 	return true;
@@ -7288,7 +7288,7 @@ bool SqlParser::ParseFunctionLengthb(Token *name, Token* /*open*/)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to LENGTH in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "LENGTH", L"LENGTH", 6);
 
 	return true;
@@ -7445,7 +7445,7 @@ bool SqlParser::ParseFunctionLocaltimestamp(Token *name)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Remove prec in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		if(prec != NULL)
 			Token::Remove(prec);
@@ -7781,7 +7781,7 @@ bool SqlParser::ParseFunctionLpad(Token *name, Token* /*open*/)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Add third parameter in MySQL
-	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
 	{
 		if(pad == NULL)
 			Append(end_len, ", ' '", L", ' '", 5);
@@ -7822,7 +7822,7 @@ bool SqlParser::ParseFunctionLtrim(Token *name, Token *open)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRIM in MySQL
-	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
 	{
 		if(set != NULL)
 		{
@@ -8434,7 +8434,7 @@ bool SqlParser::ParseFunctionNewid(Token *name, Token* /*open*/)
 	if(_target == SQL_ORACLE)
 		Token::Change(name, "SYS_GUID", L"SYS_GUID", 8);
 	else
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "UUID", L"UUID", 4);
 
 	return true;
@@ -8679,7 +8679,7 @@ bool SqlParser::ParseFunctionNvl(Token *name, Token* /*open*/)
 			Token::Change(name, "ISNULL", L"ISNULL", 6);
 		else
 		// Convert to IFNULL in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(name, "IFNULL", L"IFNULL", 6);
 		else
 		// Convert to COALESCE in PostgreSQL
@@ -9401,7 +9401,7 @@ bool SqlParser::ParseFunctionRaiserror(Token *name, Token *open)
 
 	Token *close = GetNextCharToken(')', L')');
 	
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "SIGNAL", L"SIGNAL", 6);
 		Token::Change(open, " SQLSTATE '02000' SET MESSAGE_TEXT = ", L" SQLSTATE '02000' SET MESSAGE_TEXT = ", 37);
@@ -9695,7 +9695,7 @@ bool SqlParser::ParseFunctionReplace(Token *name, Token* /*open*/)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Add third parameter in MySQL
-	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
 	{
 		if(replace == NULL)
 			Append(end_search, ", ''", L", ''", 4);
@@ -9938,7 +9938,7 @@ bool SqlParser::ParseFunctionRpad(Token *name, Token* /*open*/)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Add third parameter in MySQL
-	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
 	{
 		if(pad == NULL)
 			Append(end_len, ", ' '", L", ' '", 5);
@@ -9979,7 +9979,7 @@ bool SqlParser::ParseFunctionRtrim(Token *name, Token *open)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Convert to TRIM in MySQL
-	if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
 	{
 		if(set != NULL)
 		{
@@ -10003,7 +10003,7 @@ bool SqlParser::ParseFunctionScopeIdentity(Token *name, Token* /*open*/)
 
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "LAST_INSERT_ID", L"LAST_INSERT_ID", 14);
 
 	return true;
@@ -10117,7 +10117,7 @@ bool SqlParser::ParseFunctionSinh(Token *name, Token *open)
 	Token *end_num = GetLastToken();
 	Token *close = GetNextCharToken(')', L')');
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Remove(name);
 		Append(open, "EXP(", L"EXP(", 4, name);
@@ -10373,7 +10373,7 @@ bool SqlParser::ParseFunctionStr(Token *name, Token* /*open*/)
 	}
 	else
 	// Convert to CONVERT in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "CONVERT", L"CONVERT", 7);
 		Prepend(close, ", CHAR", L", CHAR", 6, name);
@@ -10631,7 +10631,7 @@ bool SqlParser::ParseFunctionStuff(Token *name, Token* /*open*/)
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// INSERT function in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "INSERT", L"INSERT", 6);
 
 	return true;
@@ -10978,7 +10978,7 @@ bool SqlParser::ParseFunctionSuserName(Token *name, Token *open)
 		}
 	}
 	else
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "CURRENT_USER", L"CURRENT_USER", 12);
 
 	return true;
@@ -11037,7 +11037,7 @@ bool SqlParser::ParseFunctionSysGuid(Token *name, Token* /*open*/)
 	Token *close = GetNextCharToken(')', L')');
 
 	// Convert to UUID in MySQL, and trim -
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "REPLACE(UUID", L"REPLACE(UUID", 12);
 		AppendNoFormat(close, ", '-', '')", L", '-', '')", 10);
@@ -11082,7 +11082,7 @@ bool SqlParser::ParseFunctionSysdate(Token *name)
 	}
 	else
 	// Convert to SYSDATE() in MySQL
-	if(_target == SQL_MYSQL && open == NULL)
+	if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)
 		Append(name, "()", L"()", 2);
 
 	name->data_type = TOKEN_DT_DATETIME;
@@ -11192,7 +11192,7 @@ bool SqlParser::ParseFunctionTanh(Token *name, Token *open)
 
 	Token *close = GetNextCharToken(')', L')');
 
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "(EXP(2*", L"(EXP(2*", 7);
 		Append(close, ") - 1) / (EXP(2*", L") - 1) / (EXP(2*", 16, name);
@@ -11456,7 +11456,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 		if(format->Compare("'FM$9,999,999'", L"'FM$9,999,999'", 14) == true)
 		{
 			// CONCAT('$', FORMAT(num, 0)) in MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 			{
 				Token::Change(name, "CONCAT('$', FORMAT", L"CONCAT('$', FORMAT", 18);
 				Token::Change(format, "0", L"0", 1);
@@ -11468,7 +11468,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 		if(format->Compare("'9,999,999'", L"'9,999,999'", 11) == true)
 		{
 			// FORMAT(num, 0) in MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 			{
 				Token::Change(name, "FORMAT", L"FORMAT", 6);
 				Token::Change(format, "0", L"0", 1);
@@ -11525,7 +11525,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				if(format->Compare("YYYY", L"YYYY", i, 4) == true || 
 					format->Compare("RRRR", L"RRRR", i, 4) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%Y", L"%Y", 2);
 
 					datetime = true;
@@ -11537,7 +11537,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// RR part (2-digit year rounded)
 				if(format->Compare("RR", L"RR", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%y", L"%y", 2);
 
 					datetime = true;
@@ -11549,7 +11549,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// MM month (01-12)
 				if(format->Compare("MM", L"MM", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%m", L"%m", 2);
 
 					datetime = true;
@@ -11561,7 +11561,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// MON month (Jan-Dec)
 				if(format->Compare("MON", L"MON", i, 3) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%b", L"%b", 2);
 
 					datetime = true;
@@ -11573,7 +11573,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// DD month (01-31)
 				if(format->Compare("DD", L"DD", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%d", L"%d", 2);
 
 					datetime = true;
@@ -11585,7 +11585,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// HH24 hour 
 				if(format->Compare("HH24", L"HH24", i, 4) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%H", L"%H", 2);
 
 					datetime = true;
@@ -11597,7 +11597,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// MI minute 
 				if(format->Compare("MI", L"MI", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%i", L"%i", 2);
 
 					datetime = true;
@@ -11609,7 +11609,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 				// SS second 
 				if(format->Compare("SS", L"SS", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%s", L"%s", 2);
 
 					datetime = true;
@@ -11626,7 +11626,7 @@ bool SqlParser::ParseFunctionToChar(Token *name, Token *open)
 			// A datetime format was specified
 			if(datetime == true)
 			{
-				if(_target == SQL_MYSQL)
+				if(Target(SQL_MARIADB, SQL_MYSQL))
 					Token::Change(name, "DATE_FORMAT", L"DATE_FORMAT", 11);
 			}
 			
@@ -11798,7 +11798,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 	}
 	else
 	// STR_TO_DATE in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		Token::Change(name, "STR_TO_DATE", L"STR_TO_DATE", 11);
 
 	// Format is specified and it is a string literal, process each part
@@ -11826,7 +11826,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				if(format->Compare("YYYY", L"YYYY", i, 4) == true ||
 					format->Compare("RRRR", L"RRRR", i, 4) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%Y", L"%Y", 2);
 
 					i += 4;
@@ -11836,7 +11836,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				// RR part (2-digit year rounded)
 				if(format->Compare("RR", L"RR", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%y", L"%y", 2);
 
 					i += 2;
@@ -11846,7 +11846,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				// MM month (01-12)
 				if(format->Compare("MM", L"MM", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 						out.Append("%m", L"%m", 2);
 
 					i += 2;
@@ -11856,7 +11856,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				// DD month (01-31)
 				if(format->Compare("DD", L"DD", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%d", L"%d", 2);
 
 					i += 2;
@@ -11866,7 +11866,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				// HH24 hour
 				if(format->Compare("HH24", L"HH24", i, 4) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%H", L"%H", 2);
 
 					i += 4;
@@ -11876,7 +11876,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				// MI minutes
 				if(format->Compare("MI", L"MI", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%i", L"%i", 2);
 
 					i += 2;
@@ -11886,7 +11886,7 @@ bool SqlParser::ParseFunctionToDate(Token *name, Token *open)
 				// SS seconds
 				if(format->Compare("SS", L"SS", i, 2) == true)
 				{
-					if(_target == SQL_MYSQL)
+					if(Target(SQL_MARIADB, SQL_MYSQL))
 					out.Append("%s", L"%s", 2);
 
 					i += 2;
@@ -12342,7 +12342,7 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 		}
 		else
 		// Convert to DATE in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(name, "DATE", L"DATE", 4);
 	}
 	else
@@ -12366,7 +12366,7 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 			}
             else
             // Convert to DATE in MySQL
-		    if(_target == SQL_MYSQL)
+		    if(Target(SQL_MARIADB, SQL_MYSQL))
             {
 			    Token::Change(name, "DATE", L"DATE", 4);
 
@@ -12388,7 +12388,7 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 			}
             else
             // DATE_FORMAT in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 Token::Change(name, "DATE_FORMAT", L"DATE_FORMAT", 11);
                 Token::ChangeNoFormat(unit, "'%Y-%m-01'", L"'%Y-%m-01'", 10);
@@ -12398,7 +12398,7 @@ bool SqlParser::ParseFunctionTrunc(Token *name, Token *open)
 	else
 	{
 		// Convert to TRUNCATE in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Token::Change(name, "TRUNCATE", L"TRUNCATE", 8);
 
@@ -12658,7 +12658,7 @@ bool SqlParser::ParseFunctionUnistr(Token *name, Token* /*open*/)
 		Token::Change(name, "NCHAR", L"NCHAR", 5);
 	else
 	// Convert to CHAR in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "CHAR", L"CHAR", 4);
 		Append(end_string, " USING UCS2", L" USING UCS2", 11, name);
@@ -12717,7 +12717,7 @@ bool SqlParser::ParseFunctionUser(Token *name)
 		Token::Change(name, "SYSTEM_USER", L"SYSTEM_USER", 11);
 	else
 	// Add parentheses in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 		AppendNoFormat(name, "()", L"()", 2);
 	else
 	// Convert to CURRENT_USER in PostgreSQL, Greenplum
@@ -14210,7 +14210,7 @@ bool SqlParser::ParseFunctionZeroifnull(Token *name, Token* /*open*/)
 	}
 	else
 	// IFNULL(exp, 0) in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "IFNULL", L"IFNULL", 6);
 		AppendNoFormat(exp_end, ", 0", L", 0", 3);

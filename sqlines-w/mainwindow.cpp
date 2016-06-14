@@ -373,22 +373,24 @@ void MainWindow::saveOptions()
     //settings->setValue(INI_ITEMS_IN_HISTORY, ui->itemsInHistoryLineEdit->text());
 }
 
-// Get the list of available source and target types from ui_names.txt
+// Get the list of available source and target types
 QStringList MainWindow::getSourceTargetList()
 {
     QStringList typesList;
 
-    typesList.append("Oracle");
-    typesList.append("Microsoft SQL Server");
-    typesList.append("IBM DB2");
-    typesList.append("Sybase ASE");
-    typesList.append("Sybase SQL Anywhere");
-    typesList.append("Informix");
-    typesList.append("MySQL");
-    typesList.append("PostgreSQL");
-    typesList.append("Teradata");
     typesList.append("Greenplum");
+    typesList.append("IBM DB2");
+    typesList.append("Informix");
+    typesList.append("MariaDB");
+    typesList.append("Microsoft SQL Server");
+    typesList.append("MySQL");
+    typesList.append("Oracle");
     typesList.append("Netezza");
+    typesList.append("PostgreSQL");
+    typesList.append("Sybase ASE");
+    typesList.append("Sybase SQL Anywhere");    
+    typesList.append("Teradata");
+    typesList.append("Trafodion");
 
     return typesList;
 }
@@ -416,6 +418,9 @@ QString MainWindow::getCmdType(QString type)
     if(type == "Informix")
         cmd = "informix";
     else
+    if(type == "MariaDB")
+        cmd = "mariadb";
+    else
     if(type == "MySQL")
         cmd = "mysql";
     else
@@ -430,6 +435,9 @@ QString MainWindow::getCmdType(QString type)
     else
     if(type == "Netezza")
         cmd = "netezza";
+    else
+    if(type == "Trafodion")
+        cmd = "trafodion";
 
     return cmd;
 }

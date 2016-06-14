@@ -124,7 +124,7 @@ int Sqlines::ProcessFiles()
         sprintf(summary, "\n\nTotal: %d file%s, %s, %d line%s, %s", _total_files, SUFFIX(_total_files), 
             total_size_fmt, total_lines, SUFFIX(total_lines), total_time_fmt);
 
-		_log.Log("\n\nTotal: %s", summary);
+		_log.Log("%s", summary);
 
         if(_a)
         {
@@ -431,6 +431,9 @@ short Sqlines::DefineType(const char *name)
     else
 	if(_stricmp(name, "mariadb") == 0)
 		type = SQL_MARIADB;
+    else
+	if(_stricmp(name, "trafodion") == 0)
+		type = SQL_TRAFODION;
 
 	return type;
 }

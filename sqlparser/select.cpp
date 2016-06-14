@@ -100,7 +100,7 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	{
 		Token *last = GetLastToken();
 
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Append(last, "\nLIMIT ", L"\nLIMIT", 7, select); 
 			Append(last, rowlimit);
@@ -138,7 +138,7 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	// Assignment and without FROM
 	if(into == true && from == NULL)
 	{
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Change(select, "SET", L"SET", 3);
 	}
 
@@ -867,7 +867,7 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 			Token::Remove(from, last);
 		else
 		// MySQL supports Oracle's dual
-		if(_target == SQL_MYSQL && _source != SQL_ORACLE)
+		if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_ORACLE)
 			Token::Remove(from, last);		
 	}
 
@@ -1253,7 +1253,7 @@ bool SqlParser::ParseSelectOptions(Token * /*select*/, Token * /*from_end*/, Tok
 					locked = GetNextWordToken("LOCKED", L"LOCKED", 6);
 
 				// MySQL does not support SKIP LOCKED, comment it
-				if(_target == SQL_MYSQL && skip != NULL && locked != NULL)
+				if(Target(SQL_MARIADB, SQL_MYSQL) && skip != NULL && locked != NULL)
 					Comment(skip, locked);
 			}
 

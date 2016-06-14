@@ -164,7 +164,7 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 	}		
 	else
 	// Change quote to backtick for MySQL (" is not suppored by default in MySQL)
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		if(*cur == '"' || *cur == '[')
 		{
@@ -276,7 +276,7 @@ bool SqlParser::ConvertCursorParameter(Token *token)
 	bool exists = false;
 
 	// Use variables instead of cursor parameters 
-	if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true && _spl_cursor_params.GetCount() > 0)
+	if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true && _spl_cursor_params.GetCount() > 0)
 	{
 		for(ListwmItem *i = _spl_cursor_params.GetFirst(); i != NULL; i = i->next)
 		{
@@ -321,7 +321,7 @@ bool SqlParser::ConvertRecordVariable(Token *token)
 			token->Compare(".", L".", rec->len, 1) == true)
 		{
 			// Change to @rec_field in SQL Server, rec_field in MySQL
-			if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+			if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 			{
 				TokenStr ident;
 
@@ -751,7 +751,7 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 	if(len > 8 && token->Compare(".nextval", L".nextval", len - 8, 8) == true)
 	{
 		// NextVal() user-defined function in MySQL
-		if(_target == SQL_MYSQL)
+		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
 			Prepend(token, "NextVal('", L"NextVal('", 9); 
 			Token::Change(token, token->str, token->wstr, len - 8);
@@ -862,7 +862,7 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 				delete seq_name;
 			}
 			else
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 				Token::Change(cns, "AUTO_INCREMENT", L"AUTO_INCREMENT", 14);
 
 			// Optional start and increment
@@ -2004,6 +2004,10 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 	// Datetime literals
 	if(ParseDatetimeLiteral(first) == true)
 		exists = true;
+    else
+    // Named variable and expression: param => expr (Oracle)
+    if(ParseNamedVarExpression(first) == true)
+        exists = true;
 	else
 	// CASE expression (check CASE and IF before function as it can contain ( before first expression)
 	if(ParseCaseExpression(first) == true)
@@ -2135,6 +2139,27 @@ bool SqlParser::ParseDatetimeLiteral(Token *token)
 	}
 
 	return exists;
+}
+
+// Named variable and expression: param => expr (Oracle)
+bool SqlParser::ParseNamedVarExpression(Token *token)
+{
+	if(token == NULL)
+		return false;
+
+    Token *equal = GetNext('=', L'=');
+
+    Token *arrow = GetNext(equal, '>', L'>');
+
+    if(arrow == NULL)
+    {
+        PushBack(equal);
+        return false;
+    }
+
+    ParseExpression();
+
+	return true;
 }
 
 // Parse a boolean expression
@@ -2524,7 +2549,11 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 
 			if(block == true)
 			{
+                _spl_begin_blocks.Add(token);
+
 				ParseBlock(SQL_BLOCK_BEGIN, true, scope, result_sets);
+
+                _spl_begin_blocks.DeleteLast();
 
 				/*Token *end */ (void) GetNext("END", L"END", 3);
 
@@ -2721,7 +2750,7 @@ bool SqlParser::ParseStringConcatenation(Token *first, int prev_operator)
 	}
 	else
 	// Change to CONCAT function in MySQL
-	if(_target == SQL_MYSQL)
+	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		// If it is first expression add CONCAT( before 
 		if(prev_operator != SQL_OPERATOR_CONCAT)
@@ -2878,7 +2907,7 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 			}
 			else
 			// CONCAT function in MySQL
-			if(_target == SQL_MYSQL)
+			if(Target(SQL_MARIADB, SQL_MYSQL))
 			{
 				// If it is first expression add CONCAT( before, and ) after last expression 
 				if(prev_operator != SQL_OPERATOR_PLUS)
@@ -2936,12 +2965,30 @@ bool SqlParser::ParsePercentOperator(Token *first)
 		return false;
 
 	// cursor%NOTFOUND in Oracle
-	if(second->Compare("NOTFOUND", L"NOTFOUND", 8) == true)
+	if(TOKEN_CMP(second, "NOTFOUND") == true)
 	{
-		// @@FETCH_STATUS = 0 in SQL Server
+		// NOT_FOUND = 1 in MariaDB and MySQL
+		if(Target(SQL_MARIADB, SQL_MYSQL))
+		{
+			TOKEN_CHANGE(second, "NOT_FOUND = 1");
+			Token::Remove(first, cent);
+		}
+        else
+        // @@FETCH_STATUS = 0 in SQL Server
 		if(_target == SQL_SQL_SERVER)
 		{
-			Token::Change(second, "@@FETCH_STATUS = 0", L"@@FETCH_STATUS = 0", 18);
+			TOKEN_CHANGE(second, "@@FETCH_STATUS = 0");
+			Token::Remove(first, cent);
+		}
+	}
+    else
+    // cursor%FOUND in Oracle
+	if(TOKEN_CMP(second, "FOUND") == true)
+	{
+		// NOT_FOUND = 0 in MariaDB and MySQL
+		if(Target(SQL_MARIADB, SQL_MYSQL))
+		{
+			TOKEN_CHANGE(second, "NOT_FOUND = 0");
 			Token::Remove(first, cent);
 		}
 	}

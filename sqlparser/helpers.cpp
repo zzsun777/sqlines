@@ -126,6 +126,14 @@ Token* SqlParser::Nvl(Token *first, Token *second, Token *third)
 
 	return third;
 }
+
+Token* SqlParser::NvlLast(Token *first)
+{
+    if(first != NULL)
+	    return first;
+
+    return GetLastToken();
+}
 	
 // Create a new identifier by appending the specified word (handles delimiters)
 Token *SqlParser::AppendIdentifier(Token *source, const char *word, const wchar_t * /*w_word*/, size_t len)
@@ -668,7 +676,7 @@ void SqlParser::ConvertSchemaName(Token *token, TokenStr &ident, size_t *len)
 	}
 	else
 	// Change "" and [] to `` in MySQL
-	if(_source != SQL_MYSQL && _target == SQL_MYSQL)
+	if(_source != SQL_MYSQL && Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		if(schema.len > 2 && 
 			(schema.Compare('"', L'"', 0) == true || schema.Compare('[', L'[', 0) == true))
@@ -726,7 +734,7 @@ void SqlParser::ConvertObjectName(Token *token, TokenStr &ident, size_t *len)
 	}
 	else
 	// Change "" to `` in MySQL
-	if(_source != SQL_MYSQL && _target == SQL_MYSQL)
+	if(_source != SQL_MYSQL && Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		if(name.len > 2 && name.Compare('"', L'"', 0) == true)
 		{
@@ -1167,8 +1175,11 @@ void SqlParser::ClearSplScope()
 
 	_spl_package = NULL;
     _spl_outer_begin = NULL;
+    _spl_begin_blocks.DeleteAll();
 	_spl_last_declare = NULL;
 	_spl_first_non_declare = NULL;
+    _spl_last_outer_declare_var = NULL;
+
 	_spl_new_correlation_name = NULL;
 	_spl_old_correlation_name = NULL;
 
@@ -1219,6 +1230,9 @@ void SqlParser::ClearSplScope()
 	_spl_declared_rs_locators.DeleteAll();
 	_spl_rs_locator_procedures.DeleteAll();
 	_spl_rs_locator_cursors.DeleteAll();
+
+    _spl_loops.DeleteAll();
+    _spl_loop_labels = 0;
 
 	_spl_sp_calls.DeleteAll();
 

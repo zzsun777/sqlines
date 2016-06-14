@@ -630,7 +630,7 @@ bool SqlParser::ParseBinaryType(Token *name)
         if(size->Compare("MAX", L"MAX", 3) == true)
         {
             // Change to LONGBLOB in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 Token::Remove(name);
                 Token::Change(varying, "LONGBLOB", L"LONGBLOB", 8);
@@ -658,7 +658,7 @@ bool SqlParser::ParseBinaryType(Token *name)
             }
             else
                 // Convert to VARBINARY in MySQL
-                if(_target == SQL_MYSQL)
+                if(Target(SQL_MARIADB, SQL_MYSQL))
                 {
                     Token::Remove(name);
                     Token::Change(varying, "VARBINARY", L"VARBINARY", 9);
@@ -740,7 +740,7 @@ bool SqlParser::ParseBinaryDoubleType(Token *name)
     DTYPE_DTL_STATS_0(name)
 
     // Convert to DOUBLE in MySQL
-    if(_target == SQL_MYSQL)
+    if(Target(SQL_MARIADB, SQL_MYSQL))
         Token::Change(name, "DOUBLE", L"DOUBLE", 6);
     else
         // Convert to REAL in other databases
@@ -763,7 +763,7 @@ bool SqlParser::ParseBinaryFloatType(Token *name)
     DTYPE_DTL_STATS_0(name)
 
     // Convert to FLOAT in MySQL
-    if(_target == SQL_MYSQL)
+    if(Target(SQL_MARIADB, SQL_MYSQL))
         Token::Change(name, "FLOAT", L"FLOAT", 5);
     else
         // Convert to DOUBLE PRECISION in other databases
@@ -807,7 +807,7 @@ bool SqlParser::ParseBitType(Token *name)
     }
 
     // Calculating RAW and BINARY size in bytes
-    if(open != NULL && Target(SQL_MYSQL, SQL_POSTGRESQL, SQL_SYBASE_ASA) == false)
+    if(open != NULL && Target(SQL_MARIADB, SQL_MYSQL, SQL_POSTGRESQL, SQL_SYBASE_ASA) == false)
     {
         int size;
         int rem;
@@ -895,7 +895,7 @@ bool SqlParser::ParseBitType(Token *name)
                         Token::Change(name, "BOOLEAN", L"BOOLEAN", 7);
                     else
                         // Convert to TINYINT in MySQL
-                        if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+                        if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
                             Token::Change(name, "TINYINT", L"TINYINT", 7);
                         else
                             // Remove [] for other databases
@@ -951,7 +951,7 @@ bool SqlParser::ParseBlobType(Token *name)
     }
     else
         // Convert to LONGBLOB in MySQL
-        if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
             Token::Change(name, "LONGBLOB", L"LONGBLOB", 8);
         else
             // Convert to BYTEA in PostgreSQL, Greenplum
@@ -1044,7 +1044,7 @@ bool SqlParser::ParseByteType(Token *name)
         }
         else
             // Convert to LONGBLOB in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 Token::Change(name, "LONGBLOB", L"LONGBLOB", 8);
             }
@@ -1176,7 +1176,7 @@ bool SqlParser::ParseCharacterType(Token *name, int clause_scope)
     if(Token::Compare(size, "MAX", L"MAX", 3) == true)
     {
         // Change to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Remove(name);
             Token::Change(varying, "LONGTEXT", L"LONGTEXT", 8);
@@ -1276,12 +1276,12 @@ bool SqlParser::ParseCharacterType(Token *name, int clause_scope)
                             Append(varying, "(1)", L"(1)", 3);
                         else
                             // Size is mandatory in MySQL
-                            if(_target == SQL_MYSQL && open == NULL)
+                            if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)
                                 Append(varying, "(1)", L"(1)", 3);
                 }
                 else
                     // Check for CHAR
-                    if(varying == NULL && _target == SQL_MYSQL)
+                    if(varying == NULL && Target(SQL_MARIADB, SQL_MYSQL))
                     {
                         int num = 1;
 
@@ -1414,7 +1414,7 @@ bool SqlParser::ParseCharType(Token *name, int clause_scope)
     if(size->Compare("MAX", L"MAX", 3) == true)
     {
         // Change to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Remove(name);
             Token::Change(varying, "LONGTEXT", L"LONGTEXT", 8);
@@ -1514,12 +1514,12 @@ bool SqlParser::ParseCharType(Token *name, int clause_scope)
                             Append(varying, "(1)", L"(1)", 3);
                         else
                             // Size is mandatory in MySQL
-                            if(_target == SQL_MYSQL && open == NULL)
+                            if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)
                                 Append(varying, "(1)", L"(1)", 3);
                 }
                 else
                     // Check for CHAR
-                    if(varying == NULL && _target == SQL_MYSQL)
+                    if(varying == NULL && Target(SQL_MARIADB, SQL_MYSQL))
                     {
                         int num = 1;
 
@@ -1587,7 +1587,7 @@ bool SqlParser::ParseClobType(Token *name)
     }
     else
         // Convert to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
         else
             // Convert to TEXT in PostgreSQL, Greenplum
@@ -1783,7 +1783,7 @@ bool SqlParser::ParseDatetimeType(Token *name)
                                 }
                                 else
                                     // Append fraction in MySQL
-                                    if(_target == SQL_MYSQL)
+                                    if(Target(SQL_MARIADB, SQL_MYSQL))
                                     {
                                         // Remove []
                                         if(datetime_in_braces == true)
@@ -1848,7 +1848,7 @@ bool SqlParser::ParseDatetime2Type(Token *name)
     }
 
     // Convert to DATETIME in MySQL
-    if(_target == SQL_MYSQL)
+    if(Target(SQL_MARIADB, SQL_MYSQL))
     {
         Token::Change(name, "DATETIME", L"DATETIME", 8);
 
@@ -1943,7 +1943,7 @@ bool SqlParser::ParseDatetimeoffsetType(Token *name)
             Append(name, "(6)", L"(6)", 3);
         else
             // Convert to DATETIME in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 Token::Change(name, "DATETIME", L"DATETIME", 8);
 
@@ -2366,7 +2366,7 @@ bool SqlParser::ParseFloatType(Token *name)
             Token::Remove(open, close);
         else
             // Convert to DOUBLE in MySQL
-            if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
             {
                 Token::Change(name, "DOUBLE", L"DOUBLE", 6);
 
@@ -2550,7 +2550,7 @@ bool SqlParser::ParseImageType(Token *name)
         }
         else
             // Convert to LONGBLOB in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
                 Token::Change(name, "LONGBLOB", L"LONGBLOB", 8);
             else
                 // Convert to BYTEA in PostgreSQL
@@ -2705,7 +2705,7 @@ bool SqlParser::ParseIntervalType(Token *name)
     }
     else
         // Convert to VARHCAR(30) in SQL Server, MySQL
-        if(Target(SQL_SQL_SERVER, SQL_MYSQL) == true)
+        if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
         {
             Token::Remove(first_unit, second_unit);
             Token::Remove(open2, close2);
@@ -3091,7 +3091,7 @@ bool SqlParser::ParseLongType(Token *name)
                                     }
                                     else
                                         // Convert to LONGTEXT in MySQL
-                                        if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+                                        if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
                                             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
                                         else
                                             // Convert to TEXT in PostgreSQL, Greenplum
@@ -3189,7 +3189,7 @@ bool SqlParser::ParseLongType(Token *name)
                                                 }
                                                 else
                                                     // Convert to LONGBLOB in MySQL
-                                                    if(_target == SQL_MYSQL)
+                                                    if(Target(SQL_MARIADB, SQL_MYSQL))
                                                     {
                                                         Token::Remove(name);
                                                         Token::Change(unit, "LONGBLOB", L"LONGBLOB", 8);
@@ -3400,7 +3400,7 @@ bool SqlParser::ParseLongtextType(Token *name)
             Token::Change(name, "CLOB", L"CLOB", 4);
         else
             // Convert to LONGTEXT in MySQL
-            if(_source != SQL_MYSQL && _target == SQL_MYSQL)
+            if(_source != SQL_MYSQL && Target(SQL_MARIADB, SQL_MYSQL))
                 Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
 
     return true;
@@ -3467,7 +3467,7 @@ bool SqlParser::ParseMediumtextType(Token *name)
             Token::Change(name, "CLOB", L"CLOB", 4);
         else
             // Convert to LONGTEXT in MySQL
-            if(_source != SQL_MYSQL && _target == SQL_MYSQL)
+            if(_source != SQL_MYSQL && Target(SQL_MARIADB, SQL_MYSQL))
                 Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
 
     return true;
@@ -3588,7 +3588,7 @@ bool SqlParser::ParseMoneyType(Token *name)
         }
         else
             // Convert to DECIMAL in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 Token::Change(name, "DECIMAL", L"DECIMAL", 7);
 
@@ -3659,7 +3659,7 @@ bool SqlParser::ParseNationalType(Token *name)
     if(text != NULL)
     {
         // Convert to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Remove(name);
             Token::Change(unit, "LONGTEXT", L"LONGTEXT", 8);
@@ -3688,7 +3688,7 @@ bool SqlParser::ParseNationalType(Token *name)
             if(size->Compare("MAX", L"MAX", 3) == true)
             {
                 // Change to LONGTEXT in MySQL
-                if(_target == SQL_MYSQL)
+                if(Target(SQL_MARIADB, SQL_MYSQL))
                 {
                     Token::Remove(name, character);
                     Token::Change(varying, "LONGTEXT", L"LONGTEXT", 8);
@@ -3730,7 +3730,7 @@ bool SqlParser::ParseNationalType(Token *name)
                     }
                     else
                         // Size is mandatory in MySQL
-                        if(_target == SQL_MYSQL && open == NULL)		
+                        if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)		
                             Append(varying, "(1)", L"(1)", 3);
         }
         else
@@ -3742,7 +3742,7 @@ bool SqlParser::ParseNationalType(Token *name)
                     Token::Remove(name);
                 else
                     // If size is greater than 255 convert to NVARCHAR in MySQL
-                    if(_target == SQL_MYSQL)
+                    if(Target(SQL_MARIADB, SQL_MYSQL))
                     {
                         int num = 1;
 
@@ -3822,7 +3822,7 @@ bool SqlParser::ParseNcharType(Token *name)
     if(size->Compare("MAX", L"MAX", 3) == true)
     {
         // Change to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Remove(name);
             Token::Change(varying, "LONGTEXT", L"LONGTEXT", 8);
@@ -3868,7 +3868,7 @@ bool SqlParser::ParseNcharType(Token *name)
                 }
                 else
                     // Size is mandatory in MySQL
-                    if(_target == SQL_MYSQL && open == NULL)		
+                    if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)		
                         Append(varying, "(1)", L"(1)", 3);
         }
         else
@@ -3884,7 +3884,7 @@ bool SqlParser::ParseNcharType(Token *name)
                     Token::Change(name, "CHAR", L"CHAR", 4);
                 else
                     // If size is greater than 255 convert to NVARCHAR in MySQL
-                    if(_target == SQL_MYSQL)
+                    if(Target(SQL_MARIADB, SQL_MYSQL))
                     {
                         int num = 1;
 
@@ -3948,7 +3948,7 @@ bool SqlParser::ParseNclobType(Token *name)
     }
     else
         // Convert to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
         else
             // Convert to TEXT in PostgreSQL
@@ -3993,7 +3993,7 @@ bool SqlParser::ParseNtextType(Token *name)
             AppendNoFormat(name, "(max)", L"(max)", 5);
         }
         // Convert to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
         else
             // Convert to TEXT in PostgreSQL
@@ -4048,7 +4048,7 @@ bool SqlParser::ParseNumberType(Token *name, int clause_scope)
             if(_target == SQL_SQL_SERVER)
                 Token::Change(name, "FLOAT", L"FLOAT", 5);
             else
-                if(_target == SQL_MYSQL)
+                if(Target(SQL_MARIADB, SQL_MYSQL))
                     Token::Change(name, "DOUBLE", L"DOUBLE", 6);
                 else
                     Token::Change(name, "INT", L"INT", 3);
@@ -4297,7 +4297,7 @@ bool SqlParser::ParseNvarcharType(Token *name)
     if(size->Compare("MAX", L"MAX", 3) == true)
     {
         // Change to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
             Token::Remove(open, close);
@@ -4336,7 +4336,7 @@ bool SqlParser::ParseNvarcharType(Token *name)
             }
             else
                 // Size is mandatory in MySQL
-                if(_target == SQL_MYSQL && open == NULL)
+                if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)
                 {
                     if(nvarchar_in_braces == true)
                         Token::ChangeNoFormat(name, name, 1, name->len - 2);
@@ -4406,7 +4406,7 @@ bool SqlParser::ParseRawType(Token *name)
     if(_target == SQL_SQL_SERVER)
         Token::Change(name, "VARBINARY", L"VARBINARY", 9);
     else
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             int num = 1;
 
@@ -4565,7 +4565,7 @@ bool SqlParser::ParseRowversionType(Token *name)
     DTYPE_DTL_STATS_0(name)
 
     // Convert to BINARY(8) in MySQL
-    if(_target == SQL_MYSQL)
+    if(Target(SQL_MARIADB, SQL_MYSQL))
         Token::Change(name, "BINARY(8)", L"BINARY(8)", 9);
     else
         // Convert to BYTEA in PostgreSQL
@@ -4742,7 +4742,7 @@ bool SqlParser::ParseSmalldatetimeType(Token *name)
             Token::Change(name, "DATETIME2(6)", L"DATETIME2(6)", 12);
         else
             // Convert to DATETIME in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 Token::Change(name, "DATETIME", L"DATETIME", 8);
             }
@@ -4880,7 +4880,7 @@ bool SqlParser::ParseSmallmoneyType(Token *name)
     }
     else
         // Convert to DECIMAL in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             // SQL Server SMALLMONEY implemented as DECIMAL(6,4)
             if(_source == SQL_SQL_SERVER)
@@ -4983,7 +4983,7 @@ bool SqlParser::ParseTextType(Token *name)
         }
         else
             // Convert to LONGTEXT in MySQL
-            if(_target == SQL_MYSQL && _source!= SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL) && _source!= SQL_MYSQL)
                 Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
             else
                 // Remove [] for other databases
@@ -5069,7 +5069,7 @@ bool SqlParser::ParseTimeType(Token *name)
         }
         else
             // Append fraction in MySQL
-            if(_target == SQL_MYSQL)
+            if(Target(SQL_MARIADB, SQL_MYSQL))
             {
                 // Remove []
                 if(time_in_braces == true)
@@ -5233,7 +5233,7 @@ bool SqlParser::ParseTimestampType(Token *name)
     }
     else
         // Convert to DATETIME in MySQL
-        if(_target == SQL_MYSQL && _source != SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
         {
             if(_source == SQL_SQL_SERVER)
                 Token::Change(name, "BINARY(8)", L"BINARY(8)", 9);
@@ -5380,7 +5380,7 @@ bool SqlParser::ParseTinyintType(Token *name, int clause_scope)
             Token::Change(name, "SMALLINT", L"SMALLINT", 8);
         else
             // SQL Server's TINYINT is unsigned
-            if(_source == SQL_SQL_SERVER && _target == SQL_MYSQL)
+            if(_source == SQL_SQL_SERVER && Target(SQL_MARIADB, SQL_MYSQL))
             {
                 // Remove []
                 if(tinyint_in_braces == true)
@@ -5875,7 +5875,7 @@ bool SqlParser::ParseVarbinaryType(Token *name)
     if(size->Compare("MAX", L"MAX", 3) == true)
     {
         // Change to LONGBLOB in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Change(name, "LONGBLOB", L"LONGBLOB", 8);
             Token::Remove(open, close);
@@ -5909,7 +5909,7 @@ bool SqlParser::ParseVarbinaryType(Token *name)
             }
             else
                 // Size is mandatory in MySQL
-                if(_target == SQL_MYSQL && open == NULL)
+                if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)
                 {
                     Append(name, "(1)", L"(1)", 3);
 
@@ -6012,9 +6012,9 @@ bool SqlParser::ParseVarcharType(Token *name, int clause_scope)
     if(name->Compare("VARCHAR", L"VARCHAR", 7) == true)
         varchar = true;
     else
-        // Can be enclosed in [] for SQL Server
-        if(name->Compare("[VARCHAR]", L"[VARCHAR]", 9) == true)
-            varchar_in_braces = true;
+    // Can be enclosed in [] for SQL Server
+    if(name->Compare("[VARCHAR]", L"[VARCHAR]", 9) == true)
+        varchar_in_braces = true;
 
     if(varchar == false && varchar_in_braces == false)
         return false;
@@ -6113,75 +6113,79 @@ bool SqlParser::ParseVarcharType(Token *name, int clause_scope)
     if(size->Compare("MAX", L"MAX", 3) == true)
     {
         // Change to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
         {
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
             Token::Remove(open, close);
         }
         else
-            // Change to TEXT in PostgreSQL
-            if(_target == SQL_POSTGRESQL)
-            {
-                Token::Change(name, "TEXT", L"TEXT", 4);
-                Token::Remove(open, close);
-            }
+        // Change to TEXT in PostgreSQL
+        if(_target == SQL_POSTGRESQL)
+        {
+            Token::Change(name, "TEXT", L"TEXT", 4);
+            Token::Remove(open, close);
+        }
     }
     else
-        // Check for VARCHAR FOR BIT DATA
-        if(binary == true)
+    // Check for VARCHAR FOR BIT DATA
+    if(binary == true)
+    {
+        // Convert DB2 VARCHAR FOR BIT DATA to RAW in Oracle
+        if(_target == SQL_ORACLE)
         {
-            // Convert DB2 VARCHAR FOR BIT DATA to RAW in Oracle
-            if(_target == SQL_ORACLE)
-            {
-                Token::Change(name, "RAW", L"RAW", 3);
-                Token::Remove(semantics);
-            }
-            else
-                // Convert DB2 VARCHAR FOR BIT DATA to VARBINARY in SQL Server
-                if(_target == SQL_SQL_SERVER)
-                    Token::Change(name, "VARBINARY", L"VARBINARY", 9);
-                else
-                    // Convert DB2 VARCHAR FOR BIT DATA to BYTEA in PostgreSQL, Greenplum
-                    if(Target(SQL_POSTGRESQL, SQL_GREENPLUM) == true)
-                    {
-                        Token::Change(name, "BYTEA", L"BYTEA", 5);
-                        Token::Remove(open, close);
-                    }
+            Token::Change(name, "RAW", L"RAW", 3);
+            Token::Remove(semantics);
         }
         else
-            // Convert VARCHAR to VARCHAR2 in Oracle
-            if(_target == SQL_ORACLE && _source != SQL_ORACLE)
-            {
-                Token::Change(name, "VARCHAR2", L"VARCHAR2", 8);
+        // Convert DB2 VARCHAR FOR BIT DATA to VARBINARY in SQL Server
+        if(_target == SQL_SQL_SERVER)
+            Token::Change(name, "VARBINARY", L"VARBINARY", 9);
+        else
+        // Convert DB2 VARCHAR FOR BIT DATA to BYTEA in PostgreSQL, Greenplum
+        if(Target(SQL_POSTGRESQL, SQL_GREENPLUM) == true)
+        {
+            Token::Change(name, "BYTEA", L"BYTEA", 5);
+            Token::Remove(open, close);
+        }
+    }
+    else
+    // Convert VARCHAR to VARCHAR2 in Oracle
+    if(_target == SQL_ORACLE && _source != SQL_ORACLE)
+    {
+        Token::Change(name, "VARCHAR2", L"VARCHAR2", 8);
 
-                // Default size
-                if(open == NULL && clause_scope != SQL_SCOPE_FUNC_PARAMS && clause_scope != SQL_SCOPE_PROC_PARAMS)
-                {
-                    // PostgreSQL allows not specify size
-                    if(_source == SQL_POSTGRESQL)
-                        Append(name, "(4000)", L"(4000)", 6);
-                    else
-                        // Size is 1 by default in SQL Server, Informix, Sybase ASE, Sybase ASA
-                        Append(name, "(1)", L"(1)", 3);
-                }
-            }
+        // Default size
+        if(open == NULL && clause_scope != SQL_SCOPE_FUNC_PARAMS && clause_scope != SQL_SCOPE_PROC_PARAMS)
+        {
+            // PostgreSQL allows not specify size
+            if(_source == SQL_POSTGRESQL)
+                Append(name, "(4000)", L"(4000)", 6);
             else
-                // VARCHAR is unlimited by default in PostgreSQL
-                if(_target == SQL_POSTGRESQL && open == NULL && _source != SQL_POSTGRESQL)
-                    Append(name, "(1)", L"(1)", 3);
-                else
-                    // Size is mandatory in MySQL
-                    if(_target == SQL_MYSQL && open == NULL)
-                    {
-                        if(varchar_in_braces == true)
-                            Token::ChangeNoFormat(name, name, 1, name->len - 2);
-
-                        Append(name, "(1)", L"(1)", 3);
-                    }
-                    else
-                        // Remove [] for other databases
-                        if(_target != SQL_SQL_SERVER && varchar_in_braces == true)
-                            Token::ChangeNoFormat(name, name, 1, name->len - 2);
+                // Size is 1 by default in SQL Server, Informix, Sybase ASE, Sybase ASA
+                Append(name, "(1)", L"(1)", 3);
+        }
+    }
+    else
+    // VARCHAR is unlimited by default in PostgreSQL
+    if(_target == SQL_POSTGRESQL && open == NULL && _source != SQL_POSTGRESQL)
+        Append(name, "(1)", L"(1)", 3);
+    else
+    // Size is mandatory in MySQL
+    if(Target(SQL_MARIADB, SQL_MYSQL) && open == NULL)
+    {
+        if(varchar_in_braces == true)
+            Token::ChangeNoFormat(name, name, 1, name->len - 2);
+        
+        // When used in parameter list for a function or procedure add length
+        if(_source == SQL_ORACLE && (clause_scope == SQL_SCOPE_FUNC_PARAMS || clause_scope == SQL_SCOPE_PROC_PARAMS))
+            AppendNoFormat(name, "(4000)", L"(4000)", 6);
+        else
+            Append(name, "(1)", L"(1)", 3);
+    }
+    else
+    // Remove [] for other databases
+    if(_target != SQL_SQL_SERVER && varchar_in_braces == true)
+        Token::ChangeNoFormat(name, name, 1, name->len - 2);
 
     name->data_type = TOKEN_DT_STRING;
 
@@ -6315,7 +6319,7 @@ bool SqlParser::ParseXmlType(Token *name)
         Token::Change(name, "XMLTYPE", L"XMLTYPE", 7);
     else
         // Convert to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
         else
             // Remove [] for other database
@@ -6342,7 +6346,7 @@ bool SqlParser::ParseXmltypeType(Token *name)
         Token::Change(name, "XML", L"XML", 3);
     else
         // Convert to LONGTEXT in MySQL
-        if(_target == SQL_MYSQL)
+        if(Target(SQL_MARIADB, SQL_MYSQL))
             Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
 
     return true;
