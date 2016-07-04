@@ -1149,6 +1149,28 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 			ParseTeradataCompressClauseDefaultExpression(cns);
 			num++;
 		}
+        else
+		// TITLE 'text' clause in Teradata
+		if(TOKEN_CMP(cns, "TITLE") == true)
+		{
+            Token *value = GetNextStringToken();
+
+			if(_target != SQL_TERADATA && value != NULL)
+				Token::Remove(cns, value);
+
+			num++;
+		}
+        else
+		// FORMAT 'format' clause in Teradata
+		if(TOKEN_CMP(cns, "FORMAT") == true)
+		{
+            Token *value = GetNextStringToken();
+
+			if(_target != SQL_TERADATA && value != NULL)
+				Token::Remove(cns, value);
+
+			num++;
+		}
 	}
 
 	return exists;
@@ -1245,8 +1267,8 @@ bool SqlParser::ParseDefaultExpression(Token *type, Token *type_end, Token *toke
 	Token *new_default = token;
 	Token *new_default_first = first;
 
-	// In Oracle unlike DB2, MySQL DEFAULT must go right after data type
-	if(pos > 0 && _target == SQL_ORACLE)
+	// In Oracle and EsgynDB unlike DB2, MySQL DEFAULT must go right after data type
+	if(pos > 0 && Target(SQL_ORACLE, SQL_ESGYNDB))
 	{
 		new_default = Append(type_end, " DEFAULT ", L" DEFAULT ", 9, token);
 		new_default_first = AppendCopy(type_end, first, default_end, false);

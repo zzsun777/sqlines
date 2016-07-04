@@ -390,7 +390,7 @@ QStringList MainWindow::getSourceTargetList()
     typesList.append("Sybase ASE");
     typesList.append("Sybase SQL Anywhere");    
     typesList.append("Teradata");
-    typesList.append("Trafodion");
+    typesList.append("EsgynDB");
 
     return typesList;
 }
@@ -436,8 +436,8 @@ QString MainWindow::getCmdType(QString type)
     if(type == "Netezza")
         cmd = "netezza";
     else
-    if(type == "Trafodion")
-        cmd = "trafodion";
+    if(type == "EsgynDB")
+        cmd = "esgyndb";
 
     return cmd;
 }

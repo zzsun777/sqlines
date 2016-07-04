@@ -45,8 +45,13 @@
 #define TOKEN_DT2_INT8			4		// 8-bit integer
 
 // Token flags
-#define TOKEN_REMOVED   0x1
-#define TOKEN_INSERTED  0x2
+#define TOKEN_REMOVED            0x1
+#define TOKEN_INSERTED           0x2
+#define TOKEN_WARNING            0x4
+#define TOKEN_CONV_NOT_REQUIRED  0x8
+
+// Conversion notes associated with tokens
+#define TOKEN_WARN_APP_CHANGES   "Application changes are required"
 
 class TokenStr;
 
@@ -82,6 +87,9 @@ public:
 
 	// Token flags
 	int flags;
+
+    // Conversion notes associated with the token
+    const char *notes_str;
 
 	// Number of input bytes remain after token
 	int remain_size;

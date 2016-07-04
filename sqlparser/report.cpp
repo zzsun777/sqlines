@@ -161,7 +161,7 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Table of data type details
     if(_stricmp(macro.c_str(), "datatype_dtl_table") == 0)
     {
-        data += "<table><tr><th></th><th>Data Type</th><th>Occurrences</th></tr>";
+        data += "<table><tr><th></th><th>Data Type</th><th>Conversion</th><th>Notes</th><th>Occurrences</th></tr>\n";
 
         GetReportSectionRows(stats->_data_types_dtl, data, &distinct, &occurrences);
 
@@ -402,6 +402,75 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Summary
     if(_stricmp(macro.c_str(), "summary") == 0)
         data += _summary;
+}
+
+// Get report section
+void Report::GetReportSectionRows(std::map<std::string, StatsItem> &values, std::string &data,
+                                  int *distinct, int *occurrences)
+{
+    char num[12];
+
+    int row = 1;
+    int dist = 0;
+    int occur = 0;
+
+    for(std::map<std::string, StatsItem>::iterator i = values.begin(); i != values.end(); i++, row++)
+    {
+        data += "<tr><td>";
+        sprintf(num, "%d", row);
+        data += num;
+        data += "</td><td>";
+        data += (*i).first;
+        data += "</td>";
+
+        // The source was modified
+        if(!(*i).second.t_value.empty())
+        {
+            if((*i).second.warn)
+            {
+                data += "<td class=\"td_warn\">";
+                data += (*i).second.t_value;
+                data += "</td><td class=\"td_warn\">";
+                data += (*i).second.notes;
+            }
+            else
+            {
+                data += "<td>";
+                data += (*i).second.t_value;
+                data += "</td><td>Ok";
+            }
+        }
+        // Source was not changed
+        else
+        {
+            if(!(*i).second.conv_not_required)
+            {
+                data += "<td class=\"td_warn\">";
+                data += (*i).first;
+                data += "</td><td class=\"td_warn\">Not converted";
+            }
+            else
+            {
+                data += "<td>";
+                data += (*i).first;
+                data += "</td><td>Conversion is not required";
+            }
+        }
+
+        data += "</td><td>";
+        sprintf(num, "%d", (*i).second.occurrences);
+        data += num;
+        data += "</td></tr>\n";
+
+        dist++;
+        occur += (*i).second.occurrences;        
+    }
+
+    if(distinct != NULL)
+        *distinct = dist;
+    
+    if(occurrences != NULL)
+        *occurrences = occur;
 }
 
 void Report::GetReportSectionRows(std::map<std::string, int> &values, std::string &data,

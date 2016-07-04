@@ -432,8 +432,8 @@ short Sqlines::DefineType(const char *name)
 	if(_stricmp(name, "mariadb") == 0)
 		type = SQL_MARIADB;
     else
-	if(_stricmp(name, "trafodion") == 0)
-		type = SQL_TRAFODION;
+	if(_stricmp(name, "esgyndb") == 0 || _stricmp(name, "trafodion") == 0)
+		type = SQL_ESGYNDB;
 
 	return type;
 }

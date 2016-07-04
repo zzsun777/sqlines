@@ -42,6 +42,8 @@ Token::Token()
 	len = 0;
 	flags = 0;
 
+    notes_str = NULL;
+
 	remain_size = 0;
 	next_start = NULL;
 	source_allocated = false;

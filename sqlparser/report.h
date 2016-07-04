@@ -43,6 +43,7 @@ private:
     // Fill the specified report section
     void GetReportSection(Stats *stats, std::string &macro, std::string &data); 
     void GetReportSectionRows(std::map<std::string, int> &values, std::string &data, int *distinct, int *occurrences);
+    void GetReportSectionRows(std::map<std::string, StatsItem> &values, std::string &data, int *distinct, int *occurrences);
 };
 
 #endif // sqlexec_report_h

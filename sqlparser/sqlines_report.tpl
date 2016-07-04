@@ -8,6 +8,7 @@ table { font-size: 13px; border: 1px solid; border-collapse:collapse; }
 tr:hover td { background-color: #A4BBFE; }
 th { background: #98AFC7; padding: 0px 10px 0px 10px; border: 1px solid; }
 td { padding: 0px 10px 0px 10px; border: 1px solid; }
+.td_warn { background:yellow; }
 a:link { text-decoration: none; color: #0000A0;}
 a:visited { text-decoration: none; color: #0000A0;}
 a:active { text-decoration: none; color: #0000A0;}
@@ -27,7 +28,7 @@ a:hover { text-decoration: none; color: #800517;}
 
 <p>All built-in data types:</p><?datatypes_table?>
 <p>All derived and user-defined (UDT) data types:</p><?udt_datatypes_table?>
-<p>Built-in data type details:</p><?datatype_dtl_table?>
+<p>Built-in data type conversion details:</p><?datatype_dtl_table?>
 <p>Derived and user-defined (UDT) data type details:</p><?udt_datatype_dtl_table?>
 
 <!------------------------------->

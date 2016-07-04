@@ -2753,25 +2753,77 @@ bool SqlParser::ParseDeleteStatement(Token *delete_)
 
     STMS_STATS(delete_);
 
-	// FROM keyword
-	Token *from = GetNextWordToken("FROM", L"FROM", 4);
+    Token *name = NULL;
+    Token *from = NULL;
+    Token *next = GetNext();
 
-	if(from == NULL)
-		return false;
+    bool delete_from = false;
 
-	// Table name
-	Token *name = GetNextIdentToken();
+    if(next == NULL)
+        return false;
 
-	if(name == NULL)
-		return false;
+    // DELETE FROM tab1 ...
+    if(TOKEN_CMP(next, "FROM") == true)
+    {
+        from = next;
 
-	_spl_last_fetch_cursor_name = NULL;
+        // Table name
+	    name = GetNextIdentToken();
 
-	// Table alias or WHERE
-	Token *next = GetNextToken();
+	    if(name == NULL)
+		    return false;
 
-	if(next == NULL)
-		return false;
+        // Table alias or WHERE
+	    next = GetNextToken();
+
+	    if(next == NULL)
+		    return false;
+    }
+    // DELETE t1 FROM tab1 t1, tab2 t2 ...
+    else
+    {
+        // Alias for deleted table
+	    name = next;
+
+        from = TOKEN_GETNEXTW("FROM");
+
+        if(name == NULL || from == NULL)
+		    return false;
+
+        int num = 0;
+
+        while(true)
+        {
+            // Table name
+	        Token *tab = GetNextIdentToken(SQL_IDENT_OBJECT);
+
+            // Alias 
+            /*Token *alias */ (void) GetNextToken();
+
+            Token *comma = TOKEN_GETNEXT(',');
+
+            // Convert to MERGE USING in EsgynDB
+            if(_target == SQL_ESGYNDB)
+            {
+                if(num == 0)
+                    TOKEN_CHANGE(comma, " USING");
+                else
+                {
+                    Prepend(tab, "(SELECT * FROM ", L"(SELECT * FROM ", 15, delete_);
+                    AppendNoFormat(tab, ")", L")", 1);
+                }
+            }
+
+            if(comma == NULL)
+                break;
+
+            num++;
+        }
+
+        delete_from = true;
+    }
+
+	_spl_last_fetch_cursor_name = NULL;	
 
 	Token *alias = NULL;
 
@@ -2781,8 +2833,10 @@ bool SqlParser::ParseDeleteStatement(Token *delete_)
 	else
 		alias = next;
 
+    Token *where_ = NULL;
+
 	// Optional WHERE clause
-	bool where_exists = ParseWhereClause(SQL_STMT_DELETE, NULL, NULL, NULL);
+	bool where_exists = ParseWhereClause(SQL_STMT_DELETE, &where_, NULL, NULL);
 
 	// If there is no WHERE return alias to input if no followed by ; may be it is just next statement start word
 	if(where_exists == false && alias != NULL)
@@ -2794,6 +2848,21 @@ bool SqlParser::ParseDeleteStatement(Token *delete_)
 		else
 			PushBack(semi);
 	}
+
+    if(delete_from == true)
+    {
+        // Convert to MERGE in EsgynDB
+        if(_target == SQL_ESGYNDB)
+        {
+            TOKEN_CHANGE(delete_, "MERGE");
+            TOKEN_CHANGE(from, "INTO");
+            TOKEN_CHANGE(where_, "ON");
+
+            Append(GetLastToken(), "\nWHEN MATCHED THEN DELETE", L"\nWHEN MATCHED THEN DELETE", 25, Nvl(where_, delete_));
+
+            Token::Remove(name);
+        }
+    }
 
 	// Add statement delimiter if not set when source is SQL Server
 	SqlServerAddStmtDelimiter();
@@ -7795,16 +7864,78 @@ bool SqlParser::ParseUpdateStatement(Token *update)
 	if(next == NULL)
 		return false;
 
-	Token *alias = NULL;
+	Token *update_from = NULL;
+    Token *update_from_end = NULL;
+
+    Token *alias = NULL;
 	Token *set = NULL;
 
+    // UPDATE t1 FROM tab t1, tab2 t2, ...
+    if(TOKEN_CMP(next, "FROM") == true)
+    {
+        update_from = next;
+
+        int num = 0;
+
+        while(true)
+        {
+            Token *open = TOKEN_GETNEXT('(');
+            Token *tab = NULL;
+
+            // (SELECT ...)
+            if(open != NULL)
+            {
+                Token *sel = GetNextSelectStartKeyword();
+
+			    // A subquery used to specify update table join
+			    if(sel != NULL)
+				ParseSelectStatement(sel, 0, SQL_SEL_UPDATE_FROM, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+                /*Token *close */ (void) TOKEN_GETNEXT(')');
+            }
+            // Table name
+            else
+	            tab = GetNextIdentToken(SQL_IDENT_OBJECT);
+
+            // Alias 
+            /*Token *alias */ (void) GetNextToken();
+
+            Token *comma = TOKEN_GETNEXT(',');
+
+            // Convert to MERGE USING in EsgynDB
+            if(tab != NULL && _target == SQL_ESGYNDB)
+            {
+                if(num == 0)
+                    TOKEN_CHANGE(comma, " USING");
+                else
+                {
+                    Prepend(tab, "(SELECT * FROM ", L"(SELECT * FROM ", 15, update);
+                    AppendNoFormat(tab, ")", L")", 1);
+                }
+            }
+
+            if(comma == NULL)
+                break;
+
+            num++;
+        }
+
+        update_from_end = GetLastToken();
+
+        // Get SET keyword should follow now
+		set = TOKEN_GETNEXTW("SET");
+
+        if(set != NULL && _target == SQL_ESGYNDB)
+            TOKEN_CHANGE(set, "WHEN MATCHED THEN UPDATE SET");
+    }
+    else
 	// Check for alias
-	if(next->Compare("SET", L"SET", 3) == false)
+	if(TOKEN_CMP(next, "SET") == false)
 	{
 		alias = next;
 
 		// Get SET keyword after alias
-		set = GetNextWordToken("SET", L"SET", 3);
+		set = TOKEN_GETNEXTW("SET");
 	}
 	else
 		set = next;
@@ -7919,8 +8050,27 @@ bool SqlParser::ParseUpdateStatement(Token *update)
 			break;
 	}
 
+    Token *where_ = NULL;
+    Token *where_end = NULL;
+
 	// optional WHERE clause
-	ParseWhereClause(SQL_STMT_UPDATE, NULL, NULL, NULL);
+	ParseWhereClause(SQL_STMT_UPDATE, &where_, &where_end, NULL);
+
+    if(update_from != NULL)
+    {
+        // Convert to MERGE in EsgynDB
+        if(_target == SQL_ESGYNDB)
+        {
+            TOKEN_CHANGE(update, "MERGE");
+            TOKEN_CHANGE(update_from, "INTO");
+            TOKEN_CHANGE(where_, "ON");
+
+            AppendSpaceCopy(update_from_end, where_, where_end, false);
+
+            Token::Remove(name);
+            Token::Remove(where_, where_end);
+        }
+    }
 
 	// Implement CONTINUE handler for NOT FOUND in Oracle
 	if(_target == SQL_ORACLE)

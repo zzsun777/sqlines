@@ -24,6 +24,49 @@ Stats::Stats() {}
 Stats::~Stats() {}
 
 // Collect statistics for the specified item
+void Stats::Add(std::map<std::string, StatsItem> &map, Token *token, bool case_insense)
+{
+    if(token == NULL || token->str == NULL || token->len == 0)
+        return;
+
+    std::string source(token->str, token->len);
+
+    bool conv_not_required = (token->flags & TOKEN_CONV_NOT_REQUIRED) ? true : false;
+    bool warn = (token->flags & TOKEN_WARNING) ? true : false;
+
+    Add(map, source, token->t_str, case_insense, conv_not_required, warn, token->notes_str);
+}
+
+void Stats::Add(std::map<std::string, StatsItem> &map, Token* start, Token* end, bool case_insense)
+{
+    if(start == NULL || start->str == NULL || start->len == 0 || end == NULL)
+        return;
+
+    std::string source(start->str, start->len + start->remain_size - end->remain_size);
+
+    bool conv_not_required = (start->flags & TOKEN_CONV_NOT_REQUIRED) ? true : false;
+    bool warn = (start->flags & TOKEN_WARNING) ? true : false;
+
+    Add(map, source, start->t_str, case_insense, conv_not_required, warn, start->notes_str);
+}
+
+void Stats::Add(std::map<std::string, StatsItem> &map, std::string value, const char* target, 
+                    bool case_insense, bool conv_not_required, bool warn, const char *notes)
+{
+    if(case_insense)
+        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
+    // Check if this value already used
+	std::map<std::string, StatsItem>::iterator i = map.find(value);
+
+    // Increment the counter or insert new key-value pair
+	if(i != map.end())
+    	(*i).second.occurrences++;
+    else 
+	    map[value] = StatsItem(1, target, conv_not_required, warn, notes);    
+}
+
+// Collect statistics for the specified item
 void Stats::Add(std::map<std::string, int> &map, Token *token, bool case_insense)
 {
     if(token == NULL || token->str == NULL || token->len == 0)

@@ -46,7 +46,7 @@
 #define SQL_TERADATA			10
 #define SQL_NETEZZA				11
 #define SQL_MARIADB             12
-#define SQL_TRAFODION           13
+#define SQL_ESGYNDB             13
 
 // Application types
 #define APP_JAVA				1
@@ -120,10 +120,11 @@
 #define SQL_SEL_SELECT_LIST				10
 #define SQL_SEL_FOREACH					11
 #define SQL_SEL_UPDATE_SET				12
-#define SQL_SEL_JOIN					13
-#define SQL_SEL_CREATE_TEMP_TABLE_AS	14
-#define SQL_SEL_EXPORT					15
-#define SQL_SEL_WITH_CTE				16
+#define SQL_SEL_UPDATE_FROM				13
+#define SQL_SEL_JOIN					14
+#define SQL_SEL_CREATE_TEMP_TABLE_AS	15
+#define SQL_SEL_EXPORT					16
+#define SQL_SEL_WITH_CTE				17
 #define SQL_SEL_VIEW					17
 
 // SQL Statement scope
@@ -187,9 +188,13 @@
 #define PROC_DTL_STATS(token) { if(_stats != NULL) _stats->ProceduresDetail(token); }
 
 #define TOKEN_GETNEXT(chr)        GetNext(chr, L##chr)
+#define TOKEN_GETNEXTW(string)    GetNext(string, L##string, sizeof(string) - 1)
 #define TOKEN_CMP(token, string)  Token::Compare(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE(token, string)  Token::Change(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE_FMT(token, string, format)  Token::Change(token, string, L##string, sizeof(string) - 1, format)
+#define TOKEN_WARN(token, string) { token->flags |= TOKEN_WARNING; token->notes_str = string; }
+#define TOKEN_NO_CONV_REQ(token) { token->flags |= TOKEN_CONV_NOT_REQUIRED; }
+
 #define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
 
 typedef std::map<std::string, std::string> StringMap;

@@ -23,12 +23,43 @@
 #include <map>
 #include "token.h"
 
+struct StatsItem
+{
+    // Number of occurrences
+    int occurrences;
+
+    // Conversion result (empty if no changes)
+    std::string t_value;
+
+    // Conversion is not required
+    bool conv_not_required;
+    // Conversion with warning
+    bool warn;
+
+    // Conversion notes
+    std::string notes;
+
+    StatsItem() { occurrences = 0; conv_not_required = false; warn = false; }
+    StatsItem(int o, const char *tv, bool not_req, bool w, const char *nt) 
+    { 
+        occurrences = o; 
+        conv_not_required = not_req;
+        warn = w;
+        
+        if (tv != NULL) 
+            t_value.assign(tv);
+
+        if (nt != NULL) 
+            notes.assign(nt);
+    }
+};
+
 class Stats
 {
 public:
     std::map<std::string, int> _data_types;
     std::map<std::string, int> _udt_data_types;
-    std::map<std::string, int> _data_types_dtl;
+    std::map<std::string, StatsItem> _data_types_dtl;
     std::map<std::string, int> _udt_data_types_dtl;
     std::map<std::string, int> _builtin_func;
     std::map<std::string, int> _builtin_func_dtl;
@@ -79,6 +110,11 @@ public:
     void Delimiter(Token *token)   { Add(_delimiters, token); }
 
     // Collect statistics for the specified item
+    void Add(std::map<std::string, StatsItem> &map, Token *token, bool case_insense = true);
+    void Add(std::map<std::string, StatsItem> &map, Token *start, Token *end, bool case_insense = true);
+    void Add(std::map<std::string, StatsItem> &map, std::string value, const char* target, 
+        bool case_insense = true, bool conv_not_required = false, bool warn = false, const char *notes = NULL);
+    
     void Add(std::map<std::string, int> &map, std::string value, bool case_insense = true);
     void Add(std::map<std::string, int> &map, Token *token, bool case_insense = true);
     void Add(std::map<std::string, int> &map, TokenStr *token, bool case_insense = true);

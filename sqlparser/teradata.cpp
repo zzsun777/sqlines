@@ -28,7 +28,7 @@ bool SqlParser::ParseTeradataTableOptions()
 	// , goes after table name before even first option
 	while(true)
 	{
-		Token *comma = GetNextCharToken(',', L',');
+		Token *comma = TOKEN_GETNEXT(',');
 
 		if(comma == NULL)
 			break;
@@ -47,7 +47,7 @@ bool SqlParser::ParseTeradataTableOptions()
 		}
 
 		// [NO] FALLBACK to store a row copy
-		if(next->Compare("FALLBACK", L"FALLBACK", 8) == true)
+		if(TOKEN_CMP(next, "FALLBACK") == true)
 		{
 			if(_target != SQL_TERADATA)
 				Token::Remove(comma, next);
@@ -57,7 +57,7 @@ bool SqlParser::ParseTeradataTableOptions()
 		}
 		else
 		// [NO] BEFORE JOURNAL to store before image
-		if(next->Compare("BEFORE", L"BEFORE", 6) == true)
+		if(TOKEN_CMP(next, "BEFORE") == true)
 		{
 			Token *journal = GetNextWordToken("JOURNAL", L"JOURNAL", 7);
 
@@ -69,7 +69,7 @@ bool SqlParser::ParseTeradataTableOptions()
 		}
 		else
 		// [NO] AFTER JOURNAL to store after image
-		if(next->Compare("AFTER", L"AFTER", 5) == true)
+		if(TOKEN_CMP(next, "AFTER") == true)
 		{
 			Token *journal = GetNextWordToken("JOURNAL", L"JOURNAL", 7);
 
@@ -79,10 +79,39 @@ bool SqlParser::ParseTeradataTableOptions()
 			exists = true;
 			continue;
 		}
+        else
+		// CHECKSUM = DEFAULT (NONE, HIGH, MEDIUM, LOW) 
+		if(TOKEN_CMP(next, "CHECKSUM") == true)
+		{
+			Token *equal = TOKEN_GETNEXT('=');
+            Token *value = GetNext(equal);
+
+			if(_target != SQL_TERADATA && value != NULL)
+				Token::Remove(comma, value);
+
+			exists = true;
+			continue;
+		}
+        else
+		// DEFAULT MERGEBLOCKRATIO 
+		if(TOKEN_CMP(next, "DEFAULT") == true)
+		{
+			Token *mergeblockratio = TOKEN_GETNEXTW("MERGEBLOCKRATIO");
+
+            if(mergeblockratio != NULL)
+            {
+                if(_target != SQL_TERADATA)
+				    Token::Remove(comma, mergeblockratio);
+
+			    exists = true;
+			    continue;
+            }
+		}
 
 		if(no != NULL)
 			PushBack(no);
 
+        PushBack(next);
 		break;
 	}
 
@@ -101,6 +130,14 @@ bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *
 		return false;
 
 	Token *open = GetNextCharToken('(', L'(');
+    Token *name = NULL;
+
+    // Index name is optional
+    if(open == NULL)
+    {
+        name = GetNextToken();
+        open = GetNextCharToken('(', L'(');
+    }
 
 	// List of partitioning columns
 	while(true)
@@ -119,17 +156,33 @@ bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *
 	Token *close = GetNextCharToken(open, ')', L')');
 
 	// Add UNIQUE constraint for other databases
-	if(unique != NULL && _target != SQL_TERADATA)
+	if(unique != NULL)
 	{
-		AppendNoFormat(last_colend, ",", L",", 1);
-		Append(last_colend, "\n", L"\n", 1, last_colname);
+        if(_target != SQL_TERADATA)
+        {
+		    AppendNoFormat(last_colend, ",", L",", 1);
+		    Append(last_colend, "\n", L"\n", 1, last_colname);
 		
-		AppendCopy(last_colend, unique);
-		AppendNoFormat(last_colend, " ", L" ", 1);
-		AppendCopy(last_colend, open, close);
+		    AppendCopy(last_colend, unique);
+		    AppendNoFormat(last_colend, " ", L" ", 1);
+		    AppendCopy(last_colend, open, close);
 
-		Token::Remove(unique, false);
+            if(_target == SQL_ORACLE)
+		        Token::Remove(unique);
+            else
+                Token::Remove(unique, close);
+        }
 	}
+    else
+    {
+        // STORE BY (col, ...) in EsgynDB
+        if(_target == SQL_ESGYNDB)
+        {
+            TOKEN_CHANGE(primary, "STORE");
+            TOKEN_CHANGE(index, "BY");
+            Token::Remove(name);
+        }
+    }
 
 	// PARTITION BY HASH in Oracle
 	if(_target == SQL_ORACLE)
@@ -251,12 +304,12 @@ bool SqlParser::ParseTeradataCompressClauseDefaultExpression(Token *compress)
 
 	Token *open = GetNext('(', L'(');
 
-	// List of values to compress
+	// List of values to compress or a single value without ()
 	while(true)
 	{
 		Token *value = GetNext();
 
-		if(value == NULL)
+		if(value == NULL || open == NULL)
 			break;
 
 		Token *comma = GetNext(',', L',');
@@ -269,7 +322,7 @@ bool SqlParser::ParseTeradataCompressClauseDefaultExpression(Token *compress)
 
 	// Remove the clause for other databases
 	if(_target != SQL_TERADATA)
-		Token::Remove(compress, close);
+		Token::Remove(compress, GetLastToken(close));
 
 	return true;
 }
