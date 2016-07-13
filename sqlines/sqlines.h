@@ -21,7 +21,7 @@
 #include "applog.h"
 #include "parameters.h"
 
-#define SQLINES_VERSION             "SQLines 3.0.31 - SQL Conversion Tool."
+#define SQLINES_VERSION             "SQLines 3.0.71 - SQL Conversion Tool."
 #define SQLINES_COPYRIGHT           "Copyright (c) 2016 SQLines. All Rights Reserved."
 
 #define S_OPTION                    "-s"        // Source type 

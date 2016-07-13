@@ -307,7 +307,19 @@ bool SqlParser::ParseTeradataCompressClauseDefaultExpression(Token *compress)
 	// List of values to compress or a single value without ()
 	while(true)
 	{
-		Token *value = GetNext();
+		Token *value = NULL;
+
+        // Just COMPRESS without any value can be specified
+        if(open == NULL)
+        {
+            // Get only string or number literals
+            value = GetNextStringToken();
+
+            if(value == NULL)
+                value = GetNextNumberToken();
+        }
+        else
+            value = GetNext();
 
 		if(value == NULL || open == NULL)
 			break;

@@ -822,6 +822,17 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
                 if(_target != SQL_DB2)
     				Token::Remove(cns, next);
             }
+            else
+            // NOT CASESPECIFIC in Teradata, EsgynDB 
+            if(TOKEN_CMP(next, "CASESPECIFIC") == true)
+            {
+                // NOT CASESPECIFIC must go right after data type before NOT NULL/DEFAULT in EsgynDB
+                if(_source != SQL_ESGYNDB && _target == SQL_ESGYNDB)
+                {
+                    AppendFirst(type_end, " NOT CASESPECIFIC", L" NOT CASESPECIFIC", 17, next);
+                    Token::Remove(cns, next); 
+                }
+            }
 
 			num++;
 		}
@@ -1097,6 +1108,10 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 			// Remove for SQL Server, Oracle 
 			if(Target(SQL_SQL_SERVER, SQL_ORACLE) == true)
 				Token::Remove(cns, name);
+            else
+            // EsgynDB does not support LATIN charset
+            if(_target == SQL_ESGYNDB && TOKEN_CMP(name, "LATIN") == true)
+                Token::Remove(cns, name);
 
 			num++;
 		}
@@ -1264,11 +1279,25 @@ bool SqlParser::ParseDefaultExpression(Token *type, Token *type_end, Token *toke
 		default_end = GetLastToken();
 	}
 
+    bool commented = false;
+
+    // Not all databases supports functions in DEFAULT
+    if(first != NULL && first->type == TOKEN_FUNCTION)
+    {
+        // Only CURRENT_DATE/TIME/TIMESTAMP allowed in EsgynDB
+        if(_target == SQL_ESGYNDB && TOKEN_CMP(first, "CURRENT_DATE") == false && 
+            TOKEN_CMP(first, "CURRENT_TIMESTAMP") == false && TOKEN_CMP(first, "CURRENT_TIME") == false)
+        {
+            Comment(token, default_end);
+            commented = true;
+        }
+    }
+
 	Token *new_default = token;
 	Token *new_default_first = first;
 
 	// In Oracle and EsgynDB unlike DB2, MySQL DEFAULT must go right after data type
-	if(pos > 0 && Target(SQL_ORACLE, SQL_ESGYNDB))
+	if(pos > 0 && Target(SQL_ORACLE, SQL_ESGYNDB) && commented == false)
 	{
 		new_default = Append(type_end, " DEFAULT ", L" DEFAULT ", 9, token);
 		new_default_first = AppendCopy(type_end, first, default_end, false);
@@ -2151,8 +2180,8 @@ bool SqlParser::ParseDatetimeLiteral(Token *token)
 
 	bool exists = false;
 
-	// TIMESTAMP '2013-01-01 11:11:10'
-	if(token->Compare("TIMESTAMP", L"TIMESTAMP", 9) == true)
+	// TIMESTAMP '2013-01-01 11:11:10' or DATE '2016-07-11'
+	if(TOKEN_CMP(token, "TIMESTAMP") == true || TOKEN_CMP(token, "DATE") == true)
 	{
 		Token *string = GetNextStringToken();
 

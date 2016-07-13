@@ -1657,6 +1657,33 @@ void SqlParser::Append(Token *token, TokenStr *str, Token *format)
 	Append(token, str->str.c_str(), str->wstr.c_str(), str->len, format);
 }
 
+// Append the token with formatting immediately after the specified token
+void SqlParser::AppendFirst(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format)
+{
+	if(token == NULL)
+		return;
+
+	Token *append = new Token();
+
+    if(format == NULL)
+		*append = *token;
+	else
+		*append = *format;
+
+	append->prev = NULL;
+	append->next = NULL;
+
+	append->t_str = NULL;
+	append->t_wstr = NULL;
+	append->t_len = 0;
+
+    Token::Change(append, str, wstr, len);
+
+	append->flags = TOKEN_INSERTED;
+
+	_tokens.Append(token, append);
+}	
+
 // Append the token without formatting by appended token style
 Token* SqlParser::AppendNoFormat(Token *token, const char *str, const wchar_t * /*wstr*/, size_t len)
 {

@@ -1015,6 +1015,7 @@ public:
 	bool ParseFunctionRight(Token *name, Token *open);
 	bool ParseFunctionRound(Token *name, Token *open);
 	bool ParseFunctionRoundTimestamp(Token *name, Token *open);
+    bool ParseFunctionRowNumber(Token *name, Token *open);
 	bool ParseFunctionRpad(Token *name, Token *open);
 	bool ParseFunctionRtrim(Token *name, Token *open);
 	bool ParseFunctionScopeIdentity(Token *name, Token *open);
@@ -1201,6 +1202,7 @@ public:
 	bool ParseWhereCurrentOfCursor(int stmt_scope);
 	bool ParseSelectGroupBy();
 	bool ParseSelectHaving();
+    bool ParseSelectQualify(Token *select, Token *select_list_end);
 	bool ParseSelectOrderBy(Token **order);
 	bool ParseSelectSetOperator(int block_scope, int select_scope);
 	bool ParseSelectOptions(Token *select, Token *from_end, Token *where_, Token *order, Token **rowlimit_soptions, int *rowlimit);

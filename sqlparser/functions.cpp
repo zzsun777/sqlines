@@ -661,6 +661,9 @@ bool SqlParser::ParseFunction(Token *name)
 	else
 	if(name->Compare("ROUND_TIMESTAMP", L"ROUND_TIMESTAMP", 15) == true)
 		exists = ParseFunctionRoundTimestamp(name, open);
+    else
+	if(name->Compare("ROW_NUMBER", L"ROW_NUMBER", 10) == true)
+		exists = ParseFunctionRowNumber(name, open);
 	else
 	if(name->Compare("RPAD", L"RPAD", 4) == true)
 		exists = ParseFunctionRpad(name, open);
@@ -1112,6 +1115,12 @@ bool SqlParser::ParseFunctionWithoutParameters(Token *name)
 	else
 	if(name->Compare("_UTF8", L"_UTF8", 5) == true)
 		exists = ParseFunctionUtf8(name);
+
+    if(exists)
+	{
+        FUNC_STATS(name);
+		name->type = TOKEN_FUNCTION;
+	}
 
 	return exists;
 }
@@ -9413,6 +9422,23 @@ bool SqlParser::ParseFunctionRaiserror(Token *name, Token *open)
 
 // RANK analytic function in DB2, Oracle
 bool SqlParser::ParseFunctionRank(Token *name, Token* /*open*/)
+{
+	if(name == NULL)
+		return false;
+
+	/*Token *close */ (void) GetNextCharToken(')', L')');
+	
+	// OVER keyword
+	Token *over = GetNextWordToken("OVER", L"OVER", 4);
+
+	if(over != NULL)
+		ParseAnalyticFunctionOverClause(over);
+
+	return true;
+}
+
+// ROW_NUMBER analytic function in DB2, Oracle
+bool SqlParser::ParseFunctionRowNumber(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
 		return false;

@@ -2157,6 +2157,15 @@ bool SqlParser::ParseDecimalType(Token *name, int clause_scope)
                 conv = true;
             }
         }
+
+        int p = (precision != NULL) ? precision->GetInt() : 0;
+
+        // If precision > 18, convert to NUMERIC for EsgynDB
+        if(p > 18 && _target == SQL_ESGYNDB)
+        {
+            TOKEN_CHANGE(name, "NUMERIC");
+            conv = true;
+        }
     }
 
     // Default precision and scale

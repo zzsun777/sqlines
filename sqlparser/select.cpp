@@ -68,8 +68,10 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	ParseSelectList(select, select_scope, &into, &dummy_not_required, &agg_func, &agg_list_func, 
 		exp_starts, out_cols, into_cols, &rowlimit_slist, &rowlimit_percent);
 
+    Token *select_list_end = GetLastToken();
+
 	if(list_end != NULL)
-		*list_end = GetLastToken();
+		*list_end = select_list_end;
 
 	// FROM
 	ParseSelectFromClause(select, false, &from, &from_end, &app_subq_aliases, dummy_not_required);
@@ -82,6 +84,9 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 
 	// HAVING clause
 	ParseSelectHaving();
+
+    // QUALIFY clause in Teradata
+    ParseSelectQualify(select, select_list_end);
 
 	// UNION ALL i.e. must go before ORDER BY and options that belong to the entire SELECT
 	ParseSelectSetOperator(block_scope, select_scope);
@@ -1091,6 +1096,41 @@ bool SqlParser::ParseSelectHaving()
 		return false;
 
 	ParseBooleanExpression(SQL_BOOL_HAVING);
+
+	return true;
+}
+
+// QUALIFY clause in Teradata
+bool SqlParser::ParseSelectQualify(Token *select, Token *select_list_end)
+{
+	Token *qualify = TOKEN_GETNEXTW("QUALIFY");
+
+	if(qualify == NULL)
+		return false;
+
+    Token *exp = ParseExpression();
+    Token *exp_end = GetLastToken();
+
+    Token *op = TOKEN_GETNEXT('=');
+
+    if(op == NULL)
+        return false;
+
+	/*Token *exp2 */ (void) ParseExpression();
+
+    // Convert to SELECT * FROM (original SELECT) WHERE rn = exp2
+    if(_target != SQL_TERADATA)
+    {
+        Prepend(select, "SELECT * FROM (", L"SELECT * FROM (", 15);
+        Prepend(op, ") WHERE ", L") WHERE ", 8, qualify);
+        PrependNoFormat(op, "rn ", L"rn ", 3);
+
+        AppendNoFormat(select_list_end, ", ", L", ", 2);
+        AppendCopy(select_list_end, exp, exp_end);
+        AppendNoFormat(select_list_end, " rn", L" rn", 3);
+
+        Token::Remove(qualify, exp_end);
+    }
 
 	return true;
 }
