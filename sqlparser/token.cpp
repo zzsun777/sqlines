@@ -546,7 +546,7 @@ void Token::Remove(Token *token, bool remove_spaces_before)
 			}
 		}
 	}
-	// In case cases better to remove spaces after: "SET var = 1" to "var := 1" when SET is removed 
+	// In other cases better to remove spaces after: "SET var = 1" to "var := 1" when SET is removed 
 	else
 	{
 		if(next != NULL && next->Compare(' ', L' ') == true)

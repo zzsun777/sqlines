@@ -21,8 +21,8 @@
 #include "applog.h"
 #include "parameters.h"
 
-#define SQLINES_VERSION             "SQLines 3.0.71 - SQL Conversion Tool."
-#define SQLINES_COPYRIGHT           "Copyright (c) 2016 SQLines. All Rights Reserved."
+#define SQLINES_VERSION             "SQLines 3.1.1 - SQL Conversion Tool."
+#define SQLINES_COPYRIGHT           "Copyright (c) 2017 SQLines. All Rights Reserved."
 
 #define S_OPTION                    "-s"        // Source type 
 #define T_OPTION                    "-t"        // Target type
@@ -30,6 +30,7 @@
 #define STDIN_OPTION                "-stdin"    // Read input from STDIN and output to STDOUT
 #define OUT_OPTION                  "-out"      // Output files/directory
 #define A_OPTION                    "-a"        // Assessment    
+#define PL_OPTION                   "-pl"       // Target programming language (native, Java i.e.)
 #define LOG_OPTION                  "-log"      // Log file
 
 // Default log file name
@@ -44,6 +45,7 @@ class Sqlines
     std::string _t;
     std::string _in;
     std::string _out;
+    std::string _pl;
     std::string _logfile;
 
     bool _a;

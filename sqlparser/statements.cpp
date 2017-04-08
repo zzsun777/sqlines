@@ -55,6 +55,10 @@ bool SqlParser::ParseStatement(Token *token, int scope, int *result_sets)
 	// CLOSE
 	if(token->Compare("CLOSE", L"CLOSE", 5) == true)
 		exists = ParseCloseStatement(token);
+    else
+	// COLLECT STATISTICS in Teradata
+	if(token->Compare("COLLECT", L"COLLECT", 7) == true)
+		exists = ParseCollectStatement(token);
 	else
 	// CONNECT
 	if(token->Compare("CONNECT", L"CONNECT", 7) == true)
@@ -80,8 +84,8 @@ bool SqlParser::ParseStatement(Token *token, int scope, int *result_sets)
 	if(token->Compare("DEFINE", L"DEFINE", 6) == true)
 		exists = ParseDefineStatement(token);
 	else
-	// DELETE statement
-	if(token->Compare("DELETE", L"DELETE", 6) == true)
+	// DELETE statement, or DEL statement in Teradata
+	if((token->Compare("DELETE", L"DELETE", 6) == true) || (_source == SQL_TERADATA && TOKEN_CMP(token, "DEL") == true))
 		exists = ParseDeleteStatement(token);
 	else
 	// DELIMITER statement
@@ -1331,11 +1335,7 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token)
 	// In Teradata options can follow before columns
 	ParseTeradataTableOptions();
 
-	// Next token must be (
-	if(GetNextCharToken('(', L'(') == NULL)
-		return false;
-
-	ListW pkcols;
+    ListW pkcols;
 	ListWM inline_indexes;
 	
 	// Identity start and increment
@@ -1345,27 +1345,52 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token)
 	bool id_default = true;
 
 	Token *last_colname = NULL;
+    Token *last_colend = NULL;
+    
+    // CREATE TABLE AS SELECT
+    Token *as = TOKEN_GETNEXTW("AS");
 
-	ParseCreateTableColumns(create, table, pkcols, &id_col, &id_start, &id_inc, &id_default, 
-		&inline_indexes, &last_colname);
+    if(as != NULL)
+    {
+        // ( is optional in AS (SELECT ...) 
+        Token *open = TOKEN_GETNEXT('(');
 
-	Token *last_colend = GetLastToken();
+        // SELECT statement
+	    Token *select = GetNextSelectStartKeyword();
 
-	// Next token must be )
-	Token *close = GetNextCharToken(')', L')');
+	    if(select != NULL)
+    		ParseSelectStatement(select, 0, SQL_SEL_CREATE_TEMP_TABLE_AS, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        
+        if(open != NULL)
+            /*Token *close */ (void) TOKEN_GETNEXT(')');
+    }
+    else
+    {
+	    // Next token must be (
+	    if(GetNextCharToken('(', L'(') == NULL)
+		    return false;
+
+	    ParseCreateTableColumns(create, table, pkcols, &id_col, &id_start, &id_inc, &id_default, 
+		    &inline_indexes, &last_colname);
+
+	    last_colend = GetLastToken();
+
+	    // Next token must be )
+	    Token *close = GetNextCharToken(')', L')');
 		
-	if(close == NULL)
-		return false;
+	    if(close == NULL)
+		    return false;
 
-	// Save bookmark to the end of columns but before storage and other properties
-	Book *col_end = Bookmark(BOOK_CTC_ALL_END, table, close);
+	    // Save bookmark to the end of columns but before storage and other properties
+	    Book *col_end = Bookmark(BOOK_CTC_ALL_END, table, close);
 
-	// For Greenplum, add DISTRIBUTED by based on primary keys
-	if(_target == SQL_GREENPLUM && pkcols.GetCount() > 0)
-		AddGreenplumDistributedBy(create, close, pkcols, col_end);
+	    // For Greenplum, add DISTRIBUTED by based on primary keys
+	    if(_target == SQL_GREENPLUM && pkcols.GetCount() > 0)
+		    AddGreenplumDistributedBy(create, close, pkcols, col_end);
+    }
 
-	// Table comment in MySQL
-	Token *comment = NULL;
+    // Table comment in MySQL
+    Token *comment = NULL;
 
 	ParseStorageClause(table, &id_start, &comment, last_colname, last_colend);
 
@@ -1375,6 +1400,9 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token)
 	Token *semi = GetNext(';', L';');
 
 	Token *last = GetLastToken();
+
+    if(semi == NULL && Target(SQL_ESGYNDB))
+        AppendNoFormat(last, ";", L";", 1); 
 
 	// Save bookmark to the end of CREATE TABLE
 	Bookmark(BOOK_CT_END, table, last);
@@ -1423,7 +1451,7 @@ bool SqlParser::ParseCreateTableColumns(Token *create, Token *table_name, ListW 
             CREATE_TAB_STMS_STATS("Columns")
 
 			// Column name
-			Token *column = GetNextIdentToken();
+			Token *column = GetNextIdentToken(SQL_IDENT_COLUMN_SINGLE);
 
 			if(column == NULL)
 				break;
@@ -2714,8 +2742,15 @@ bool SqlParser::ParseDeclareStatement(Token *declare)
 		cnt_list++;
 
 		// Oracle and PostgreSQL use a statement for each declaration
-		if(Target(SQL_ORACLE, SQL_POSTGRESQL) == true)
-			Token::Change(comma, ";", L";", 1);
+		if(Target(SQL_ORACLE, SQL_POSTGRESQL))
+			TOKEN_CHANGE(comma, ";");
+        else
+        // MySQL and MariaDB require DECLARE for each variable
+        if(Target(SQL_MYSQL, SQL_MARIADB))
+        {
+            AppendWithSpaceAfter(comma, " DECLARE", L" DECLARE", 8, declare); 
+			TOKEN_CHANGE(comma, ";");
+        }
 	}
 
 	return true;
@@ -2750,6 +2785,10 @@ bool SqlParser::ParseDeleteStatement(Token *delete_)
 {
 	if(delete_ == NULL)
 		return false;
+
+    // DEL in Teradata
+    if(_source == SQL_TERADATA && _target != SQL_TERADATA && TOKEN_CMP(delete_, "DEL") == true)
+        TOKEN_CHANGE(delete_, "DELETE");
 
     STMS_STATS(delete_);
 
@@ -4743,7 +4782,7 @@ bool SqlParser::ParseDeclareVariable(Token *declare, Token *name, Token *type, i
 
 	int num = 1;
 
-	// DECLARE v1, v2, v3 INT DEFAULT 0 in DB2, Informix
+	// DECLARE v1, v2, v3 INT DEFAULT 0 in DB2, MySQL, MariaDB, Informix
 	while(true)
 	{
 		// Check for list of variables
@@ -5568,6 +5607,9 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 	if(_spl_scope == 0)
 		_spl_scope = SQL_SCOPE_PROC;
 
+    // Check for ELSE IF construct
+    bool prev_else = TOKEN_CMP(GetPrevToken(if_), "ELSE"); 
+
 	ParseBooleanExpression(SQL_BOOL_IF, if_);
 
 	if(Source(SQL_SQL_SERVER, SQL_SYBASE) == true)
@@ -5617,6 +5659,17 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 			}
 			else
 			{
+                // Check for ELSE IF
+                if(TOKEN_CMP(next, "IF"))
+                {
+                    // Convert to ELSEIF for MySQL and MariaDB
+                    if(Target(SQL_MYSQL, SQL_MARIADB))
+                    {
+                        TOKEN_CHANGE(else_, "ELSEIF");
+                        Token::Remove(next);
+                    }
+                }
+
 				ParseStatement(next, scope, NULL);
 				last_false = GetLastToken();
 			}
@@ -5631,7 +5684,8 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 				Token::Change(begin, "THEN", L"THEN", 4);
 
 				// If ELSE exists remove END in true block
-				if(else_ != NULL)
+                // Also if it is part of ELSE IF then only outer IF will contain END IF
+				if(else_ != NULL || prev_else)
 					Token::Remove(end);
 				else
 					// Otherwise change END to END IF
@@ -5648,7 +5702,8 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 			Token::Change(else_end, "END IF;", L"END IF;", 7);
 
 			// No END at the end of statement
-			if(last_true != NULL || last_false != NULL)
+            // Also if it is part of ELSE IF then only outer IF will contain END IF
+			if(!prev_else && (last_true != NULL || last_false != NULL))
 			{
 				Token *last = (last_false != NULL) ? last_false : last_true;
 				
@@ -7502,7 +7557,7 @@ bool SqlParser::ParseSetStatement(Token *set)
 			Token *list_end = NULL;
 			ListW sel_exp;
 
-			ParseSelectStatement(select, 0, 0, NULL, &list_end, &sel_exp, NULL, NULL, NULL, NULL, NULL);
+			ParseSelectStatement(select, 0, SQL_SEL_EXP, NULL, &list_end, &sel_exp, NULL, NULL, NULL, NULL, NULL);
 		
 			// Use @var = exp in SQL Server
 			if(_target == SQL_SQL_SERVER)

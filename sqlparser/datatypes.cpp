@@ -1534,6 +1534,13 @@ bool SqlParser::ParseCharType(Token *name, int clause_scope)
         if(num > 255 && Target(SQL_MARIADB, SQL_MYSQL))
             Token::Change(name, "VARCHAR", L"VARCHAR", 7);
         else
+        // STRING in Hive
+        if(_source != SQL_HIVE && _target == SQL_HIVE)
+        {
+            TOKEN_CHANGE(name, "STRING");
+            Token::Remove(open, close);
+        }
+        else
         // Remove []
         if(char_in_braces == true)
             Token::ChangeNoFormat(name, name, 1, name->len - 2);
@@ -5263,12 +5270,13 @@ bool SqlParser::ParseTimestampType(Token *name)
     DTYPE_STATS(name)
 
     Token *open = GetNextCharToken('(', L'(');
+    Token *close = NULL;
 
     // Optional fractional precision for SQL Server, MySQL, PostgreSQL
     if(open != NULL)
     {
         /*Token *fraction */ (void) GetNextToken();
-        /*Token *close */ (void) GetNextCharToken(')', L')');
+        close = GetNextCharToken(')', L')');
     }
 
     // WITHOUT TIME ZONE is optional for PostgreSQL
@@ -5371,6 +5379,13 @@ bool SqlParser::ParseTimestampType(Token *name)
             Token::Change(name, "BYTEA", L"BYTEA", 5);
             conv = true;
         }
+    }
+    else
+    // Remove precision for Hive
+    if(_target == SQL_HIVE)
+    {
+        Token::Remove(open, close);
+        conv = true;
     }
     else
     // Remove [] for other database
@@ -6300,6 +6315,13 @@ bool SqlParser::ParseVarcharType(Token *name, int clause_scope)
             AppendNoFormat(name, "(4000)", L"(4000)", 6);
         else
             Append(name, "(1)", L"(1)", 3);
+    }
+    else
+    // STRING in Hive
+    if(_source != SQL_HIVE && _target == SQL_HIVE)
+    {
+        TOKEN_CHANGE(name, "STRING");
+        Token::Remove(open, close);
     }
     else
     // Remove [] for other databases

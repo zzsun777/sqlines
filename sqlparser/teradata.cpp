@@ -158,7 +158,7 @@ bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *
 	// Add UNIQUE constraint for other databases
 	if(unique != NULL)
 	{
-        if(_target != SQL_TERADATA)
+        if(_target != SQL_TERADATA && _target != SQL_HIVE)
         {
 		    AppendNoFormat(last_colend, ",", L",", 1);
 		    Append(last_colend, "\n", L"\n", 1, last_colname);
@@ -171,7 +171,7 @@ bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *
 		        Token::Remove(unique);
             else
                 Token::Remove(unique, close);
-        }
+        }       
 	}
     else
     {
@@ -196,7 +196,41 @@ bool SqlParser::ParseTeradataPrimaryIndex(Token *unique, Token *primary, Token *
 		else
             COMMENT("Temporary table cannot be partitioned\n", primary, close);
 	}
+    else
+    // Hive does not support constraints
+    if(_target == SQL_HIVE)
+        Token::Remove(Nvl(unique, index), close);
 
+	return true;
+}
+
+// COLLECT STATISTICS statement in Teradata
+bool SqlParser::ParseCollectStatement(Token *collect)
+{
+	if(collect == NULL)
+		return false;
+
+	Token *statistics = TOKEN_GETNEXTW("STATISTICS");
+    Token *stats = (statistics == NULL) ? TOKEN_GETNEXTW("STATS") : NULL;
+
+	if(statistics == NULL && stats == NULL)
+		return false;
+
+    Token *on = TOKEN_GETNEXTW("ON");
+    /*Token *name */ (void) GetNextIdentToken();
+
+    STMS_STATS(collect);
+
+	// Convert to UPDATE STATISTICS and comment because options are different for EsgynDB
+	if(_target == SQL_ESGYNDB)
+	{
+        TOKEN_CHANGE(collect, "UPDATE");
+        TOKEN_CHANGE(stats, "STATISTICS");
+        TOKEN_CHANGE(on, "FOR TABLE");
+
+		Comment(collect, GetNextCharOrLastToken(';', L';')); 
+	}
+	
 	return true;
 }
 

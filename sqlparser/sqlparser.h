@@ -46,7 +46,8 @@
 #define SQL_TERADATA			10
 #define SQL_NETEZZA				11
 #define SQL_MARIADB             12
-#define SQL_ESGYNDB             13
+#define SQL_HIVE                13
+#define SQL_ESGYNDB             14
 
 // Application types
 #define APP_JAVA				1
@@ -139,11 +140,12 @@
 #define SQL_OPERATOR_PLUS		2
 
 // Expected identifier type
-#define SQL_IDENT_OBJECT		1
-#define SQL_IDENT_COLUMN		2
-#define SQL_IDENT_COLVAR		3
-#define SQL_IDENT_PARAM			4
-#define SQL_IDENT_VAR			5
+#define SQL_IDENT_OBJECT		    1
+#define SQL_IDENT_COLUMN		    2
+#define SQL_IDENT_COLUMN_SINGLE	    3
+#define SQL_IDENT_COLVAR		    4
+#define SQL_IDENT_PARAM			    5
+#define SQL_IDENT_VAR			    6
 
 // Bookmark types
 #define BOOK_CT_START			1			// CREATE TABLE start
@@ -187,13 +189,20 @@
 #define FUNC_DTL_STATS(token) { if(_stats != NULL) _stats->FunctionsDetail(token); }
 #define PROC_DTL_STATS(token) { if(_stats != NULL) _stats->ProceduresDetail(token); }
 
-#define TOKEN_GETNEXT(chr)        GetNext(chr, L##chr)
-#define TOKEN_GETNEXTW(string)    GetNext(string, L##string, sizeof(string) - 1)
-#define TOKEN_CMP(token, string)  Token::Compare(token, string, L##string, sizeof(string) - 1)
+#define TOKEN_GETNEXT(chr)           GetNext(chr, L##chr)
+#define TOKEN_GETNEXTW(string)       GetNext(string, L##string, sizeof(string) - 1)
+#define TOKEN_CMPC(token, chr, pos)  Token::Compare(token, chr, L##chr, pos)
+#define TOKEN_CMP(token, string)     Token::Compare(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE(token, string)  Token::Change(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE_FMT(token, string, format)  Token::Change(token, string, L##string, sizeof(string) - 1, format)
 #define TOKEN_WARN(token, string) { token->flags |= TOKEN_WARNING; token->notes_str = string; }
 #define TOKEN_NO_CONV_REQ(token) { token->flags |= TOKEN_CONV_NOT_REQUIRED; }
+
+#define APPEND(token, string) Append(token, string, L##string, sizeof(string) - 1)
+#define APPEND_FMT(token, string, format) Append(token, string, L##string, sizeof(string) - 1, format)
+
+#define PREPEND(token, string) Prepend(token, string, L##string, sizeof(string) - 1)
+#define PREPEND_FMT(token, string, format) Prepend(token, string, L##string, sizeof(string) - 1, format)
 
 #define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
 
@@ -464,6 +473,8 @@ public:
 
 	// Set source and target types
 	void SetTypes(short source, short target) { _source = source; _target = target; }
+    // Set target programming language
+    void SetLang(const char *pl);
 	// Set option
 	void SetOption(const char *option, const char *value);
 
@@ -515,6 +526,7 @@ public:
 
 	// Append the token with the specified value
 	Token *Append(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
+    Token *AppendWithSpaceAfter(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
 	void Append(Token *token, int value);
 	void Append(Token *token, TokenStr *str, Token *format = NULL);
     void AppendFirst(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
@@ -722,6 +734,7 @@ public:
 	bool ParseCloseStatement(Token *close);
 	bool ParseCommentStatement(Token *comment);
 	bool ParseCommitStatement(Token *commit);
+    bool ParseCollectStatement(Token *collect);
 	bool ParseConnectStatement(Token *connect);
 	bool ParseCreateAuxiliary(Token *create, Token *auxiliary);
 	bool ParseCreateDatabase(Token *create, Token *database);
@@ -1312,6 +1325,7 @@ public:
 	void ConvertIdentifier(Token *token, int expected_type = 0, int scope = 0);
 	void ConvertObjectIdentifier(Token *token, int scope = 0);
 	void ConvertColumnIdentifier(Token *token, int scope = 0);
+    void ConvertColumnIdentifierSingle(Token *token, int scope = 0);
 	void ConvertParameterIdentifier(Token *param);
 	void ConvertParameterIdentifier(Token *ref, Token *decl);
 	void ConvertVariableIdentifier(Token *token);

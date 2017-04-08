@@ -1000,6 +1000,20 @@ bool SqlParser::ParseTeradataStorageClause(Token *last_colname, Token *last_cole
 			exists = true;
 			continue;
 		}
+        else
+		// WITH [NO] DATA in CREATE TABLE AS SELECT
+		if(next->Compare("WITH", L"WITH", 4) == true)
+		{
+            Token *no = GetNext("NO", L"NO", 2);
+            Token *data = GetNext("DATA", L"DATA", 4);
+			
+            // WITH DATA is default in EsgynDB
+            if(no == NULL && data != NULL && Target(SQL_ESGYNDB))
+                Token::Remove(next, data);
+
+			exists = true;
+			continue;
+		}
 
 		// Not a storage clause
 		PushBack(next);

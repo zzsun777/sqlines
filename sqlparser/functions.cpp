@@ -2713,19 +2713,19 @@ bool SqlParser::ParseFunctionConvert(Token *name, Token *open)
 	if(datatype == NULL)
 		return false;
 
-	if(datatype->Compare("DATETIME", L"DATETIME", 8) == true)
+	if(TOKEN_CMP(datatype, "DATETIME") || TOKEN_CMP(datatype, "SMALLDATETIME"))
 		ParseFunctionConvertDatetime(name, open, datatype);
 	else
-	if(datatype->Compare("IMAGE", L"IMAGE", 5) == true)
+	if(TOKEN_CMP(datatype, "IMAGE"))
 		ParseFunctionConvertImage(name, open, datatype);
 	else
-	if(datatype->Compare("INTEGER", L"INTEGER", 7) == true)
+	if(TOKEN_CMP(datatype, "INTEGER"))
 		ParseFunctionConvertInteger(name, open, datatype);
 	else
-	if(datatype->Compare("TEXT", L"TEXT", 4) == true)
+	if(TOKEN_CMP(datatype, "TEXT"))
 		ParseFunctionConvertText(name, open, datatype);
 	else
-	if(datatype->Compare("VARCHAR", L"VARCHAR", 7) == true || datatype->Compare("CHAR", L"CHAR", 4) == true)
+	if(TOKEN_CMP(datatype, "VARCHAR") || TOKEN_CMP(datatype, "CHAR"))
 		ParseFunctionConvertVarchar(name, open, datatype);
 	else
 	// Oracle CONVERT has a different meaning than in other databases
@@ -2792,7 +2792,7 @@ bool SqlParser::ParseFunctionConvertMySql(Token *name, Token* /*open*/)
 }
 
 // CONVERT for DATETIME in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token * /*open*/, Token *datatype)
+bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token *open, Token *datatype)
 {
 	Token *comma = GetNextCharToken(',', L',');
 
@@ -2804,24 +2804,40 @@ bool SqlParser::ParseFunctionConvertDatetime(Token *name, Token * /*open*/, Toke
 
 	// Style
 	Token *style = GetNextNumberToken();
-	/*Token *close */ (void) GetNextCharToken(')', L')');
+	Token *close = GetNextCharToken(')', L')');
 
 	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
-		Token::Change(name, "STR_TO_DATE", L"STR_TO_DATE", 11);
-		Token::Remove(datatype);
-		Token::Remove(comma);
-
 		// Map style to format
 		if(style != NULL)
 		{
+       		Token::Change(name, "STR_TO_DATE", L"STR_TO_DATE", 11);
+
 			if(style->Compare("101", L"101", 3) == true)
 				Token::Change(style, "'%m/%d/%Y'", L"'%m/%d/%Y'", 10);
 			else
 			if(style->Compare("121", L"121", 3) == true)
 				Token::Change(style, "'%Y-%m-%d %T.%f'", L"'%Y-%m-%d %T.%f'", 16);
 		}
+        // Use the default format for datetime and CONVERT(exp, datatype) function
+        else
+        {
+            // SMALLDATETIME has always 00 seconds
+            if(TOKEN_CMP(datatype, "SMALLDATETIME"))
+            {
+                APPEND_FMT(open, "DATE_FORMAT(", name);
+                PREPEND(close, ", '%Y-%m-%d %H-%i-00')");
+            }
+
+            // Specify datatype explicitly as the source can be SMALLDATETIME or other datetime type
+            PREPEND_FMT(close, ", DATETIME", datatype);
+        }
+
+   		Token::Remove(datatype);
+		Token::Remove(comma, false);
 	}
+
+    name->data_type = TOKEN_DT_DATETIME;
 
 	return true;
 }
@@ -2974,7 +2990,7 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*
 		}
 	}
 	else
-	// Convert to DATE_FORMAT in MySQL
+	// Convert to DATE_FORMAT in MySQL and MariaDB
 	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "DATE_FORMAT", L"DATE_FORMAT", 11);
@@ -2992,6 +3008,9 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*
 			else
 			if(style->Compare("108", L"108", 3) == true)
 				Token::Change(style, "'%T'", L"'%T'", 4);
+			else
+			if(style->Compare("112", L"112", 3) == true)
+				Token::Change(style, "'%Y%m%d'", L"'%Y%m%d'", 8);
 			else
 			if(style->Compare("121", L"121", 3) == true)
 				Token::Change(style, "'%Y-%m-%d %T.%f'", L"'%Y-%m-%d %T.%f'", 16);
@@ -3826,6 +3845,12 @@ bool SqlParser::ParseFunctionDateadd(Token *name, Token *open)
 			Token::Remove(close);
 		}
 	}
+    else
+	// TIMESTAMPADD in MySQL, MariaDB
+	if(Target(SQL_MYSQL, SQL_MARIADB))
+        TOKEN_CHANGE(name, "TIMESTAMPADD");
+
+    name->data_type = TOKEN_DT_DATETIME;
 
 	return true;
 }
@@ -5745,7 +5770,7 @@ bool SqlParser::ParseFunctionGetdate(Token *name, Token *open)
 	}
 	else
 	// NOW() in PostgreSQL return the datetime of start of the current statement
-	if(Target(SQL_POSTGRESQL, SQL_MYSQL) == true)
+	if(Target(SQL_POSTGRESQL, SQL_MYSQL, SQL_MARIADB) == true)
 	{
 		Token::Change(name, "NOW", L"NOW", 3);
 	}

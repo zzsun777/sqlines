@@ -359,6 +359,28 @@ bool SqlParser::ParseSelectList(Token *select, int select_scope, bool *select_in
 		// AS keyword between column and alias
 		if(Token::Compare(second, "AS", L"AS", 2) == true)
 			second = GetNextToken();
+        else
+        // (NAMED alias) in Teradata
+        if(Token::Compare(second, '(', L'(') == true)
+        {
+            Token *named = TOKEN_GETNEXTW("NAMED");
+
+            if(named != NULL)
+            {
+                /*Token *alias */ (void) GetNext();
+                Token *close = TOKEN_GETNEXT(')');
+
+                // Change to AS for other databases
+                if(_target != SQL_TERADATA)
+                {
+                    TOKEN_CHANGE(named, "AS");
+                    Token::Remove(second);
+                    Token::Remove(close);
+                }
+
+                second = GetNextToken();
+            }
+        }
 
 		if(second == NULL)
 			break;

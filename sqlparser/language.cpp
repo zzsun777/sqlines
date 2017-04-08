@@ -71,9 +71,16 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 		return;
 
 	// Convert column name
-	if(type == SQL_IDENT_COLUMN && Source(SQL_ORACLE) == true && Target(SQL_MYSQL) == true)
+	if((type == SQL_IDENT_COLUMN || type == SQL_IDENT_COLUMN_SINGLE) && Source(SQL_ORACLE) == true && 
+        Target(SQL_MYSQL) == true)
 	{
 		ConvertColumnIdentifier(token, scope);
+		return;
+	}
+    else
+    if(type == SQL_IDENT_COLUMN_SINGLE && Source(SQL_TERADATA) == true && Target(SQL_ESGYNDB) == true)
+	{
+		ConvertColumnIdentifierSingle(token, scope);
 		return;
 	}
 
@@ -265,6 +272,34 @@ void SqlParser::ConvertColumnIdentifier(Token *token, int /*scope*/)
 	// If identifier was modified set the target value
 	if(Token::Compare(token, &ident) == false)
 		Token::ChangeNoFormat(token, ident);
+}
+
+// Convert single (not qualified) column identifier
+void SqlParser::ConvertColumnIdentifierSingle(Token *token, int /*scope*/)
+{
+    if(token == NULL || token->str == NULL)
+		return;
+
+	TokenStr ident;
+    bool changed = false;
+
+    for(size_t i = 0; i < token->len; i++)
+    {
+        // $ allowed in Teradata but not allowed in EsgynDB
+        if(TOKEN_CMPC(token, '$', i) == true)
+        {
+            if(Target(SQL_ESGYNDB))
+            {
+                ident.Append("_", L"_", 1);
+                changed = true;
+            }            
+        }
+        else
+            ident.Append(token, i, 1);
+    }
+
+    if(changed)
+        Token::ChangeNoFormat(token, ident); 
 }
 
 // Oracle PL/SQL cursor parameter reference NOW PROCESSED AS LOCAL BLOCK VAR
@@ -814,6 +849,9 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
             {
                 if(_obj_scope == SQL_SCOPE_TABLE)
                     CREATE_TAB_STMS_STATS("NOT NULL constraints")
+
+                if(_target == SQL_HIVE)
+                    Token::Remove(cns, next);
             }
             else
             // DB2 NOT LOGGED and NOT COMPACT 
@@ -826,6 +864,9 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
             // NOT CASESPECIFIC in Teradata, EsgynDB 
             if(TOKEN_CMP(next, "CASESPECIFIC") == true)
             {
+                if(Target(SQL_TERADATA, SQL_ESGYNDB) == false)
+                    Token::Remove(cns, next);
+                else
                 // NOT CASESPECIFIC must go right after data type before NOT NULL/DEFAULT in EsgynDB
                 if(_source != SQL_ESGYNDB && _target == SQL_ESGYNDB)
                 {
@@ -1105,8 +1146,8 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 			// Name can be identifier or string literal
 			Token *name = GetNextToken();
 
-			// Remove for SQL Server, Oracle 
-			if(Target(SQL_SQL_SERVER, SQL_ORACLE) == true)
+			// Remove for SQL Server, Oracle, Hive 
+			if(Target(SQL_SQL_SERVER, SQL_ORACLE, SQL_HIVE) == true)
 				Token::Remove(cns, name);
             else
             // EsgynDB does not support LATIN charset
@@ -1357,6 +1398,10 @@ bool SqlParser::ParseDefaultExpression(Token *type, Token *type_end, Token *toke
 		}
 	}
 
+    // Hive does not support DEFAULT
+    if(_target == SQL_HIVE)
+        Token::Remove(token, default_end);
+
 	return true;
 }
 
@@ -1442,6 +1487,10 @@ bool SqlParser::ParseStandaloneColumnConstraints(Token *alter, Token *table_name
 		{
 			ParseConstraintOption();
 			exists = true;
+
+            // Hive does not support constraints
+            if(_target == SQL_HIVE)
+                Token::Remove(cns, GetLastToken());
 
 			continue;
 		}

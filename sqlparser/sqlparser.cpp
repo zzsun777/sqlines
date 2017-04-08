@@ -62,6 +62,17 @@ SqlParser::SqlParser()
 
 SqlParser::~SqlParser() {}
 
+// Set target programming language
+void SqlParser::SetLang(const char *pl)
+{
+    if(pl == NULL)
+        return;
+
+    if(_stricmp(pl, "-java") == 0)
+        _target_app = APP_JAVA;
+}
+
+
 // Set conversion option
 void SqlParser::SetOption(const char *option, const char *value)
 {
@@ -90,6 +101,10 @@ void SqlParser::SetOption(const char *option, const char *value)
 	// Meta information about table columns
 	if(_stricmp(option, "-meta") == 0 && value != NULL)
 		SetMetaFromFile(value);
+    else
+	// Target programming language
+	if(_stricmp(option, "-pl") == 0 && value != NULL)
+		SetLang(value);
 }
 
 // Perform conversion
@@ -1436,8 +1451,9 @@ bool SqlParser::GetWordToken(Token *token)
 		{
 			// @variable in SQL Server and MySQL, :new in Oracle trigger, #temp table name in SQL Server
 			// * meaning all columns, - in COBOL identifier, label : label name in DB2
+            // $ or $$ often used as replacement markers, $ is also allowed in Oracle identifiers
 			if(*cur != '_' && *cur != '.' && *cur != '@' && *cur != ':' && *cur != '#' && *cur != '*' && 
-					*cur != '-' && *cur != '"' && *cur != '[' && *cur != ' ' && *cur != '&')
+					*cur != '-' && *cur != '"' && *cur != '[' && *cur != ' ' && *cur != '&' && *cur != '$')
 				break;
 
 			// Spaces are allowed between identifier parts: table . name 
@@ -1630,6 +1646,15 @@ Token* SqlParser::Append(Token *token, const char *str, const wchar_t *wstr, siz
     Append(token, append);
 
 	return append;
+}
+
+// Append token and make sure it followed by a space
+Token* SqlParser::AppendWithSpaceAfter(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format)
+{
+    if(token->next != NULL && !token->next->IsBlank())
+        PrependNoFormat(token->next, " ", L" ", 1);
+
+    return Append(token, str, wstr, len, format);
 }
 
 // Append an integer value
