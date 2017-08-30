@@ -1,0 +1,8 @@
+-- Global data type mapping file
+
+-- source_datatype(length, scale), target_datatype
+
+-- Uncomment
+--NUMERIC(*, 0), INTEGER
+--date, smalldatetime
+--char(9),char(99)

@@ -460,31 +460,6 @@ Token* SqlParser::GetNextPlusMinusAsOperatorToken(const char ch, const wchar_t w
 	token->next_start = _next_start;
 	token->remain_size = _remain_size;
 
-	/*// Separate +/- operator and number constant tokens
-	Token *token2 = new Token();
-
-	*token2 = *token;
-
-	token2->prev = NULL;
-	token2->next = NULL;
-
-	token2->t_str = NULL;
-	token2->t_wstr = NULL;
-	token2->t_len = 0;	
-
-	// Second token hold number (decrease size by 1)
-	token2->type = TOKEN_WORD;
-	token2->chr = 0;
-	token2->wchr = 0;
-	token2->str = token2->str + 1;
-	token2->wstr = 0;
-	token2->len = token2->len - 1;
-
-	_tokens.Append(token, token2);
-
-	// Allow number to be selected as the next token
-	PushBack(token2); */
-
 	return token;
 }
 

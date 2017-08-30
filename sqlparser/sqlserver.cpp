@@ -444,3 +444,37 @@ bool SqlParser::ParseSqlServerIndexOptions(Token *token)
 
 	return exists;
 }
+
+// Convert interval +/- expression to DATEADD function
+void SqlParser::SqlServerToDateAdd(Token *op, Token *first, Token *first_end, Token *second, Token *second_end)
+{
+	if(op == NULL || first == NULL || second == NULL)
+		return;
+
+	PREPEND(first, "DATEADD(");
+
+	if(second->data_subtype == TOKEN_DT2_INTVL_MON)
+		PREPEND_NOFMT(first, "mm");
+	else
+	if(second->data_subtype == TOKEN_DT2_INTVL_DAY)
+		PREPEND_NOFMT(first, "dd");
+	else
+	if(second->data_subtype == TOKEN_DT2_INTVL_MIN)
+		PREPEND_NOFMT(first, "mi");
+	else
+	if(second->data_subtype == TOKEN_DT2_INTVL_SEC)
+		PREPEND_NOFMT(first, "ss");
+
+	PREPEND_NOFMT(first, ", ");
+
+	// Copy - sign only, + will not be used
+	if(TOKEN_CMPC(op, '-'))
+		PrependCopy(first, op);
+
+	PrependCopy(first, second, second_end, false);
+
+	PREPEND_NOFMT(first, ", ");
+	APPEND_NOFMT(first_end, ")");
+
+	Token::Remove(op, second_end);
+}

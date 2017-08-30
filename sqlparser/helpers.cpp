@@ -1179,6 +1179,7 @@ void SqlParser::ClearSplScope()
 	_spl_last_declare = NULL;
 	_spl_first_non_declare = NULL;
     _spl_last_outer_declare_var = NULL;
+	_spl_last_stmt = NULL;
 
 	_spl_new_correlation_name = NULL;
 	_spl_old_correlation_name = NULL;
@@ -1238,6 +1239,8 @@ void SqlParser::ClearSplScope()
 
 	_spl_proc_to_func = false;
     _spl_not_found_handler = false;
+
+	_spl_monday_1 = false;   // means unknown from context
 
 	_exp_select = 0;
 }
@@ -1356,4 +1359,41 @@ void SqlParser::GenerateResultSetCursorName(TokenStr *name)
 	// Not incremented yet - cur, cur2, cur3, ...
 	if(_spl_result_sets > 0)
 		name->Append(_spl_result_sets + 1);
+}
+
+// Add FOR SELECT for WITH RETURN cursors
+bool SqlParser::OpenWithReturnCursor(Token *name)
+{
+	// No WITH RETURN cursors
+	if(_spl_result_sets == 0 || name == NULL)
+		return false;
+
+	bool exists = false;
+	CopyPaste *cur = _copypaste.GetFirstNoCurrent();
+
+	// Find the cursor declaration
+	while(cur != NULL)
+	{
+		if(cur->type != COPY_CURSOR_WITH_RETURN || Token::Compare(name, cur->name) == false)
+		{
+			cur = cur->next;
+			continue;
+		}
+
+		Token *token = cur->tokens.GetFirstNoCurrent();
+
+		Append(name, " ", L" ", 1);
+
+		// Copy tokens
+		while(token != NULL)
+		{
+			AppendCopy(name, token);
+			token = token->next;
+		}
+
+		exists = true;
+		cur = cur->next;
+	}
+
+	return exists;
 }

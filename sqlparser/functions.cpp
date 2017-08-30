@@ -2178,7 +2178,7 @@ bool SqlParser::ParseFunctionCeiling(Token *name, Token* /*open*/)
 }
 
 // CHAR in SQL Server, DB2, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionChar(Token *name, Token* /*open*/)
+bool SqlParser::ParseFunctionChar(Token *name, Token* open)
 {
 	if(name == NULL)
 		return false;
@@ -2234,7 +2234,18 @@ bool SqlParser::ParseFunctionChar(Token *name, Token* /*open*/)
 				}
 			}
 			else
-			// USA datetime format
+			// ISO or JIS datetime format YYYY-MM-DD
+			if(format->Compare("ISO", L"ISO", 3) || format->Compare("JIS", L"JIS", 3))
+			{
+				if(_target == SQL_SQL_SERVER)
+				{
+					TOKEN_CHANGE(name, "CONVERT");
+					APPEND_FIRST_FMT(open, "VARCHAR, ", name);
+					TOKEN_CHANGE(format, "120");
+				}
+			}
+			else
+			// USA datetime format MM/DD/YYYY
 			if(format->Compare("USA", L"USA", 3) == true)
 			{
 				if(_target == SQL_ORACLE)
@@ -2242,7 +2253,25 @@ bool SqlParser::ParseFunctionChar(Token *name, Token* /*open*/)
 					Token::Change(name, "TO_CHAR", L"TO_CHAR", 7);
 					Token::Change(format, "'MM/DD/YYYY'", L"'MM/DD/YYYY'", 12);
 				}
-			}			
+				else
+				if(_target == SQL_SQL_SERVER)
+				{
+					TOKEN_CHANGE(name, "CONVERT");
+					APPEND_FIRST_FMT(open, "VARCHAR, ", name);
+					TOKEN_CHANGE(format, "101");
+				}
+			}
+			else
+			// EUR datetime format DD.MM.YYYY
+			if(format->Compare("EUR", L"EUR", 3) == true)
+			{
+				if(_target == SQL_SQL_SERVER)
+				{
+					TOKEN_CHANGE(name, "CONVERT");
+					APPEND_FIRST_FMT(open, "VARCHAR, ", name);
+					TOKEN_CHANGE(format, "104");
+				}
+			}
 		}
 		// No format specified
 		else
@@ -3707,7 +3736,7 @@ bool SqlParser::ParseFunctionDate(Token *name, Token *open)
 		if(_target == SQL_SQL_SERVER)
 		{
 			Token::Change(name, "CONVERT", L"CONVERT", 7);
-			Append(open, "DATE, ", L"DATE, ", 6, name);
+			AppendFirst(open, "DATE, ", L"DATE, ", 6, name);
 		}
 	}
 	else
@@ -3739,7 +3768,7 @@ bool SqlParser::ParseFunctionDate(Token *name, Token *open)
 		if(_target == SQL_SQL_SERVER)
 		{
 			Token::Change(name, "CONVERT", L"CONVERT", 7);
-			Append(open, "DATE, ", L"DATE, ", 6, name);
+			AppendFirst(open, "DATE, ", L"DATE, ", 6, name);
 		}
 	}
 
@@ -4666,7 +4695,7 @@ bool SqlParser::ParseFunctionDayofweek(Token *name, Token* /*open*/)
 }
 
 // DB2 DAYOFWEEK_ISO
-bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token* /*open*/)
+bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token *open)
 {
 	if(name == NULL)
 		return false;
@@ -4686,6 +4715,16 @@ bool SqlParser::ParseFunctionDayofweekIso(Token *name, Token* /*open*/)
 	{
 		Token::Change(name, "TO_NUMBER(TO_CHAR", L"TO_NUMBER(TO_CHAR", 17);
 		Append(exp, ", 'D')", L", 'D')", 6);
+	}
+	else
+	if(_target == SQL_SQL_SERVER)
+	{
+		// Note. SET DATEFIRST 1 must be executed in SQL Server as the start day is Sunday by default in US (1 in Europe i.e.), while ISO requires Monday
+		// SET DATEFIRST 1 is not allowed inside CREATE FUNCTION(!) 
+		TOKEN_CHANGE(name, "DATEPART");
+		APPEND_FIRST_NOFMT(open, "dw, "); 
+
+		_spl_monday_1 = true;
 	}
 
 	return true;
@@ -6900,7 +6939,7 @@ bool SqlParser::ParseFunctionInstrb(Token *name, Token* /*open*/)
 	return true;
 }
 
-// DB2 INTEGER
+// DB2 INTEGER, INT function
 bool SqlParser::ParseFunctionInteger(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
@@ -6921,6 +6960,12 @@ bool SqlParser::ParseFunctionInteger(Token *name, Token* /*open*/)
 	{
 		Token::Change(name, "TRUNC(TO_NUMBER", L"TRUNC(TO_NUMBER", 15);
 		Append(close, ")", L")", 1);
+	}
+	else
+	if(!Target(SQL_DB2))
+	{
+		TOKEN_CHANGE(name, "CAST");
+		PREPEND_FMT(close, " AS INT", name);
 	}
 
 	return true;
@@ -10200,6 +10245,12 @@ bool SqlParser::ParseFunctionSmallint(Token *name, Token* /*open*/)
 		Token::Change(name, "TRUNC(TO_NUMBER", L"TRUNC(TO_NUMBER", 15);
 		Append(close, ")", L")", 1);
 	}
+	else
+	if(!Target(SQL_DB2))
+	{
+		TOKEN_CHANGE(name, "CAST");
+		PREPEND_FMT(close, " AS SMALLINT", name);
+	}
 
 	return true;
 }
@@ -10739,6 +10790,7 @@ bool SqlParser::ParseFunctionSubstr(Token *name, Token* /*open*/)
 	// Parse string
 	ParseExpression(string);
 
+	Token *string_end = GetLastToken();
 	Token *comma = GetNextCharToken(',', L',');
 	
 	if(comma == NULL)
@@ -10749,6 +10801,7 @@ bool SqlParser::ParseFunctionSubstr(Token *name, Token* /*open*/)
 	// Parse pos
 	ParseExpression(pos);
 
+	Token *pos_end = GetLastToken();
 	Token *comma2 = GetNextCharToken(',', L',');
 	
 	// Length expression is optional
@@ -10764,7 +10817,19 @@ bool SqlParser::ParseFunctionSubstr(Token *name, Token* /*open*/)
 
 	// Convert to SUBSTRING in SQL Server
 	if(_target == SQL_SQL_SERVER)
+	{
 		Token::Change(name, "SUBSTRING", L"SUBSTRING", 9);
+
+		// In SQL Server length must be specified
+		if(comma2 == NULL)
+		{
+			APPEND_FMT(pos_end, ", LEN(", name);
+			AppendCopy(pos_end, string, string_end, false);
+			APPEND(pos_end, ")");
+		}
+	}
+
+	name->data_type = TOKEN_DT_STRING;
 
 	return true;
 }

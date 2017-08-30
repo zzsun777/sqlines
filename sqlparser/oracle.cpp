@@ -1503,39 +1503,6 @@ void SqlParser::OracleMoveBeginAfterDeclare(Token *create, Token *as, Token *beg
 	}
 }
 
-// Add FOR SELECT for WITH RETURN cursors
-void SqlParser::OracleOpenWithReturnCursor(Token *name)
-{
-	// No WITH RETURN cursors
-	if(_spl_result_sets == 0 || name == NULL)
-		return;
-
-	CopyPaste *cur = _copypaste.GetFirstNoCurrent();
-
-	// Find the cursor declaration
-	while(cur != NULL)
-	{
-		if(cur->type != COPY_CURSOR_WITH_RETURN || Token::Compare(name, cur->name) == false)
-		{
-			cur = cur->next;
-			continue;
-		}
-
-		Token *token = cur->tokens.GetFirstNoCurrent();
-
-		Append(name, " ", L" ", 1);
-
-		// Copy tokens
-		while(token != NULL)
-		{
-			AppendCopy(name, token);
-			token = token->next;
-		}
-
-		cur = cur->next;
-	}
-}
-
 // Add cursor parameters if the procedure returns a result set
 void SqlParser::OracleAddOutRefcursor(Token *create, Token *name, Token *last_param)
 {

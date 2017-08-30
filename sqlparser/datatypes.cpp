@@ -790,9 +790,9 @@ bool SqlParser::ParseBitType(Token *name)
     if(name->Compare("BIT", L"BIT", 3) == true)
         bit = true;
     else
-        // Can be enclosed in [] for SQL Server
-        if(name->Compare("[BIT]", L"[BIT]", 5) == true)
-            bit_in_braces = true;
+    // Can be enclosed in [] for SQL Server
+    if(name->Compare("[BIT]", L"[BIT]", 5) == true)
+        bit_in_braces = true;
 
     if(bit == false && bit_in_braces == false)
         return false;
@@ -850,66 +850,68 @@ bool SqlParser::ParseBitType(Token *name)
             }
         }
         else
-            // Convert to BINARY in SQL Server
-            if(_target == SQL_SQL_SERVER)
-            {
-                Token::Remove(name);
-                Token::Change(varying, "BINARY", L"BINARY", 6);
+        // Convert to BINARY in SQL Server
+        if(_target == SQL_SQL_SERVER)
+        {
+            Token::Remove(name);
+            Token::Change(varying, "BINARY", L"BINARY", 6);
 
-                if(open == NULL)
-                {
-                    // BIT VARYING is 1 bit by default in Sybase ASA
-                    if(_source == SQL_SYBASE_ASA)
-                        Append(varying, "(1)", L"(1)", 3);
-                }
+            if(open == NULL)
+            {
+                // BIT VARYING is 1 bit by default in Sybase ASA
+                if(_source == SQL_SYBASE_ASA)
+                    Append(varying, "(1)", L"(1)", 3);
             }
+        }
     }
     else
-        // Check for BIT
-        if(varying == NULL)
+    // Check for BIT
+    if(varying == NULL)
+    {
+        DTYPE_STATS("BIT")
+
+        if(_target == SQL_ORACLE)
         {
-            DTYPE_STATS("BIT")
-
-            // Convert to CHAR(1) in Oracle
-            if(_target == SQL_ORACLE)
+            // In MySQL and PostgreSQL BIT is a bit array type
+            if(Source(SQL_MYSQL, SQL_POSTGRESQL) == true)
             {
-                // In MySQL and PostgreSQL BIT is a bit array type
-                if(Source(SQL_MYSQL, SQL_POSTGRESQL) == true)
-                {
-                    Token::Change(name, "RAW", L"RAW", 3);
+                Token::Change(name, "RAW", L"RAW", 3);
 
-                    // BIT is 1 bit by default in MySQL and PostgreSQL
-                    if(open == NULL)
-                        Append(name, "(1)", L"(1)", 3);
-                }
-                // In SQL Server BIT holds 0, 1 and NULL
-                else
-                    Token::Change(name, "NUMBER(1)", L"NUMBER(1)", 9);
+                // BIT is 1 bit by default in MySQL and PostgreSQL
+                if(open == NULL)
+                    Append(name, "(1)", L"(1)", 3);
             }
+            // In SQL Server BIT holds 0, 1 and NULL
             else
-                // Convert MySQL BIT to BINARY in SQL Server
-                if(_target == SQL_SQL_SERVER)
-                {
-                    if(_source == SQL_MYSQL)
-                        Token::Change(name, "BINARY", L"BINARY", 6);
-                }
-                else
-                    // Convert to BOOLEAN in PostgreSQL
-                    if(_target == SQL_POSTGRESQL && _source != SQL_POSTGRESQL)
-                        Token::Change(name, "BOOLEAN", L"BOOLEAN", 7);
-                    else
-                        // Convert to TINYINT in MySQL
-                        if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
-                            Token::Change(name, "TINYINT", L"TINYINT", 7);
-                        else
-                            // Remove [] for other databases
-                            if(_target != SQL_SQL_SERVER && bit_in_braces == true)
-                                Token::ChangeNoFormat(name, name, 1, name->len - 2);
+                Token::Change(name, "NUMBER(1)", L"NUMBER(1)", 9);
         }
+        else
+        // Convert MySQL BIT to BINARY in SQL Server
+        if(_target == SQL_SQL_SERVER)
+        {
+            if(_source == SQL_MYSQL)
+                Token::Change(name, "BINARY", L"BINARY", 6);
+        }
+        else
+        // Convert to BOOLEAN in PostgreSQL
+        if(_target == SQL_POSTGRESQL && _source != SQL_POSTGRESQL)
+            Token::Change(name, "BOOLEAN", L"BOOLEAN", 7);
+        else
+        // Convert to TINYINT in MySQL
+        if(Target(SQL_MARIADB, SQL_MYSQL) && _source != SQL_MYSQL)
+            Token::Change(name, "TINYINT", L"TINYINT", 7);
+        else
+        // Convert to SMALLINT in Redshift
+        if(_target == SQL_REDSHIFT)
+            Token::Change(name, "SMALLINT", L"SMALLINT", 8);
+        else
+        // Remove [] for other databases
+        if(_target != SQL_SQL_SERVER && bit_in_braces == true)
+            Token::ChangeNoFormat(name, name, 1, name->len - 2);
+    }
 
-        DTYPE_DTL_STATS_L(name)
-
-        return true;
+    DTYPE_DTL_STATS_L(name)
+    return true;
 }
 
 // BLOB in Oracle, DB2, MySQL, Informix
@@ -1838,9 +1840,9 @@ bool SqlParser::ParseDatetime2Type(Token *name)
     if(name->Compare("DATETIME2", L"DATETIME2", 9) == true)
         datetime2 = true;
     else
-        // Can be enclosed in [] for SQL Server
-        if(name->Compare("[DATETIME2]", L"[DATETIME2]", 11) == true)
-            datetime2_in_braces = true;
+    // Can be enclosed in [] for SQL Server
+    if(name->Compare("[DATETIME2]", L"[DATETIME2]", 11) == true)
+        datetime2_in_braces = true;
 
     if(datetime2 == false && datetime2_in_braces == false)
         return false;
@@ -1873,25 +1875,24 @@ bool SqlParser::ParseDatetime2Type(Token *name)
                 Token::Change(fraction, "6", L"6", 1);
     }
     else
-        // Convert to TIMESTAMP in PostgreSQL
-        if(_target == SQL_POSTGRESQL)
-        {
-            Token::Change(name, "TIMESTAMP", L"TIMESTAMP", 9);
+    // Convert to TIMESTAMP in PostgreSQL, Redshift
+    if(Target(SQL_POSTGRESQL, SQL_REDSHIFT))
+    {
+        Token::Change(name, "TIMESTAMP", L"TIMESTAMP", 9);
 
-            // Fraction is 7 by default in SQL Server, but max fraction is 6 in PostgreSQL
-            if(open == NULL)
-                Append(name, "(6)", L"(6)", 3);
-            else
-                if(fraction_int > 6)
-                    Token::Change(fraction, "6", L"6", 1);
-        }
+        // Fraction is 7 by default in SQL Server, but max fraction is 6 in PostgreSQL
+        if(open == NULL)
+            Append(name, "(6)", L"(6)", 3);
         else
-            // Remove [] for other databases
-            if(_target != SQL_SQL_SERVER && datetime2_in_braces == true)
-                Token::ChangeNoFormat(name, name, 1, name->len - 2);
+        if(fraction_int > 6)
+            Token::Change(fraction, "6", L"6", 1);
+    }
+    else
+    // Remove [] for other databases
+    if(_target != SQL_SQL_SERVER && datetime2_in_braces == true)
+        Token::ChangeNoFormat(name, name, 1, name->len - 2);
 
     DTYPE_DTL_STATS_L(name)
-
     return true;
 }
 
@@ -5473,9 +5474,9 @@ bool SqlParser::ParseTinyintType(Token *name, int clause_scope)
     if(name->Compare("TINYINT", L"TINYINT", 7) == true)
         tinyint = true;
     else
-        // Can be enclosed in [] for SQL Server
-        if(name->Compare("[TINYINT]", L"[TINYINT]", 9) == true)
-            tinyint_in_braces = true;
+    // Can be enclosed in [] for SQL Server
+    if(name->Compare("[TINYINT]", L"[TINYINT]", 9) == true)
+        tinyint_in_braces = true;
 
     if(tinyint == false && tinyint_in_braces == false)
         return false;
@@ -5510,27 +5511,27 @@ bool SqlParser::ParseTinyintType(Token *name, int clause_scope)
         }
     }
     else
-        // Convert MySQL TINYINT to SMALLINT in SQL Server
-        if(_source == SQL_MYSQL && _target == SQL_SQL_SERVER)
-            Token::Change(name, "SMALLINT", L"SMALLINT", 8);
-        else
-            // SQL Server's TINYINT is unsigned
-            if(_source == SQL_SQL_SERVER && Target(SQL_MARIADB, SQL_MYSQL))
-            {
-                // Remove []
-                if(tinyint_in_braces == true)
-                    Token::ChangeNoFormat(name, name, 1, name->len - 2);
+    // Convert MySQL TINYINT to SMALLINT in SQL Server
+    if(_source == SQL_MYSQL && _target == SQL_SQL_SERVER)
+        Token::Change(name, "SMALLINT", L"SMALLINT", 8);
+    else
+    // SQL Server's TINYINT is unsigned
+    if(_source == SQL_SQL_SERVER && Target(SQL_MARIADB, SQL_MYSQL))
+    {
+        // Remove []
+        if(tinyint_in_braces == true)
+            Token::ChangeNoFormat(name, name, 1, name->len - 2);
 
-                Append(name, " UNSIGNED", L" UNSIGNED", 9);
-            }
-            else
-                // Convert to SMALLINT in PostgreSQL
-                if(_target == SQL_POSTGRESQL)
-                    Token::Change(name, "SMALLINT", L"SMALLINT", 8);
-                else
-                    // Remove [] for other databases
-                    if(_target != SQL_SQL_SERVER && tinyint_in_braces == true)
-                        Token::ChangeNoFormat(name, name, 1, name->len - 2);
+        Append(name, " UNSIGNED", L" UNSIGNED", 9);
+    }
+    else
+    // Convert to SMALLINT in PostgreSQL, Redshift
+    if(Target(SQL_POSTGRESQL, SQL_REDSHIFT))
+        Token::Change(name, "SMALLINT", L"SMALLINT", 8);
+    else
+    // Remove [] for other databases
+    if(_target != SQL_SQL_SERVER && tinyint_in_braces == true)
+        Token::ChangeNoFormat(name, name, 1, name->len - 2);
 
     DTYPE_DTL_STATS_L(name)
 
@@ -6253,8 +6254,8 @@ bool SqlParser::ParseVarcharType(Token *name, int clause_scope)
             Token::Remove(open, close);
         }
         else
-        // Change to TEXT in PostgreSQL
-        if(_target == SQL_POSTGRESQL)
+        // Change to TEXT in PostgreSQL, Redshift
+        if(Target(SQL_POSTGRESQL, SQL_REDSHIFT))
         {
             Token::Change(name, "TEXT", L"TEXT", 4);
             Token::Remove(open, close);

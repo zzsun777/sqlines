@@ -3706,7 +3706,7 @@ bool SqlParser::ParseCreateRule(Token *create, Token *rule)
 	return true;
 }
 
-// CREATE SCHEMA in MySQL
+// CREATE SCHEMA in SQL Server, MySQL, Redshift
 bool SqlParser::ParseCreateSchema(Token *create, Token *schema)
 {
 	if(create == NULL || schema == NULL)
@@ -3782,6 +3782,9 @@ bool SqlParser::ParseCreateSchema(Token *create, Token *schema)
 
 		Token::Remove(if_, exists);
 	}
+
+	// Add statement delimiter if not set and handle GO when source is SQL Server, Sybase ASE
+	SqlServerDelimiter();
 
 	return true;
 }
@@ -4193,8 +4196,8 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 			_spl_result_sets++;
 		}
 
-		// Remove return options for Oracle
-		if(_target == SQL_ORACLE)
+		// Remove return options
+		if(!Target(SQL_DB2, SQL_TERADATA))
 		{
 			Token::Remove(with2, return_);
 			Token::Remove(only);
@@ -4239,18 +4242,31 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 	// SELECT statement is specified
 	if(select != NULL)
 	{
-		if(_target == SQL_ORACLE)
+		// Cursor with return to client/caller
+		if(return_ == NULL)
 		{
 			// CURSOR cur IS SELECT 
-			if(return_ == NULL)
+			if(_target == SQL_ORACLE)
 			{
 				Token::Change(declare, "CURSOR", L"CURSOR", 6);
 				Token::Change(for_, "IS", L"IS", 2);
 				Token::Remove(cursor);
 			}
+		}
+		else
+		{
 			// Cut FOR SELECT to be used in OPEN
-			else
+			if(Target(SQL_ORACLE, SQL_SQL_SERVER))
 			{
+				Token *cut_start = for_;
+
+				// in SQL Server, Standalone SELECT is used in place of OPEN cursor, so FOR keyword is not required
+				if(_target == SQL_SQL_SERVER)
+				{
+					cut_start = select;
+					Token::Remove(for_);
+				}
+
 				// Block will be transferred to OPEN cur
 				Cut(COPY_SCOPE_PROC, COPY_CURSOR_WITH_RETURN, name, for_, GetLastToken());
 			
@@ -5764,11 +5780,13 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 			// SQL Server does not supprt ELSEIF construct
 			if(_target == SQL_SQL_SERVER)
 			{
-				if(elseif != NULL)
-					Token::Change(elseif, "ELSE IF", L"ELSE IF", 7);
-				else
-				if(elsif != NULL)
-					Token::Change(elsif, "ELSE IF", L"ELSE IF", 7);
+				Token *elf = Nvl(elseif, elsif);
+
+				// Close true block with END if there was not BEGIN in source
+				if(then_to_begin)
+					PREPEND(elf, "END\n"); 
+
+				TOKEN_CHANGE(elf, "ELSE IF");
 			}
 			else
 			if(Target(SQL_DB2, SQL_MYSQL) == true && elsif != NULL)
@@ -5819,6 +5837,8 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 	
 	if(_spl_first_non_declare == NULL)
 		_spl_first_non_declare = if_;
+
+	_spl_last_stmt = if_;
 
 	return true;
 }
@@ -6734,17 +6754,27 @@ bool SqlParser::ParseOpenStatement(Token *open)
 				prepared_select = (Token*)p->value2;
 		}
 
-		if(_target == SQL_ORACLE)
+		// Prepared cursor
+		if(prepared_select != NULL)
 		{
-			// Prepared cursor
-			if(prepared_select != NULL)
+			if(_target == SQL_ORACLE)
 			{
 				Append(name, " FOR ", L" FOR ", 5, open);
 				AppendCopy(name, prepared_select);
 			}
-			else
-				// Add FOR SELECT for WITH RETURN cursors
-				OracleOpenWithReturnCursor(name);
+		}
+		else
+		{
+			// Add FOR SELECT for WITH RETURN cursors
+			if(Target(SQL_ORACLE, SQL_SQL_SERVER))
+			{
+				if(OpenWithReturnCursor(name))
+				{
+					// For SQL Server leave only SELECT, remove OPEN cur
+					if(_target == SQL_SQL_SERVER)
+						Token::Remove(open, name);
+				}
+			}
 		}
 
 		// Cursor parameters can be specified in Oracle
@@ -7321,6 +7351,8 @@ bool SqlParser::ParseReturnStatement(Token *return_)
 
 	if(_spl_first_non_declare == NULL)
 		_spl_first_non_declare = return_;
+
+	_spl_last_stmt = return_;
 	
 	return true;
 }
@@ -9263,7 +9295,7 @@ bool SqlParser::ParseProcedureOptions(Token *create)
 			if(sets != NULL)
 				num = GetNextToken();
 
-			if(_target == SQL_ORACLE && num != NULL)
+			if(!Target(SQL_DB2, SQL_TERADATA) && num != NULL)
 				Token::Remove(next, num);
 
 			exists = true;
@@ -9493,6 +9525,9 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 {
 	Token *body_start = GetLastToken();
 
+	// In DB2, Teradata, MySQL block can start with a label 
+	ParseLabelDeclaration(NULL, true);
+
 	// Oracle, SQL Server require BEGIN for functions; DB2 and MySQL not (if single statement); In Informix BEGIN not used
 	Token *begin = GetNextWordToken("BEGIN", L"BEGIN", 5);
 
@@ -9572,6 +9607,14 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 	ParseBlock(SQL_BLOCK_PROC, frontier, SQL_SCOPE_FUNC, NULL);
 
     _spl_begin_blocks.DeleteLast();
+
+	// SQL Server require last statement in function to be RETURN even if the previous is IF RETURN n ELSE RETURN k
+	if(_target == SQL_SQL_SERVER && !TOKEN_CMP(_spl_last_stmt, "RETURN"))
+		APPEND_FMT(GetLastToken(), "\nRETURN NULL;", _spl_last_stmt);
+
+	// Monday is 1 day was defined from the context
+	if(_spl_monday_1 && _target == SQL_SQL_SERVER)
+		APPEND_NOFMT(begin, "\n/* Make sure SET DATEFIRST 1; is set for session. Use SELECT @@DATEFIRST; to see the current value. */");
 
 	Token *end = GetNextWordToken("END", L"END", 3);
 

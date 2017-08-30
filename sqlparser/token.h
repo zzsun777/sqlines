@@ -37,12 +37,17 @@
 #define TOKEN_DT_DATETIME		1		// Date and time
 #define TOKEN_DT_STRING			2		// String
 #define TOKEN_DT_NUMBER			3		// Number
+#define TOKEN_DT_INTERVAL		4		// Interval
 
 // Token data subtype
 #define TOKEN_DT2_DATETIME		1		// Date and time
 #define TOKEN_DT2_DATE			2		// Date only
 #define TOKEN_DT2_TIME			3		// Time only
 #define TOKEN_DT2_INT8			4		// 8-bit integer
+#define TOKEN_DT2_INTVL_MON		5		// Month interval
+#define TOKEN_DT2_INTVL_DAY		6		// Day interval
+#define TOKEN_DT2_INTVL_MIN		7		// Minute interval
+#define TOKEN_DT2_INTVL_SEC		8		// Second interval
 
 // Token flags
 #define TOKEN_REMOVED            0x1

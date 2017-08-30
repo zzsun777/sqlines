@@ -286,7 +286,7 @@ void SqlParser::ConvertColumnIdentifierSingle(Token *token, int /*scope*/)
     for(size_t i = 0; i < token->len; i++)
     {
         // $ allowed in Teradata but not allowed in EsgynDB
-        if(TOKEN_CMPC(token, '$', i) == true)
+        if(TOKEN_CMPCP(token, '$', i) == true)
         {
             if(Target(SQL_ESGYNDB))
             {
@@ -1464,7 +1464,11 @@ bool SqlParser::ParseStandaloneColumnConstraints(Token *alter, Token *table_name
 		// Check for constraint name
 		if(cns->Compare("CONSTRAINT", L"CONSTRAINT", 10) == true)
 		{
-			/*Token *key */ (void) GetNextIdentToken();
+			Token *cns_name = GetNextIdentToken();
+
+			// Constraint name is not supported in Redshift
+			if(_target == SQL_REDSHIFT)
+				Comment(cns, cns_name);
 
 			// Now get constraint type keyword
 			cns = GetNextToken();
@@ -1526,6 +1530,10 @@ bool SqlParser::ParseInlineColumnConstraint(Token *type, Token *type_end, Token 
 
 	if(name == NULL)
 		return false;
+
+	// Constraint name is not supported in Redshift
+	if(_target == SQL_REDSHIFT)
+		Comment(constraint, name);
 
 	// Constraint type keyword
 	Token *cns = GetNextToken();
@@ -1985,6 +1993,10 @@ bool SqlParser::ParseCheckConstraint(Token *check)
 
 	/*Token *close*/ (void) GetNextCharToken(')', L')');
 
+	// CHECK constraint is not supported in Redshift
+	if(_target == SQL_REDSHIFT)
+		Comment(check, GetLastToken());
+
     if(_stmt_scope == SQL_STMT_ALTER_TABLE)
         ALTER_TAB_STMS_STATS("Add CHECK constraint")
 
@@ -2147,19 +2159,6 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 
 		if(var == NULL && param == NULL)
 			ConvertIdentifier(first, SQL_IDENT_COLUMN);
-
-		/*
-		// For SQL Server, check if such variable exists and @ needs to be added
-		if(Source(SQL_SQL_SERVER, SQL_SYBASE) == false && Target(SQL_SQL_SERVER, SQL_SYBASE) == true)
-		{
-			// Make sure the identifier not converted yet
-			if(first->t_len == 0 && (GetVariable(first) != NULL || GetParameter(first) != NULL))
-				ConvertToTsqlVariable(first);
-		}
-		else
-		// Truncate variable name in the demo version
-		if(_license_number[0] == '\x0' && GetVariable(first) != NULL)			
-			AddDemoVariableTruncation(first); */
 
 		exists = true;
 	}
@@ -2943,7 +2942,7 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 	if(first == NULL)
 		return false;
 	
-	/*Token *first_end */ (void) GetLastToken();
+	Token *first_end = GetLastToken();
 
 	Token *plus = GetNextPlusMinusAsOperatorToken('+', L'+');
 
@@ -2957,6 +2956,8 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 
 	// Parse the second and other expressions recursively
 	ParseExpression(second, SQL_OPERATOR_PLUS);
+
+	Token *second_end = GetLastToken();
 
 	// In SQL Server + is also used to concatenate strings
 	if(Source(SQL_SQL_SERVER, SQL_SYBASE) == true)
@@ -3020,8 +3021,47 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 			}
 		}
 	}
+	else
+	// Check for DB2 interval +/- expressions
+	if(_source == SQL_DB2 && second->data_type == TOKEN_DT_INTERVAL)
+	{
+		if(_target == SQL_SQL_SERVER)
+			SqlServerToDateAdd(plus, first, first_end, second, second_end);
+
+		// Check for a +/- chain of interval expressions: for example, + expr MONTH - expr DAYS + ...
+		ParseAddSubIntervalChain(first, SQL_OPERATOR_PLUS);
+	}
 
 	return true;
+}
+
+// Check for a +/- chain of interval expressions: for example, + expr MONTH - expr DAYS + ...
+bool SqlParser::ParseAddSubIntervalChain(Token *first, int prev_operator)
+{
+	bool exists = false;
+
+	// Get + or -
+	Token *plus = GetNextPlusMinusAsOperatorToken('+', L'+');
+	Token *minus = NULL;
+
+	if(plus == NULL)
+		minus = GetNextPlusMinusAsOperatorToken('-', L'-');
+
+	if(plus != NULL)
+	{
+		PushBack(plus);
+		ParseAdditionOperator(first, prev_operator);
+		exists = true;
+	}
+	else
+	if(minus != NULL)
+	{
+		PushBack(minus);
+		ParseSubtractionOperator(first);
+		exists = true;
+	}
+
+	return exists;
 }
 
 // Division operator /
@@ -3250,7 +3290,16 @@ bool SqlParser::ParseUnitsOperator(Token *first)
 	if(_source == SQL_INFORMIX && units == NULL)
 		return false;
 
-	Token *day = GetNext("DAY", L"DAY", 3);
+	Token *month = GetNext("MONTH", L"MONTH", 5);
+	Token *months = NULL;
+
+	// MONTHS in DB2
+	if(month == NULL)
+		months = GetNext("MONTHS", L"MONTHS", 6);
+
+	Token *field = Nvl(month, months);
+
+	Token *day = NULL;
 	Token *days = NULL;
 
 	Token *minute = NULL;
@@ -3258,15 +3307,16 @@ bool SqlParser::ParseUnitsOperator(Token *first)
 	
 	Token *second = NULL;
 
-	Token *field = NULL;
+	if(field == NULL)
+	{
+		day = GetNext("DAY", L"DAY", 3);
 
-	// DAYS in DB2
-	if(day == NULL)
-		days = GetNext("DAYS", L"DAYS", 4);
+		if(day == NULL)
+			days = GetNext("DAYS", L"DAYS", 4);
 
-	field = Nvl(day, days);
+		field = Nvl(day, days);
+	}
 
-	// MINUTE and MINUTES
 	if(field == NULL)
 	{
 		minute = GetNext("MINUTE", L"MINUTE", 6);
@@ -3319,6 +3369,10 @@ bool SqlParser::ParseUnitsOperator(Token *first)
 		Token::Remove(units);
 	}
 	else
+	// For SQL Server, remove field keyword as it will replaced by DATEADD for +/- expressions
+	if(_target == SQL_SQL_SERVER)
+		Token::Remove(field);
+	else
 	// INTERVAL 'num' units, or var * INTERVAL '1' units in PostgreSQL
 	if(_target == SQL_POSTGRESQL)
 	{
@@ -3334,6 +3388,20 @@ bool SqlParser::ParseUnitsOperator(Token *first)
 		else
 			Token::Change(units, "* INTERVAL '1'", L"* INTERVAL '1'", 14);
 	}
+
+	first->data_type = TOKEN_DT_INTERVAL;
+
+	if(day != NULL || days != NULL)
+		first->data_subtype = TOKEN_DT2_INTVL_DAY;
+	else
+	if(month != NULL || months != NULL)
+		first->data_subtype = TOKEN_DT2_INTVL_MON;
+	else
+	if(minute != NULL || minutes != NULL)
+		first->data_subtype = TOKEN_DT2_INTVL_MIN;
+	else
+	if(second != NULL)
+		first->data_subtype = TOKEN_DT2_INTVL_SEC;
 
 	return true;
 }
@@ -3359,6 +3427,8 @@ bool SqlParser::ParseSubtractionOperator(Token *first)
 	// Parse the second and other expressions recursively
 	ParseExpression(second);
 
+	Token *second_end = GetLastToken();
+
 	// Source is Oracle and operands are dates
 	if(_source == SQL_ORACLE && first->data_type == TOKEN_DT_DATETIME && second->data_type == TOKEN_DT_DATETIME)
 	{
@@ -3369,8 +3439,18 @@ bool SqlParser::ParseSubtractionOperator(Token *first)
 			Prepend(second, "CONVERT(FLOAT, ", L"CONVERT(FLOAT, ", 15);
 
 			Append(first_end, ")", L")", 1);
-			Append(GetLastToken(), ")", L")", 1);
+			Append(second_end, ")", L")", 1);
 		}
+	}
+	else
+	// Check for DB2 interval +/- expressions
+	if(_source == SQL_DB2 && second->data_type == TOKEN_DT_INTERVAL)
+	{
+		if(_target == SQL_SQL_SERVER)
+			SqlServerToDateAdd(minus, first, first_end, second, second_end);
+
+		// Check for a +/- chain of interval expressions: for example, + expr MONTH - expr DAYS + ...
+		ParseAddSubIntervalChain(first, SQL_OPERATOR_PLUS);
 	}
 
 	return true;

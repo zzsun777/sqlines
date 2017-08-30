@@ -1,0 +1,6 @@
+-- Column name and data type mapping file
+-- schema.table, column, target_column, target_datatype
+
+SIEBEL.S_SCHMSTEP_SCPT, ARG_STRING, ARG_STRING, VARCHAR2(4000)
+SIEBEL.S_SCHMST_DBSCPT, ARG_STRING, ARG_STRING, VARCHAR2(4000)
+SIEBEL.S_TABLE, DESC_TEXT, DESC_TEXT, VARCHAR2(4000)

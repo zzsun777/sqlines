@@ -47,7 +47,8 @@
 #define SQL_NETEZZA				11
 #define SQL_MARIADB             12
 #define SQL_HIVE                13
-#define SQL_ESGYNDB             14
+#define SQL_REDSHIFT            14
+#define SQL_ESGYNDB             15
 
 // Application types
 #define APP_JAVA				1
@@ -191,7 +192,8 @@
 
 #define TOKEN_GETNEXT(chr)           GetNext(chr, L##chr)
 #define TOKEN_GETNEXTW(string)       GetNext(string, L##string, sizeof(string) - 1)
-#define TOKEN_CMPC(token, chr, pos)  Token::Compare(token, chr, L##chr, pos)
+#define TOKEN_CMPC(token, chr)		 Token::Compare(token, chr, L##chr)
+#define TOKEN_CMPCP(token, chr, pos) Token::Compare(token, chr, L##chr, pos)
 #define TOKEN_CMP(token, string)     Token::Compare(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE(token, string)  Token::Change(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE_FMT(token, string, format)  Token::Change(token, string, L##string, sizeof(string) - 1, format)
@@ -200,9 +202,13 @@
 
 #define APPEND(token, string) Append(token, string, L##string, sizeof(string) - 1)
 #define APPEND_FMT(token, string, format) Append(token, string, L##string, sizeof(string) - 1, format)
+#define APPEND_FIRST_FMT(token, string, format) AppendFirst(token, string, L##string, sizeof(string) - 1, format)
+#define APPEND_FIRST_NOFMT(token, string) AppendFirstNoFormat(token, string, L##string, sizeof(string) - 1)
+#define APPEND_NOFMT(token, string) AppendNoFormat(token, string, L##string, sizeof(string) - 1)
 
 #define PREPEND(token, string) Prepend(token, string, L##string, sizeof(string) - 1)
 #define PREPEND_FMT(token, string, format) Prepend(token, string, L##string, sizeof(string) - 1, format)
+#define PREPEND_NOFMT(token, string) PrependNoFormat(token, string, L##string, sizeof(string) - 1)
 
 #define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
 
@@ -331,6 +337,9 @@ class SqlParser
     // First non-declare statement in procedure or function
 	Token *_spl_first_non_declare;
 
+	// Last statement in procedure or function
+	Token *_spl_last_stmt;
+
     // Last token of last declared variable (not cursor) in the outer PL/SQL DECLARE block
     Token *_spl_last_outer_declare_var;
     
@@ -438,6 +447,9 @@ class SqlParser
 	bool _spl_proc_to_func;
     // Handler for NOT FOUND condition
     bool _spl_not_found_handler;
+
+	// Monday is 1 day, Sunday is 7 (false if it is unknown from context)
+	bool _spl_monday_1;
 
 	// User-defined data types
 	ListWM _udt;
@@ -623,6 +635,7 @@ public:
 	bool ParseCastOperator(Token *first);
 	bool ParseModOperator(Token *first);
 	bool ParseUnitsOperator(Token *first);
+	bool ParseAddSubIntervalChain(Token *first, int prev_operator);
 
 	// Data types
 	bool ParseBfileType(Token *name);
@@ -1209,8 +1222,9 @@ public:
 	bool ParseSelectCteClause(Token *with);
 	bool ParseSelectList(Token *select, int select_scope, bool *into, bool *dummy_not_required, bool *agg_func, bool *agg_list_func, ListW *exp_starts, ListW *out_cols, ListW *into_cols, Token **rowlimit_slist, bool *rowlimit_percent);
 	bool ParseSelectListPredicate(Token **rowlimit_slist, bool *rowlimit_percent);
-	bool ParseSelectFromClause(Token *select, bool nested_from, Token **from, Token **from_end, int *appended_subquery_aliases, bool dummy_not_required);
-	bool ParseJoinClause(Token *first, Token *second);
+	bool ParseSelectFromClause(Token *select, bool nested_from, Token **from, Token **from_end, int *appended_subquery_aliases, bool dummy_not_required, ListW *from_table_end);
+	bool ParseJoinClause(Token *first, Token *second, bool first_is_subquery, ListW *from_table_end);
+	bool GetJoinKeywords(Token *token, Token **left_right_full, Token **outer_inner, Token **join);
 	bool ParseWhereClause(int stmt_scope, Token **where_, Token **where_end, int *rowlimit = NULL);
 	bool ParseWhereCurrentOfCursor(int stmt_scope);
 	bool ParseSelectGroupBy();
@@ -1224,12 +1238,14 @@ public:
 	bool ParseTempTableOptions(Token *table_name, Token **start, Token **end, bool *no_data);
 	bool ParseStorageClause(Token *table_name, Token **id_start, Token **comment, Token *last_colname, Token *last_colend);
 	bool ParseCreateIndexOptions();
+	bool OpenWithReturnCursor(Token *name);
 
 	void SqlServerConvertRowLevelTrigger(Token *table, Token *when, Token *insert, Token *update, Token *delete_, Token *end);
 	void SqlServerAppendSubqueryAlias(Token *append, int *appended_subquery_aliases);
 	void SqlServerDelimiter();
 	void SqlServerAddStmtDelimiter(bool force = false);
 	bool SqlServerGoDelimiter(bool just_remove = false);
+	void SqlServerToDateAdd(Token *op, Token *first, Token* first_end, Token *second, Token *second_end);
 	bool ParseSqlServerSetOptions(Token *set);
 	bool ParseSqlServerIndexOptions(Token *token);
 	bool ParseSqlServerStorageClause();
@@ -1249,7 +1265,6 @@ public:
 	void OracleContinueHandlerForUpdate(Token *update);
 	void OracleContinueHandlerForInsert(Token *insert);
 	void OracleMoveBeginAfterDeclare(Token *create, Token *as, Token *begin, Token *body_start);
-	void OracleOpenWithReturnCursor(Token *name);
 	void OracleAddOutRefcursor(Token *create, Token *name, Token *last_param);
 	void OracleAppendDataTypeSizes();
 	void OracleAppendDataTypeSize(Token *data_type);

@@ -32,6 +32,8 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	Token *from = NULL;
 	Token *from_end = NULL;
 
+	ListW from_table_end;
+
 	Token *where_ = NULL;
 	Token *where_end = NULL;
 
@@ -74,7 +76,7 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 		*list_end = select_list_end;
 
 	// FROM
-	ParseSelectFromClause(select, false, &from, &from_end, &app_subq_aliases, dummy_not_required);
+	ParseSelectFromClause(select, false, &from, &from_end, &app_subq_aliases, dummy_not_required, &from_table_end);
 
 	// WHERE
 	ParseWhereClause(SQL_STMT_SELECT, &where_, &where_end, &rowlimit);
@@ -727,7 +729,7 @@ bool SqlParser::ParseSelectListPredicate(Token **rowlimit_slist, bool *rowlimit_
 
 // FROM clause
 bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **from_out, Token **from_end, 
-									int *appended_subquery_aliases, bool dummy_not_required)
+									int *appended_subquery_aliases, bool dummy_not_required, ListW *from_table_end)
 {
 	Token *from = NULL;
 
@@ -779,7 +781,7 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 
 			// Parse nested join condition
 			if(subselect_exists == false)
-				ParseSelectFromClause(select, true, NULL, NULL, NULL, false);			
+				ParseSelectFromClause(select, true, NULL, NULL, NULL, false, NULL);			
 
 			Token *close = GetNextCharToken(')', L')');
 
@@ -876,7 +878,7 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 		}
 
 		// Second can point to alias or join keyword
-		ParseJoinClause(first, second);
+		ParseJoinClause(first, second, subquery, from_table_end);
 
 		count++;
 
@@ -908,70 +910,33 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 }
 
 // Join clause in FROM clause of SELECT statement 
-bool SqlParser::ParseJoinClause(Token * /*first*/, Token *second)
+bool SqlParser::ParseJoinClause(Token * /*first*/, Token *second, bool first_is_subquery, ListW *from_table_end)
 {
 	if(second == NULL)
 		return false;
 
 	bool exists = false;
 
-	Token *left = NULL;
-	Token *outer = NULL;
-	Token *inner = NULL;
+	Token *left_right_full = NULL;
+	Token *outer_inner = NULL;
 	Token *join = NULL;
 	Token *on = NULL;
 
-	// Second can point to alias or a join keyword (LEFT, RIGTH, INNER, JOIN etc.)
-	if(second->Compare("LEFT", L"LEFT", 4) == true)
-	{
-		left = second;
-		second = NULL;
-
-		outer = GetNextWordToken("OUTER", L"OUTER", 5);
-
-		exists = true;
-	}
-	else
-	if(second->Compare("INNER", L"INNER", 5) == true)
-	{
-		inner = second;
-		second = NULL;
-
-		exists = true;
-	}
-	else
-	if(second->Compare("JOIN", L"JOIN", 4) == true)
-	{
-		join = second;
-		second = NULL;
-
-		exists = true;
-	}
+	exists = GetJoinKeywords(second, &left_right_full, &outer_inner, &join);
 
 	// Second points to alias, try to get the first join keyword
 	if(exists == false)
 	{
-		left = GetNextWordToken("LEFT", L"LEFT", 4);
+		if(!first_is_subquery && from_table_end != NULL)
+			from_table_end->Add(second);
 
-		if(left != NULL)
-		{
-			outer = GetNextWordToken("OUTER", L"OUTER", 5);
-			exists = true;
-		}
-		else
-		{
-			inner = GetNextWordToken("INNER", L"INNER", 5);
+		Token *token = GetNext();
 
-			if(inner != NULL)
-				exists = true;
-			else
-				join = GetNextWordToken("JOIN", L"JOIN", 4);
-		}
+		exists = GetJoinKeywords(token, &left_right_full, &outer_inner, &join);
+
+		if(!exists)
+			PushBack(token);
 	}
-
-	// JOIN keyword if there is a preceeding join keyword
-	if(join == NULL)
-		join = GetNextWordToken("JOIN", L"JOIN", 4);
 
 	if(join == NULL)
 		return false;
@@ -1013,10 +978,60 @@ bool SqlParser::ParseJoinClause(Token * /*first*/, Token *second)
 	// List of join conditions can be specified JOIN ON ... JOIN ON ...
 	Token *next = GetNextToken();
 
-	if(ParseJoinClause(NULL, next) == false)
+	if(ParseJoinClause(NULL, next, false, NULL) == false)
 		PushBack(next);
 
 	return true;
+}
+
+// Get JOIN clause keywords
+bool SqlParser::GetJoinKeywords(Token *token, Token **left_right_full, Token **outer_inner, Token **join)
+{
+	bool exists = false;
+
+	// LEFT | RIGHT | FULL [OUTER] JOIN
+	if(TOKEN_CMP(token, "LEFT") || TOKEN_CMP(token, "RIGHT") || TOKEN_CMP(token, "FULL"))
+	{
+		if(left_right_full != NULL)
+			*left_right_full = token;
+
+		Token *outer = TOKEN_GETNEXTW("OUTER");
+
+		if(outer != NULL && outer_inner != NULL)
+			*outer_inner = outer;
+
+		Token *jn = TOKEN_GETNEXTW("JOIN");
+
+		if(jn != NULL && join != NULL)
+			*join = jn;
+
+		exists = true;
+	}
+	else
+	// INNER | OUTER JOIN
+	if(TOKEN_CMP(token, "INNER") || TOKEN_CMP(token, "OUTER"))
+	{
+		if(outer_inner != NULL)
+			*outer_inner = token;
+
+		Token *jn = TOKEN_GETNEXTW("JOIN");
+
+		if(jn != NULL && join != NULL)
+			*join = jn;
+
+		exists = true;
+	}
+	else
+	// JOIN
+	if(TOKEN_CMP(token, "JOIN"))
+	{
+		if(join != NULL)
+			*join = token;
+
+		exists = true;
+	}
+
+	return exists;
 }
 
 // WHERE clause in SELECT statement
@@ -1284,10 +1299,14 @@ bool SqlParser::ParseSelectOptions(Token * /*select*/, Token * /*from_end*/, Tok
 		if(option == NULL)
 			break;
 
-		// Oracle, MySQL FOR UPDATE
+		// Oracle, MySQL FOR UPDATE; DB2 FOR READ ONLY
 		if(option->Compare("FOR", L"FOR", 3) == true)
 		{
 			Token *update = GetNextWordToken("UPDATE", L"UPDATE", 6);
+			Token *read = NULL;
+
+			if(update == NULL)
+				read = GetNextWordToken("READ", L"READ", 4);
 
 			if(update != NULL)
 			{
@@ -1318,6 +1337,14 @@ bool SqlParser::ParseSelectOptions(Token * /*select*/, Token * /*from_end*/, Tok
 				if(Target(SQL_MARIADB, SQL_MYSQL) && skip != NULL && locked != NULL)
 					Comment(skip, locked);
 			}
+			else
+			if(read != NULL)
+			{
+				Token *only = GetNextWordToken("ONLY", L"ONLY", 4);
+
+				if(only != NULL && Target(SQL_SQL_SERVER))
+					Token::Remove(option, only);
+			}			
 
 			exists = true;
 			continue;
@@ -1331,7 +1358,7 @@ bool SqlParser::ParseSelectOptions(Token * /*select*/, Token * /*from_end*/, Tok
 			if(Token::Compare(value, "UR", L"UR", 2) || Token::Compare(value, "CS", L"CS", 2) ||
 				Token::Compare(value, "RS", L"RS", 2) ||Token::Compare(value, "RR", L"RR", 2))
 			{
-				if(_target == SQL_ORACLE)
+				if(!Target(SQL_DB2))
 					Token::Remove(option, value);
 
 				exists = true;
