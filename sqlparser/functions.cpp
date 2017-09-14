@@ -1359,7 +1359,9 @@ bool SqlParser::ParseFunctionAscii(Token *name, Token * /*open*/)
 	ParseExpression(exp);
 
 	/*Token *close */ (void) GetNextCharToken(')', L')');
-
+	
+	name->data_type = TOKEN_DT_STRING;
+	
 	return true;
 }
 
@@ -2964,7 +2966,7 @@ bool SqlParser::ParseFunctionConvertText(Token *name, Token *open, Token *dataty
 }
 
 // CONVERT for VARCHAR and CHAR in SQL Server, Sybase ASE, Sybase ASA
-bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*datatype*/)
+bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token *datatype)
 {
 	// Length of the target data type
 	Token *open_bracket = GetNextCharToken('(', L'(');
@@ -2991,6 +2993,7 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*
 	// Convert expression
 	Token *exp = GetNextToken();
 	ParseExpression(exp);
+	Token *exp_end = GetLastToken();
 
 	Token *comma2 = GetNextCharToken(',', L',');
 	Token *style = NULL;
@@ -3019,8 +3022,8 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*
 		}
 	}
 	else
-	// Convert to DATE_FORMAT in MySQL and MariaDB
-	if(Target(SQL_MARIADB, SQL_MYSQL))
+	// Convert to DATE_FORMAT in MySQL and MariaDB if expression is datetime
+	if(Target(SQL_MARIADB, SQL_MYSQL) && (exp->data_type == TOKEN_DT_DATETIME || style != NULL))
 	{
 		Token::Change(name, "DATE_FORMAT", L"DATE_FORMAT", 11);
 		Prepend(exp, "(", L"(", 1);
@@ -3046,6 +3049,21 @@ bool SqlParser::ParseFunctionConvertVarchar(Token *name, Token *open, Token * /*
 			else
 			if(style->Compare("20", L"20", 2) == true)
 				Token::Change(style, "'%Y-%m-%d %T'", L"'%Y-%m-%d %T'", 13);
+		}
+	}
+	else
+	// If the expression is string then substring is taken
+	if(exp->data_type == TOKEN_DT_STRING)
+	{
+		// CAST(exp AS CHAR(length)) for MariaDB, MySQL; they do not support CAST AS VARCHAR
+		if(Target(SQL_MARIADB, SQL_MYSQL))
+		{
+			TOKEN_CHANGE(name, "CAST");
+			APPEND_FMT(exp_end, " AS CHAR(", datatype);
+			AppendCopy(exp_end, length);
+			APPEND(exp_end, ")");
+
+			Token::Remove(datatype, comma);
 		}
 	}
 
@@ -11021,6 +11039,8 @@ bool SqlParser::ParseFunctionSubstring(Token *name, Token* /*open*/)
 		Token::Remove(comma3);
 		Token::Remove(unit);
 	}
+
+	name->data_type = TOKEN_DT_STRING;
 
 	return true;
 }

@@ -562,7 +562,9 @@ bool SqlParser::ConvertSessionTemporaryTable(Token *token)
 	bool exists = false;
 
 	// In DB2 temporary table reference includes SESSION. qualifier
-	if(_source == SQL_DB2 && _target != SQL_DB2 && token->Compare("SESSION.", L"SESSION.", 0, 8) == true)
+	if((_source == SQL_DB2 && _target != SQL_DB2 && token->Compare("SESSION.", L"SESSION.", 0, 8)) ||
+		// In Sybase ASE temporary table reference includes TEMPDB.. qualifier
+		(_source == SQL_SYBASE && _target != SQL_SYBASE && token->Compare("TEMPDB..", L"TEMPDB..", 0, 8)))
 	{
 		TokenStr name;
 
@@ -574,12 +576,20 @@ bool SqlParser::ConvertSessionTemporaryTable(Token *token)
 		}
 		// Remove SESSION. for other databases
 		else
+		if(_source == SQL_DB2)
 			name.Append(token, 8, token->len - 8);
+		else
+		// Add temp_ prefix to avoid name conflicts with regular tables
+		if(_source == SQL_SYBASE)
+		{
+			name.Append("temp_", L"temp_", 5);
+			name.Append(token, 8, token->len - 8);
+		}
 
 		Token::ChangeNoFormat(token, name);
 		exists = true;
 	}
-
+	
 	return exists;
 }
 
@@ -1224,6 +1234,15 @@ bool SqlParser::ParseColumnConstraints(Token *create, Token *table_name, Token *
 
 			if(_target != SQL_TERADATA && value != NULL)
 				Token::Remove(cns, value);
+
+			num++;
+		}
+		else
+		// ENCRYPT in Sybase ASE
+		if(TOKEN_CMP(cns, "ENCRYPT"))
+		{
+			if(_target != SQL_SYBASE)
+				Token::Remove(cns);
 
 			num++;
 		}
@@ -2654,7 +2673,21 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 
                 _spl_begin_blocks.DeleteLast();
 
-				/*Token *end */ (void) GetNext("END", L"END", 3);
+				Token *end = GetNext("END", L"END", 3);
+
+				if(end != NULL)
+				{
+					Token *semi = GetNext(';', L';');
+
+					if(semi == NULL)
+					{
+						// In SQL Server, Sybase ASE BEGIN END can go without ; while MySQL, MariaDB require BEGIN END;
+						if(Target(SQL_MYSQL, SQL_MARIADB))
+							APPEND_NOFMT(end, ";");
+					}
+					else
+						PushBack(semi);
+				}
 
 				continue;
 			}

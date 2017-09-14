@@ -1627,13 +1627,13 @@ bool SqlParser::ParseDatetimeType(Token *name)
     if(name->Compare("DATETIME", L"DATETIME", 8) == true)
         datetime = true;
     else
-        // Can be enclosed in [] for SQL Server
-        if(name->Compare("[DATETIME]", L"[DATETIME]", 10) == true)
-            datetime_in_braces = true;
-        else
-            // Can be enclosed in "" for Sybase ASA
-            if(name->Compare("\"DATETIME\"", L"\"DATETIME\"", 10) == true)
-                datetime_in_quotes = true;
+    // Can be enclosed in [] for SQL Server
+    if(name->Compare("[DATETIME]", L"[DATETIME]", 10) == true)
+        datetime_in_braces = true;
+    else
+    // Can be enclosed in "" for Sybase ASA
+    if(name->Compare("\"DATETIME\"", L"\"DATETIME\"", 10) == true)
+        datetime_in_quotes = true;
 
     if(datetime == false && datetime_in_braces == false && datetime_in_quotes == false)
         return false;
@@ -1664,168 +1664,168 @@ bool SqlParser::ParseDatetimeType(Token *name)
     if(Token::Compare(first_unit, "YEAR", L"YEAR", 4) == true)
         first_year = first_unit;
     else
-        if(Token::Compare(first_unit, "MONTH", L"MONTH", 5) == true)
-            first_month = first_unit;
+    if(Token::Compare(first_unit, "MONTH", L"MONTH", 5) == true)
+        first_month = first_unit;
+    else
+    if(Token::Compare(first_unit, "DAY", L"DAY", 3) == true)
+        first_day = first_unit;
+    else
+    if(Token::Compare(first_unit, "HOUR", L"HOUR", 4) == true)
+        first_hour = first_unit;
+    else
+    if(Token::Compare(first_unit, "MINUTE", L"MINUTE", 6) == true)
+        first_minute = first_unit;
+    else
+    if(Token::Compare(first_unit, "SECOND", L"SECOND", 6) == true)
+        first_second = first_unit;
+    else
+    if(Token::Compare(first_unit, "FRACTION", L"FRACTION", 8) == true)
+        first_fraction = first_unit;
+    else
+    {
+        PushBack(first_unit);
+        first_unit = NULL;
+    }
+
+    if(first_unit != NULL)
+    {
+        to = GetNextWordToken("TO", L"TO", 2);
+
+        second_unit = GetNextToken(to);
+
+        if(Token::Compare(second_unit, "YEAR", L"YEAR", 4) == true)
+            second_year = second_unit;
         else
-            if(Token::Compare(first_unit, "DAY", L"DAY", 3) == true)
-                first_day = first_unit;
-            else
-                if(Token::Compare(first_unit, "HOUR", L"HOUR", 4) == true)
-                    first_hour = first_unit;
+        if(Token::Compare(second_unit, "MONTH", L"MONTH", 5) == true)
+            second_month = second_unit;
+        else
+        if(Token::Compare(second_unit, "DAY", L"DAY", 3) == true)
+            second_day = second_unit;
+        else
+        if(Token::Compare(second_unit, "HOUR", L"HOUR", 4) == true)
+            second_hour = second_unit;
+        else
+        if(Token::Compare(second_unit, "MINUTE", L"MINUTE", 6) == true)
+            second_minute = second_unit;
+        else
+        if(Token::Compare(second_unit, "SECOND", L"SECOND", 6) == true)
+            second_second = second_unit;
+        else
+        if(Token::Compare(second_unit, "FRACTION", L"FRACTION", 8) == true)
+            second_fraction = second_unit;
+        else
+        {
+            PushBack(second_unit);
+            second_unit = NULL;
+        }
+    }
+
+    // MySQL and Informix DATETIME can include fraction
+    Token *open = GetNextCharToken('(', L'(');
+
+    if(open != NULL)
+    {
+        /*Token *fraction */ (void) GetNextNumberToken();
+        /*Token *close */ (void) GetNextCharToken(')', L')');
+    }
+
+    // Convert to TIMESTAMP in Oracle, PostgreSQL
+    if(Target(SQL_ORACLE, SQL_POSTGRESQL) == true)
+    {
+        if(_source != SQL_INFORMIX)
+            Token::Change(name, "TIMESTAMP", L"TIMESTAMP", 9);
+
+        // Fraction is 3 by default in SQL Server, Sybase ASE
+        if(Source(SQL_SQL_SERVER, SQL_SYBASE) && open == NULL)
+            Append(name, "(3)", L"(3)", 3);
+        else
+        // Fraction is 0 by default in MySQL
+        if(_source == SQL_MYSQL && open == NULL)
+            Append(name, "(0)", L"(0)", 3);
+        else
+        // Units can specify range and precious in Informix
+        if(_source == SQL_INFORMIX)
+        {
+            // YEAR TO ...
+            if(first_year != NULL)
+            {
+                // YEAR TO FRACTION(n)
+                if(second_fraction != NULL)
+                {
+                    Token::Change(name, "TIMESTAMP", L"TIMESTAMP", 9);
+                    Token::Remove(first_unit, second_unit);
+                }
                 else
-                    if(Token::Compare(first_unit, "MINUTE", L"MINUTE", 6) == true)
-                        first_minute = first_unit;
-                    else
-                        if(Token::Compare(first_unit, "SECOND", L"SECOND", 6) == true)
-                            first_second = first_unit;
-                        else
-                            if(Token::Compare(first_unit, "FRACTION", L"FRACTION", 8) == true)
-                                first_fraction = first_unit;
-                            else
-                            {
-                                PushBack(first_unit);
-                                first_unit = NULL;
-                            }
+                // YEAR TO SECOND, MINUTE, HOUR
+                if(second_second != NULL || second_minute != NULL || second_hour != NULL)
+                {
+                    Token::Change(name, "TIMESTAMP(0)", L"TIMESTAMP(0)", 12);
+                    Token::Remove(first_unit, second_unit);
+                }
+                else
+                // YEAR TO DAY
+                if(second_day != NULL)
+                {
+                    Token::Change(name, "DATE", L"DATE", 4);
+                    Token::Remove(first_unit, second_unit);
+                }
+            }
+        }		
+    }
+    else
+    // Convert to DATETIME2(6) in SQL Server
+    if(_target == SQL_SQL_SERVER && _source != SQL_SQL_SERVER)
+    {
+        Token::Change(name, "DATETIME2", L"DATETIME2", 9);
 
-                            if(first_unit != NULL)
-                            {
-                                to = GetNextWordToken("TO", L"TO", 2);
+        // Remove units
+        if(_source == SQL_INFORMIX)
+            Token::Remove(first_unit, second_unit);
 
-                                second_unit = GetNextToken(to);
+        if(open == NULL)
+        {
+            // Fraction is 0 by default in MySQL
+            if(_source == SQL_MYSQL)
+                Append(name, "(0)", L"(0)", 3);
+            // Fraction is 3 by default in Informix
+            if(_source == SQL_INFORMIX)
+                Append(name, "(3)", L"(3)", 3);
+            else
+            // Fraction is 6 by default in Sybase ASE, Sybase ASA
+            if(Source(SQL_SYBASE, SQL_SYBASE_ASA) == true)
+                Append(name, "(6)", L"(6)", 3);
+        }
+    }
+    else
+    // Append fraction in MySQL
+    if(Target(SQL_MARIADB, SQL_MYSQL))
+    {
+        // Remove []
+        if(datetime_in_braces == true)
+            Token::ChangeNoFormat(name, name, 1, name->len - 2);
 
-                                if(Token::Compare(second_unit, "YEAR", L"YEAR", 4) == true)
-                                    second_year = second_unit;
-                                else
-                                    if(Token::Compare(second_unit, "MONTH", L"MONTH", 5) == true)
-                                        second_month = second_unit;
-                                    else
-                                        if(Token::Compare(second_unit, "DAY", L"DAY", 3) == true)
-                                            second_day = second_unit;
-                                        else
-                                            if(Token::Compare(second_unit, "HOUR", L"HOUR", 4) == true)
-                                                second_hour = second_unit;
-                                            else
-                                                if(Token::Compare(second_unit, "MINUTE", L"MINUTE", 6) == true)
-                                                    second_minute = second_unit;
-                                                else
-                                                    if(Token::Compare(second_unit, "SECOND", L"SECOND", 6) == true)
-                                                        second_second = second_unit;
-                                                    else
-                                                        if(Token::Compare(second_unit, "FRACTION", L"FRACTION", 8) == true)
-                                                            second_fraction = second_unit;
-                                                        else
-                                                        {
-                                                            PushBack(second_unit);
-                                                            second_unit = NULL;
-                                                        }
-                            }
+        if(open == NULL)
+        {
+            // Fraction is 3 in SQL Server, Sybase ASE
+            if(Source(SQL_SQL_SERVER, SQL_SYBASE))
+                Append(name, "(3)", L"(3)", 3);
+        }
+    }
+    else
+    // Remove [] for other databases
+    if(_target != SQL_SQL_SERVER && datetime_in_braces == true)
+        Token::ChangeNoFormat(name, name, 1, name->len - 2);
+    else
+    // Remove "" for other databases
+    if(_target != SQL_SYBASE_ASA && datetime_in_quotes == true)
+        Token::ChangeNoFormat(name, name, 1, name->len - 2);
 
-                            // MySQL and Informix DATETIME can include fraction
-                            Token *open = GetNextCharToken('(', L'(');
+    name->data_type = TOKEN_DT_DATETIME;
+    name->data_subtype = TOKEN_DT2_DATETIME;
 
-                            if(open != NULL)
-                            {
-                                /*Token *fraction */ (void) GetNextNumberToken();
-                                /*Token *close */ (void) GetNextCharToken(')', L')');
-                            }
+    DTYPE_DTL_STATS_L(name)
 
-                            // Convert to TIMESTAMP in Oracle, PostgreSQL
-                            if(Target(SQL_ORACLE, SQL_POSTGRESQL) == true)
-                            {
-                                if(_source != SQL_INFORMIX)
-                                    Token::Change(name, "TIMESTAMP", L"TIMESTAMP", 9);
-
-                                // Fraction is 3 by default in SQL Server
-                                if(Source(SQL_SQL_SERVER) == true && open == NULL)
-                                    Append(name, "(3)", L"(3)", 3);
-                                else
-                                    // Fraction is 0 by default in MySQL
-                                    if(_source == SQL_MYSQL && open == NULL)
-                                        Append(name, "(0)", L"(0)", 3);
-                                    else
-                                        // Units can specify range and precious in Informix
-                                        if(_source == SQL_INFORMIX)
-                                        {
-                                            // YEAR TO ...
-                                            if(first_year != NULL)
-                                            {
-                                                // YEAR TO FRACTION(n)
-                                                if(second_fraction != NULL)
-                                                {
-                                                    Token::Change(name, "TIMESTAMP", L"TIMESTAMP", 9);
-                                                    Token::Remove(first_unit, second_unit);
-                                                }
-                                                else
-                                                    // YEAR TO SECOND, MINUTE, HOUR
-                                                    if(second_second != NULL || second_minute != NULL || second_hour != NULL)
-                                                    {
-                                                        Token::Change(name, "TIMESTAMP(0)", L"TIMESTAMP(0)", 12);
-                                                        Token::Remove(first_unit, second_unit);
-                                                    }
-                                                    else
-                                                        // YEAR TO DAY
-                                                        if(second_day != NULL)
-                                                        {
-                                                            Token::Change(name, "DATE", L"DATE", 4);
-                                                            Token::Remove(first_unit, second_unit);
-                                                        }
-                                            }
-                                        }		
-                            }
-                            else
-                                // Convert to DATETIME2(6) in SQL Server
-                                if(_target == SQL_SQL_SERVER && _source != SQL_SQL_SERVER)
-                                {
-                                    Token::Change(name, "DATETIME2", L"DATETIME2", 9);
-
-                                    // Remove units
-                                    if(_source == SQL_INFORMIX)
-                                        Token::Remove(first_unit, second_unit);
-
-                                    if(open == NULL)
-                                    {
-                                        // Fraction is 0 by default in MySQL
-                                        if(_source == SQL_MYSQL)
-                                            Append(name, "(0)", L"(0)", 3);
-                                        // Fraction is 3 by default in Informix
-                                        if(_source == SQL_INFORMIX)
-                                            Append(name, "(3)", L"(3)", 3);
-                                        else
-                                            // Fraction is 6 by default in Sybase ASE, Sybase ASA
-                                            if(Source(SQL_SYBASE, SQL_SYBASE_ASA) == true)
-                                                Append(name, "(6)", L"(6)", 3);
-                                    }
-                                }
-                                else
-                                    // Append fraction in MySQL
-                                    if(Target(SQL_MARIADB, SQL_MYSQL))
-                                    {
-                                        // Remove []
-                                        if(datetime_in_braces == true)
-                                            Token::ChangeNoFormat(name, name, 1, name->len - 2);
-
-                                        if(open == NULL)
-                                        {
-                                            // Fraction is 3 in SQL Server
-                                            if(_source == SQL_SQL_SERVER)
-                                                Append(name, "(3)", L"(3)", 3);
-                                        }
-                                    }
-                                    else
-                                        // Remove [] for other databases
-                                        if(_target != SQL_SQL_SERVER && datetime_in_braces == true)
-                                            Token::ChangeNoFormat(name, name, 1, name->len - 2);
-                                        else
-                                            // Remove "" for other databases
-                                            if(_target != SQL_SYBASE_ASA && datetime_in_quotes == true)
-                                                Token::ChangeNoFormat(name, name, 1, name->len - 2);
-
-                            name->data_type = TOKEN_DT_DATETIME;
-                            name->data_subtype = TOKEN_DT2_DATETIME;
-
-                            DTYPE_DTL_STATS_L(name)
-
-                            return true;
+    return true;
 }
 
 // DATETIME2 in SQL Server
@@ -2004,12 +2004,10 @@ bool SqlParser::ParseDateType(Token *name)
     // Check for Oracle DATE
     if(_source == SQL_ORACLE)
     {
-        // Convert to DATETIME in SQL Server, MySQL and Sybase ASE
-        if(Target(SQL_SQL_SERVER, SQL_MYSQL, SQL_SYBASE) == true)
+        if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL, SQL_SYBASE))
             Token::Change(name, "DATETIME", L"DATETIME", 8);
         else
-        // Convert to TIMESTAMP(0) in DB2, PostgreSQL, Greenplum, EsgynDB
-        if(Target(SQL_DB2, SQL_POSTGRESQL, SQL_GREENPLUM, SQL_ESGYNDB) == true)
+        if(Target(SQL_DB2, SQL_POSTGRESQL, SQL_GREENPLUM, SQL_ESGYNDB))
             Token::Change(name, "TIMESTAMP(0)", L"TIMESTAMP(0)", 12);
     }
     else

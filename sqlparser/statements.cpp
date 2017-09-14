@@ -317,6 +317,10 @@ bool SqlParser::ParseStatement(Token *token, int scope, int *result_sets)
 	// Optional delimiter at the end of the statement
 	/*Token *semi */ (void) GetNextCharToken(';', L';');
 
+	// Handle GO after a standalone statement in SQL Server
+	if(_spl_scope == 0)
+		SqlServerGoDelimiter(true);
+
 	return exists;
 }
 
@@ -665,6 +669,9 @@ bool SqlParser::ParseAlterTableStatement(Token *alter, Token *table)
 
     _stmt_scope = prev_stmt_scope;
 
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
+
 	return true;
 }
 
@@ -870,7 +877,7 @@ bool SqlParser::ParseAssociateStatement(Token *associate)
 	return true;
 }
 
-// BEGIN; or BEGIN WORK; in Informix, PostgreSQL; BEGIN TRANSACTION in PostgreSQL
+// BEGIN; or BEGIN WORK; in Informix, PostgreSQL; BEGIN TRANSACTION in PostgreSQL, Sybase ASE
 bool SqlParser::ParseBeginStatement(Token *begin)
 {
 	if(begin == NULL)
@@ -879,8 +886,8 @@ bool SqlParser::ParseBeginStatement(Token *begin)
 	// Optional WORK keyword
 	Token *work = GetNextWordToken("WORK", L"WORK", 4);
 
-	// Optional TRANSACTION keyword in PostgreSQL
-	Token *transaction = (work == NULL) ? GetNextWordToken("WORK", L"WORK", 4) : NULL;
+	// Optional TRANSACTION keyword in PostgreSQL, Sybase ASE
+	Token *transaction = (work == NULL) ? GetNextWordToken("TRANSACTION", L"TRANSACTION", 11) : NULL;
 
 	// When WORK or TRANSACTION keyword not set check for ; to not confuse with BEGIN-END block
 	if(work == NULL && transaction == NULL)
@@ -896,6 +903,16 @@ bool SqlParser::ParseBeginStatement(Token *begin)
 	// Comment in Oracle; comment in PostgreSQL procedure
 	if(_target == SQL_ORACLE || (_target == SQL_POSTGRESQL && _spl_scope == SQL_SCOPE_PROC))
 		Comment(begin, Nvl(GetNextCharToken(';', L';'), work, transaction));
+	else
+	// MySQL, MariaDB use START TRANSACTION or BEGIN [WORK]
+	if(Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		if(transaction != NULL)
+			TOKEN_CHANGE(begin, "START");
+	}
+
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
 
 	return true;
 }
@@ -1233,9 +1250,35 @@ bool SqlParser::ParseCommitStatement(Token *commit)
 	// Optional WORK keyword
 	Token *work = GetNextWordToken("WORK", L"WORK", 4);
 
+	// Optional TRANSACTION keyword in Sybase ASE
+	Token *transaction = (work == NULL) ? GetNextWordToken("TRANSACTION", L"TRANSACTION", 11) : NULL;
+	Token *tran = NULL;
+	bool commented = false;
+
+	// TRAN can be used in Sybase ASE
+	if(work == NULL && transaction == NULL)
+		tran = GetNextWordToken("TRAN", L"TRAN", 4);
+
 	// PostgreSQL, Greenplum and Netezza do not allow COMMIT in a procedure
-	if(_spl_scope == SQL_SCOPE_PROC && Target(SQL_POSTGRESQL, SQL_NETEZZA, SQL_GREENPLUM) == true)
-		Comment(commit, Nvl(GetNextCharToken(';', L';'), work));
+	if(_spl_scope == SQL_SCOPE_PROC && Target(SQL_POSTGRESQL, SQL_NETEZZA, SQL_GREENPLUM))
+	{
+		Comment(commit, Nvl(GetNextCharToken(';', L';'), work, transaction, tran));
+		commented = true;
+	}
+
+	// MySQL, MariaDB support COMMIT [WORK]
+	if(Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		if(transaction != NULL)
+			Token::Remove(transaction);
+
+		if(tran != NULL)
+			Token::Remove(tran);
+	}
+
+	// Add statement delimiter if not set when source is SQL Server
+	if(!commented)
+		SqlServerAddStmtDelimiter();
 
 	return true;
 }
@@ -1320,13 +1363,11 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token)
 	if(table == NULL)
 		return false;
 
-	// Temporary table in SQL Server starts with #
-	if(Token::Compare(table, '#', L'#', 0) == true)
+	// Temporary table in SQL Server, Sybase ASE starts with #, in Sybase ASE it also can start with tempdb..
+	if(Token::Compare(table, '#', L'#', 0) || Token::Compare(table, "tempdb..", L"tempdb..", 0, 8))
 	{
 		if(Target(SQL_MARIADB, SQL_MYSQL))
-		{
 			Append(create, " TEMPORARY", L" TEMPORARY", 10);
-		}
 	}
 
 	// Save bookmark to the start of CREATE TABLE
@@ -1429,6 +1470,11 @@ bool SqlParser::ParseCreateTable(Token *create, Token *token)
 	// If source is MySQL move inline non-unique indexes to separate CREATE INDEX statements
 	if(_source == SQL_MYSQL && inline_indexes.GetCount() > 0)
 		MysqlMoveInlineIndexes(inline_indexes, last);
+
+	if(_spl_first_non_declare == NULL)
+		_spl_first_non_declare = create;
+
+	_spl_last_stmt = create;
 
 	return true;
 }
@@ -2748,8 +2794,17 @@ bool SqlParser::ParseDeclareStatement(Token *declare)
         // MySQL and MariaDB require DECLARE for each variable
         if(Target(SQL_MYSQL, SQL_MARIADB))
         {
-            AppendWithSpaceAfter(comma, " DECLARE", L" DECLARE", 8, declare); 
+			Token *next_name = GetNextToken();
+
+			// If the next variable are on the same line put DECLARE on this line as well
+			if(next_name != NULL && next_name->line == comma->line)
+				AppendWithSpaceAfter(comma, " DECLARE", L" DECLARE", 8, declare); 
+			// otherwise move DECLARE to the variable name line
+			else
+				PREPEND_FMT(next_name, "DECLARE ", declare); 
+			
 			TOKEN_CHANGE(comma, ";");
+			PushBack(next_name);
         }
 	}
 
@@ -2945,6 +3000,10 @@ bool SqlParser::ParseDropStatement(Token *drop)
 	if(next->Compare("TABLE", L"TABLE", 5) == true)
 		exists = ParseDropTableStatement(drop, next);
 	else
+	// DROP PROCEDURE
+	if(next->Compare("PROCEDURE", L"PROCEDURE", 9) == true)
+		exists = ParseDropProcedureStatement(drop, next);
+	else
 	// DROP TRIGGER
 	if(next->Compare("TRIGGER", L"TRIGGER", 7) == true)
 		exists = ParseDropTriggerStatement(drop, next);
@@ -3012,7 +3071,7 @@ bool SqlParser::ParseDropTableStatement(Token *drop, Token *table)
 
     STMS_STATS("DROP TABLE");
 
-	Token *table_name = GetNextIdentToken();
+	Token *table_name = GetNextIdentToken(SQL_IDENT_OBJECT);
 
 	if(table_name == NULL)
 		return false;
@@ -3070,7 +3129,29 @@ bool SqlParser::ParseDropTableStatement(Token *drop, Token *table)
 			}
 		}
 	}
+
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
 	  
+	return true;
+}
+
+// DROP PROCEDURE statement
+bool SqlParser::ParseDropProcedureStatement(Token *drop, Token *procedure)
+{
+	if(drop == NULL || procedure == NULL)
+		return false;
+
+    STMS_STATS("DROP PROCEDURE");
+
+	Token *name = GetNextIdentToken(SQL_IDENT_OBJECT);
+
+	if(name == NULL)
+		return false;	
+  
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
+
 	return true;
 }
 
@@ -3297,7 +3378,7 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 			}
 		}
 	}
-	// EXECUTE in SQL Server, PostgreSQL, MySQL, Teradata
+	// EXECUTE in SQL Server, PostgreSQL, MySQL, Teradata, Sybase ASE
 	else
 	{
         PL_STMS_STATS("EXECUTE");
@@ -3384,8 +3465,14 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 				Token::Remove(open);
 				Token::Remove(close);
 			}
+			// Stored procedure call
 			else
-				Token::Change(execute, "CALL", L"CALL", 4);
+			{
+				if(Source(SQL_SQL_SERVER, SQL_SYBASE))
+					ParseSqlServerExecProcedure(execute, exp);
+				else
+					Token::Change(execute, "CALL", L"CALL", 4);
+			}
 		}
 	}
 
@@ -3482,8 +3569,8 @@ bool SqlParser::ParseExitStatement(Token *exit)
 
             Token::Remove(next, cent); 
 
-             // Add NOT FOUND handler and variable
-            MySQLAddNotFoundHandler();
+            // Add NOT FOUND handler and variable
+			_spl_need_not_found_handler = true;
         }
 		else
 		// WHEN NOT FOUND in Netezza
@@ -4299,12 +4386,24 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 		}
 	}
 
+	Token *cursor_end = GetLastToken();
+
 	// If there are no non-declare statements above, set last declare
 	if(_spl_first_non_declare == NULL)
-		_spl_last_declare = GetLastToken();
+		_spl_last_declare = cursor_end;
 
+	bool moved = false;
+
+	// MySQL, MariaDB require cursor declaration go before any other statements
+	if(Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		MySQLMoveCursorDeclarations(declare, cursor_end);
+		moved  = true;
+	}
+	
 	// Add statement delimiter if not set when source is SQL Server
-	SqlServerAddStmtDelimiter();
+	if(!moved)
+		SqlServerAddStmtDelimiter();
 
 	return true;
 }
@@ -5221,7 +5320,7 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
             Prepend(begin, "WHILE not_found=0\n", L"WHILE not_found=0\n", 18);
 
             // Add NOT FOUND handler and variable
-            MySQLAddNotFoundHandler();
+           	_spl_need_not_found_handler = true;
         }
 	}
 	else
@@ -5618,6 +5717,7 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 		return false;
 
     PL_STMS_STATS(if_)
+	int old_spl_scope = _spl_scope; 
 
 	// Force block scope to handle delimiters
 	if(_spl_scope == 0)
@@ -5839,6 +5939,7 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 		_spl_first_non_declare = if_;
 
 	_spl_last_stmt = if_;
+	_spl_scope = old_spl_scope; 
 
 	return true;
 }
@@ -5888,7 +5989,7 @@ bool SqlParser::ParseWhileStatement(Token *while_, int scope)
 	}
 	else
 	// Use DO keyword in DB2, MySQL
-	if(Target(SQL_DB2, SQL_MYSQL, SQL_TERADATA) == true)
+	if(Target(SQL_DB2, SQL_MYSQL, SQL_MARIADB, SQL_TERADATA) == true)
 	{
 		if(loop != NULL) 
 			Token::Change(loop, "DO", L"DO", 2);
@@ -5940,8 +6041,8 @@ bool SqlParser::ParseWhileStatementEnd()
 			Append(end, " LOOP", L" LOOP", 5);
 	}
 	else
-	// Use END WHILE in DB2, MySQL, Teradata
-	if(Target(SQL_DB2, SQL_MYSQL) == true)
+	// Use END WHILE in DB2, MySQL, MariaDB, Teradata
+	if(Target(SQL_DB2, SQL_MYSQL, SQL_MARIADB, SQL_TERADATA))
 	{
 		if(loop != NULL)
 			Token::Change(loop, "WHILE", L"WHILE", 5);
@@ -6106,6 +6207,9 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 	if(_target == SQL_ORACLE)
 		OracleContinueHandlerForInsert(insert);
 
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
+
 	return true;
 }
 
@@ -6260,7 +6364,7 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 	if(priv == NULL)
 		return false;
 
-	// EXECUTE ON in Informix, PostgreSQL
+	// EXECUTE ON in Informix, PostgreSQL, Sybase ASE
 	if(priv->Compare("EXECUTE", L"EXECUTE", 7) == true)
 	{
 		Token *on = GetNextWordToken("ON", L"ON", 2);
@@ -6277,7 +6381,8 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 			Token::Change(procedure, "FUNCTION", L"FUNCTION", 8);
 
 		// Procedure or function name
-		/*Token *name */ (void) GetNextToken(on);
+		if(on != NULL)
+		/*Token *name */ (void) GetNextIdentToken(SQL_IDENT_OBJECT);
 
 		// Parameters in Informix and PostgreSQL
 		Token *open = GetNextCharToken('(', L'(');
@@ -6332,6 +6437,9 @@ bool SqlParser::ParseGrantStatement(Token *grant)
 		if(_target == SQL_POSTGRESQL)
 			Token::Remove(as, grantor);
 	}
+
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
 
 	return true;
 }
@@ -6670,6 +6778,7 @@ bool SqlParser::ParseOpenStatement(Token *open)
 		return false;
 
 	_spl_last_open_cursor_name = name;
+	_spl_open_cursors.Add(open);
 
 	// Optional FOR keyword
 	Token *for_ = GetNextWordToken("FOR", L"FOR", 3); 
@@ -7236,6 +7345,19 @@ bool SqlParser::ParseReturnStatement(Token *return_)
 
     PL_STMS_STATS(return_);
 
+	_spl_return_num++;
+	_spl_last_stmt = return_;
+	
+	if(_spl_first_non_declare == NULL)
+		_spl_first_non_declare = return_;
+
+	// MySQL, MariaDB do not allow RETURN in procedures
+	if(_spl_scope == SQL_SCOPE_PROC && Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		TOKEN_CHANGE(return_, "LEAVE");
+		APPEND_NOFMT(return_, " sp_lbl");
+	}
+
 	// Check for RETURN without any expression
 	Token *semi = GetNextCharToken(';', L';');
 
@@ -7243,6 +7365,21 @@ bool SqlParser::ParseReturnStatement(Token *return_)
 	{
 		PushBack(semi);
 		return true;
+	}
+
+	// In SQL Server, Sybase ASE RETURN can be without expression and semicolon, check that it is not followed by END
+	if(Source(SQL_SQL_SERVER, SQL_SYBASE))
+	{
+		Token *end = TOKEN_GETNEXTW("END");
+
+		if(end != NULL)
+		{
+			PushBack(end);
+
+			// Add statement delimiter if not set when source is SQL Server/Sybase
+			SqlServerAddStmtDelimiter();			
+			return true;
+		}
 	}
 
 	int num = 0;
@@ -7348,11 +7485,6 @@ bool SqlParser::ParseReturnStatement(Token *return_)
 
 	// Add statement delimiter if not set when source is SQL Server
 	SqlServerAddStmtDelimiter();
-
-	if(_spl_first_non_declare == NULL)
-		_spl_first_non_declare = return_;
-
-	_spl_last_stmt = return_;
 	
 	return true;
 }
@@ -7936,14 +8068,17 @@ bool SqlParser::ParseUpdateStatement(Token *update)
 		return true;
 
     STMS_STATS(update);
+	_spl_last_fetch_cursor_name = NULL;
+	
+	// Parse SQL Server, Sybase ASE UPDATE statememt
+	if(Source(SQL_SQL_SERVER, SQL_SYBASE) && ParseSqlServerUpdateStatement(update))
+		return true;
 
 	// Table name
 	Token *name = GetNextIdentToken(SQL_IDENT_OBJECT);
 
 	if(name == NULL)
 		return false;
-
-	_spl_last_fetch_cursor_name = NULL;
 
 	// Table alias or SET
 	Token *next = GetNextToken();
@@ -8277,7 +8412,7 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 		// In SQL Server AS keyword can follow after parameter name
 		Token *as = GetNextWordToken("AS", L"AS", 2); 
 
-		if(Target(SQL_MARIADB, SQL_MYSQL))
+		if(as != NULL && Target(SQL_MARIADB, SQL_MYSQL))
 			Token::Remove(as);
 
 		// In Oracle IN, OUT or IN OUT follows the name
@@ -8367,8 +8502,8 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 				Comment(next, default_exp);
 		}
 
-		// In SQL Server OUT or OUTPUT go after the default
-		if(_source == SQL_SQL_SERVER)
+		// In SQL Server OUT or OUTPUT go after the default; Sybase ASE uses OUTPUT
+		if(Source(SQL_SQL_SERVER, SQL_SYBASE))
 		{
 			Token *param_type = GetNextToken();
 
@@ -8537,6 +8672,7 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 	// In SQL Server and Sybase procedural block can start without BEGIN; In Informix BEGIN not used
 	Token *begin = GetNextWordToken("BEGIN", L"BEGIN", 5);
 
+	_spl_outer_as = as;
     _spl_outer_begin = begin;
 
 	// In Oracle, variable declaration goes before BEGIN
@@ -8625,9 +8761,9 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 
 	bool frontier = (begin != NULL) ? true : false;
 
-	// If BEGIN END is not specified in SQL Server, body is terminated with GO, it acts as the frontier
+	// If BEGIN END is not specified in SQL Server and Sybase ASE, body is terminated with GO, it acts as the frontier
 	// Informix does not use BEGIN keyword, but body always terminated with END PROCEDURE, set frontier
-	if(Source(SQL_SQL_SERVER, SQL_INFORMIX) == true)
+	if(Source(SQL_SQL_SERVER, SQL_SYBASE, SQL_INFORMIX) == true)
 		frontier = true;
 
     _spl_begin_blocks.Add(GetLastToken(begin));
@@ -8764,6 +8900,17 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 	// Transform DB2, MySQL, Teradata EXIT HANDLERs, Informix ON EXCEPTION to Oracle and PostgreSQL EXCEPTION
 	if(Source(SQL_DB2, SQL_MYSQL, SQL_INFORMIX, SQL_TERADATA) && Target(SQL_ORACLE, SQL_POSTGRESQL))
 		OracleExitHandlersToException(end);
+
+	// Add label for target MySQL, MariaDB if there is a RETURN inside the procedure (converted to LEAVE lbl)
+	if(_spl_return_num > 0 && Target(SQL_MYSQL, SQL_MARIADB))
+		PREPEND_NOFMT(Nvl(as, begin), "sp_lbl:\n"); 
+
+	// Add not hound handler that must go after all variables and cursors; and initialize not_found variable before second and subsequent OPEN cursors
+	if(_spl_need_not_found_handler && Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		MySQLAddNotFoundHandler();
+		MySQLInitNotFoundBeforeOpen();
+	}
 
 	return true;
 }
@@ -9680,6 +9827,13 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
 	// User-defined delimiter can be specified for MySQL, often // @ (also used for DB2)
     if(Source(SQL_DB2, SQL_MYSQL))
 	    ParseMySQLDelimiter(create);
+
+	// Add not hound handler that must go after all variables and cursors; and initialize not_found variable before second and subsequent OPEN cursors
+	if(_spl_need_not_found_handler && Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		MySQLAddNotFoundHandler();
+		MySQLInitNotFoundBeforeOpen();
+	}
 
 	return true;
 }

@@ -202,12 +202,13 @@ bool SqlParser::ParseBooleanErrorCheckPattern()
 // Typical cursor check - @@FETCH_STATUS = 0 in SQL Server, @@SQLSTATUS = 0 in Sybase
 bool SqlParser::ParseBooleanCursorCheckPattern()
 {
-	if(Source(SQL_SQL_SERVER, SQL_SYBASE) == false || Target(SQL_ORACLE, SQL_MYSQL, SQL_POSTGRESQL) == false)
+	if(!Source(SQL_SQL_SERVER, SQL_SYBASE) || !Target(SQL_ORACLE, SQL_MYSQL, SQL_MARIADB, SQL_POSTGRESQL))
 		return false;
 
 	bool exists = false;
 
-	// @@FETCH_STATUS = 0 in SQL Server, @@SQLSTATUS in Sybase
+	// @@FETCH_STATUS = 0 in SQL Server, @@SQLSTATUS = 0 in Sybase ASE
+	// Also check @@SQLSTATUS != 2 that means no rows found in Sybase ASE
 	if(Source(SQL_SQL_SERVER, SQL_SYBASE) == true)
 	{
 		// Optionally enclosed
@@ -226,8 +227,27 @@ bool SqlParser::ParseBooleanCursorCheckPattern()
 			Token *equal = GetNext('=', L'=');
 			Token *zero = GetNext(equal, "0", L"0", 1);
 
+			Token *not_ = NULL;
+			Token *two = NULL;
+
+			bool row_found = false;
+
+			// Check the same functionality taken using non-equality operator 
+			if(equal == NULL && zero == NULL)
+			{
+				not_ = GetNext('!', L'!');
+				equal = GetNext(not_, '=', L'=');
+				two = GetNext(equal, "2", L"2", 1);
+
+				// @@sqlstatus != 2 in Sybase ASE
+				if(sqlstatus != NULL && two != NULL)
+					row_found = true;
+			}
+			else
+				row_found = true;
+
 			// Fetch was successful, a row returned
-			if(zero != NULL)
+			if(row_found)
 			{
 				if(open != NULL)
 					GetNext(')', L')');
@@ -249,6 +269,23 @@ bool SqlParser::ParseBooleanCursorCheckPattern()
 					}
 
 					Token::Remove(equal, zero);
+					exists = true;
+				}
+				else
+				if(Target(SQL_MYSQL, SQL_MARIADB))
+				{
+					TOKEN_CHANGE(status, "NOT_FOUND");
+
+					// @@sqlstatus != 2 in Sybase ASE
+					if(sqlstatus != NULL && not_ != NULL && two != NULL)
+					{
+						TOKEN_CHANGE(two, "0");
+						Token::Remove(not_);
+					}
+
+					// Add NOT FOUND handler and variable later as it must go after all variable and cursor declarations
+					_spl_need_not_found_handler = true;
+
 					exists = true;
 				}
 				else

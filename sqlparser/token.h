@@ -104,6 +104,9 @@ public:
 	// Source value was allocated for the token, and needs to be deleted in destructor
 	bool source_allocated;
 
+	// Line in the source code where the token appears
+	int line; 
+
 	// Constructor/destructor
 	Token();
 	~Token();

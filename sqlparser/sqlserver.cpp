@@ -174,7 +174,11 @@ void SqlParser::SqlServerAddStmtDelimiter(bool force)
 
 	// Add the delimiter in statements in procedural block only
 	if(_spl_scope == 0 && force == false)
-		return;
+	{
+		// Special case when a single statement followed by GO, then add ; even if we are no inside procedure scope
+		if(!LookNext("GO", L"GO", 2))
+			return;
+	}
 
 	// Check if the delimiter already set
 	Token *semi = GetNextCharToken(';', L';');
@@ -477,4 +481,159 @@ void SqlParser::SqlServerToDateAdd(Token *op, Token *first, Token *first_end, To
 	APPEND_NOFMT(first_end, ")");
 
 	Token::Remove(op, second_end);
+}
+
+// SQL Server, Sybase ASE EXEC procedure statement
+void SqlParser::ParseSqlServerExecProcedure(Token *execute, Token *name)
+{
+	if(execute == NULL || name == NULL)
+		return;
+
+	ConvertIdentifier(name, SQL_IDENT_OBJECT);
+
+	if(Target(SQL_MARIADB, SQL_MYSQL))
+		TOKEN_CHANGE(execute, "CALL");
+
+	int params = 0;
+
+	// Parse parameters
+	// Sybase ASE does not use () around parameters
+	while(true)
+	{
+		Token *next = GetNextToken();
+
+		if(next == NULL)
+			break;
+
+		// If there are no params, we can have conflict with next statement as there may be no delimiters in Transact-SQL
+		// If there is at least one parameter, no conflict is possible for subsequent params as comma defines whether it exists or not
+		if(params == 0 && !IsValidAlias(next))
+		{
+			PushBack(next);
+			break;
+		}
+
+		ConvertIdentifier(next, SQL_IDENT_VAR);
+
+		// OUTPUT qualifier can be specified for parameter in Sybase ASE
+		Token *output = GetNext("OUTPUT", L"OUTPUT", 6);
+
+		if(output != NULL && Target(SQL_MARIADB, SQL_MYSQL))
+			Token::Remove(output);
+
+		Token *comma = GetNext(',', L',');
+
+		if(comma == NULL)
+			break;
+
+		params++;
+	}
+
+	// When there are no parameters MySQL, MariaDB allow as CALL name() and CALL name
+	if(params > 0)
+	{		
+		if(Target(SQL_MARIADB, SQL_MYSQL))
+		{
+			APPEND_NOFMT(name, "(");
+			APPEND_NOFMT(GetLastToken(), ")");
+		}
+	}
+}
+
+// Parse SQL Server, Sybase ASE UPDATE statememt
+bool SqlParser::ParseSqlServerUpdateStatement(Token *update)
+{
+	Token *name = GetNextIdentToken(SQL_IDENT_OBJECT);
+
+	if(name == NULL)
+		return false;
+
+	Token *set = TOKEN_GETNEXTW("SET");
+
+	if(set == NULL)
+	{
+		PushBack(name);
+		return false;
+	}
+	
+	// Parser list of assignments: c1 = exp1, ...
+	while(true)
+	{
+		Token *col = GetNextIdentToken();
+
+		if(col == NULL)
+			break;
+		
+		Token *equal = TOKEN_GETNEXT('=');
+
+		if(equal == NULL)
+			break;
+
+		// Single value or (SELECT c1, c2, ...) can be specified
+		Token *open = TOKEN_GETNEXT('(');
+
+		Token *select = NULL;
+
+		// Check for SELECT statement
+		if(open != NULL)
+		{
+			select = GetNextSelectStartKeyword();
+
+			// A subquery used to specify assignment values
+			if(select != NULL)
+				ParseSelectStatement(select, 0, SQL_SEL_UPDATE_SET, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+			TOKEN_GETNEXT(')');
+		}
+		else
+		{
+			Token *exp = GetNextToken();
+
+			if(exp == NULL)
+				break;
+
+			ParseExpression(exp);
+		}
+		
+		Token *comma = TOKEN_GETNEXT(',');
+
+		if(comma == NULL)
+			break;
+	}
+
+	Token *from = NULL;
+	Token *from_end = NULL;
+
+	// FROM clause can include inner/outer joins
+	ParseSelectFromClause(NULL, false, &from, &from_end, NULL, true, NULL);
+        	
+    Token *where_ = NULL;
+    Token *where_end = NULL;
+
+	// optional WHERE clause
+	ParseWhereClause(SQL_STMT_UPDATE, &where_, &where_end, NULL);
+
+	// UPDATE FROM syntax is used
+	if(from != NULL)
+	{
+		// MySQL, MariaDB use syntax UPDATE t1, t2 SET ... WHERE
+		if(Target(SQL_MYSQL, SQL_MARIADB))
+		{
+			Token::Remove(from);
+
+			AppendCopy(name, from, from_end, false);
+
+			Token::Remove(name);
+			Token::Remove(from, from_end);
+		}
+	}
+
+    // Implement CONTINUE handler for NOT FOUND in Oracle
+	if(_target == SQL_ORACLE)
+		OracleContinueHandlerForUpdate(update);
+
+	// Add statement delimiter if not set when source is SQL Server
+	SqlServerAddStmtDelimiter();
+
+	return true;
 }

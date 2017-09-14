@@ -46,6 +46,7 @@ Token::Token()
 
 	remain_size = 0;
 	next_start = NULL;
+	line = 0;
 	source_allocated = false;
 
 	prev = NULL;
@@ -497,6 +498,13 @@ void Token::FormatTargetValue(Token *token, Token *format)
 		{
 			_strlwr(tgt);
 			tgt[0] = 'A' + (tgt[0] - 'a');
+		}
+		else
+		// Special case when first is the space
+		if(tgt[0] == ' ' && tgt[1] >= 'A' && tgt[1] <= 'Z')
+		{
+			_strlwr(tgt);
+			tgt[1] = 'A' + (tgt[1] - 'a');
 		}
 	}
 	else

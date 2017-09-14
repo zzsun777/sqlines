@@ -143,19 +143,53 @@ void SqlParser::MySQLAddNotFoundHandler()
     Token *append_var = _spl_last_outer_declare_var;
     Token *append = GetDeclarationAppend();
     
-    Token *format = _spl_outer_begin;
+    Token *format = Nvl(_spl_outer_begin, _spl_outer_as);
 
     if(append == NULL)
-        append = _spl_outer_begin;
+        append = Nvl(_spl_outer_begin, _spl_outer_as);
 
     if(append_var == NULL)
-        append_var = _spl_outer_begin;
+        append_var = Nvl(_spl_outer_begin, _spl_outer_as);
 
     // Variable must go before cursor and condition handlers
-    AppendFirstNoFormat(append_var, "\nDECLARE not_found INT DEFAULT 0;", L"\nDECLARE not_found INT DEFAULT 0;", 33);
+    AppendFirst(append_var, "\nDECLARE not_found INT DEFAULT 0;", L"\nDECLARE not_found INT DEFAULT 0;", 33, format);
     Append(append, "\nDECLARE CONTINUE HANDLER FOR NOT FOUND SET not_found = 1;", L"\nDECLARE CONTINUE HANDLER FOR NOT FOUND SET not_found = 1", 58, format);
 
     _spl_not_found_handler = true;
+}
+
+// Initialize not_found variable before second and subsequent OPEN cursors
+void SqlParser::MySQLInitNotFoundBeforeOpen()
+{
+	int k  = 0;
+	for(ListwItem *i = _spl_open_cursors.GetFirst(); i != NULL; i = i->next)
+	{
+		Token *open = (Token*)i->value;
+
+		if(open != NULL && k > 0)
+			PREPEND(open, "SET NOT_FOUND = 0;\n");
+
+		k++;
+	}
+}	
+
+// MySQL, MariaDB require cursor declaration go before any other statements
+void SqlParser::MySQLMoveCursorDeclarations(Token *declare, Token *cursor_end)
+{
+	if(_spl_first_non_declare == NULL || declare == NULL || cursor_end == NULL)
+		return;
+
+	// Non declare statement goes earlier
+	if(_spl_first_non_declare->remain_size > declare->remain_size)
+	{
+		Token *semi = TOKEN_GETNEXT(';');
+
+		AppendNewlineCopy(_spl_last_declare, declare, Nvl(semi, cursor_end), 2, false);
+		Token::Remove(declare, cursor_end);
+
+		if(semi == NULL)
+			APPEND_NOFMT(_spl_last_declare, ";");
+	}
 }
 
 // MySQL DEFINER, ALGORITHM clauses in CREATE statements

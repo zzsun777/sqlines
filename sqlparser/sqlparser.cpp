@@ -719,6 +719,7 @@ bool SqlParser::GetSingleCharToken(Token *token)
 		token->str = NULL;
 		token->wstr = NULL;
 		token->len = 0;
+		token->line = _line;
 		token->remain_size = _remain_size;
 		token->next_start = _next_start;
 
@@ -902,8 +903,8 @@ bool SqlParser::GetQuotedIdentifier(Token *token, bool starts_as_unquoted)
 			// Go until the end of part
 			while(_remain_size > 0)
 			{
-				// Check whether we meet a special character allowed in identifiers
-				if(strchr(g_symbols, *cur) != NULL && *cur != '_')
+				// Check whether we meet a special character allowed in identifiers (:NEW.name i.e.)
+				if(strchr(g_symbols, *cur) != NULL && *cur != '_' && *cur != ':')
 					break;
 		
 				cur++;
@@ -1545,6 +1546,7 @@ bool SqlParser::GetWordToken(Token *token)
 		token->str = _next_start;
 		token->wstr = 0;
 		token->len = len;
+		token->line = _line;
 		token->remain_size = _remain_size;
 		token->next_start = _next_start + len;
 
@@ -1563,6 +1565,17 @@ void SqlParser::PushBack(Token *token)
 		return;
 
 	_push_back_token = token;
+}
+
+// Check next token for the specific value but do not fecth it from the input
+Token* SqlParser::LookNext(const char *str, const wchar_t *wstr, size_t len)
+{
+	Token *token = GetNext(str, wstr, len);
+
+	if(token != NULL)
+		PushBack(token);
+
+	return token;
 }
 
 // Append the token with the specified value
@@ -2083,6 +2096,7 @@ bool SqlParser::IsValidAlias(Token *token)
 			Token::Compare(token, "FETCH", L"FETCH", 5) == true ||
 			Token::Compare(token, "IF", L"IF", 2) == true ||
 			Token::Compare(token, "GO", L"GO", 2) == true ||
+			Token::Compare(token, "GROUP", L"GROUP", 5) == true ||
 			Token::Compare(token, "ORDER", L"ORDER", 5) == true || 
 			Token::Compare(token, "RETURN", L"RETURN", 6) == true || 
 			Token::Compare(token, "SELECT", L"SELECT", 6) == true || 

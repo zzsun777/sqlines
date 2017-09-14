@@ -116,7 +116,7 @@ Book* SqlParser::GetBookmark2(int type, Token *nm)
 }
 
 // Return first not NULL
-Token* SqlParser::Nvl(Token *first, Token *second, Token *third)
+Token* SqlParser::Nvl(Token *first, Token *second, Token *third, Token *fourth)
 {
 	if(first != NULL)
 		return first;
@@ -124,7 +124,10 @@ Token* SqlParser::Nvl(Token *first, Token *second, Token *third)
 	if(second != NULL)
 		return second;
 
-	return third;
+	if(third != NULL)
+		return third;
+
+	return fourth;
 }
 
 Token* SqlParser::NvlLast(Token *first)
@@ -657,8 +660,8 @@ void SqlParser::ConvertSchemaName(Token *token, TokenStr &ident, size_t *len)
 	if(_option_rems == true)
 		schema.Clear();
 	else
-	// dbo. in SQL Server
-	if(_source == SQL_SQL_SERVER && _target != SQL_SQL_SERVER && 
+	// dbo. in SQL Server, Sybase ASE
+	if(Source(SQL_SQL_SERVER, SQL_SYBASE) && !Target(SQL_SQL_SERVER, SQL_SYBASE) && 
 		(schema.Compare("[dbo].", L"[dbo].", 6) == true || schema.Compare("dbo.", L"dbo.", 4) == true))
 		schema.Clear();		
 	else
@@ -1175,6 +1178,7 @@ void SqlParser::ClearSplScope()
 
 	_spl_package = NULL;
     _spl_outer_begin = NULL;
+	_spl_outer_as = NULL;
     _spl_begin_blocks.DeleteAll();
 	_spl_last_declare = NULL;
 	_spl_first_non_declare = NULL;
@@ -1217,10 +1221,12 @@ void SqlParser::ClearSplScope()
 
 	_spl_foreach_num = 0;
 	_spl_moved_if_select = 0;
+	_spl_return_num = 0;
 
 	_spl_last_insert_table_name = NULL;
 	_spl_last_open_cursor_name = NULL;
 	_spl_last_fetch_cursor_name = NULL;
+	_spl_open_cursors.DeleteAll();
 
 	_spl_prepared_stmts.DeleteAll();
 	_spl_prepared_stmts_cursors.DeleteAll();
@@ -1239,6 +1245,7 @@ void SqlParser::ClearSplScope()
 
 	_spl_proc_to_func = false;
     _spl_not_found_handler = false;
+	_spl_need_not_found_handler = false;
 
 	_spl_monday_1 = false;   // means unknown from context
 
