@@ -89,6 +89,9 @@ class SqlDataCmd
 	std::string _logname;
 	std::string _ss;
 
+	// Target is stdout
+	bool _td_stdout;
+
 	// Number of worker processes and threads
 	short _concurrent_sessions;
 	short _workers;
@@ -178,6 +181,8 @@ public:
 	void SetConsoleFunc(void *object, AppLogConsoleFunc console) { _log.SetConsoleFunc(object, console); }
 
 	void SetUiCallback(void *o, SqlDataCallbackFunc f) { _ui_callback = f; _ui_callback_object = o; }
+
+	bool IsStdOut() { return _td_stdout; }
 
 private:
 	// Connect to the database to read metadata

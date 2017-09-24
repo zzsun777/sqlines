@@ -1,6 +1,20 @@
+/** 
+ * Copyright (c) 2016 SQLines
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 // Parameters class - Loads parameters from command line  
-// Copyright (c) 2012 SQLines. All rights reserved
 
 #include <stdio.h> 
 #include <string.h>
@@ -9,11 +23,14 @@
 #include "parameters.h"
 #include "str.h"
 #include "file.h"
+#include "os.h"
 
 // Constructor
 Parameters::Parameters()
 {
 	_cfg_file = NULL;
+	_cfg_read_ok = false;
+	*_cfg_read_err = '\x0';
 }
 
 // Return the value of the parameter if it is set to True or Yes
@@ -181,24 +198,31 @@ int Parameters::LoadConfigFile()
 {
 	const char *file = Get("-cfg");
 
-	// Use the default file name
-	if(file == NULL)
-		file = _cfg_file;
+	_cfg_read_ok = false;
+	*_cfg_read_err = '\x0';
 
-	if(file == NULL)
+	// Use the default file name
+	if(file != NULL)
+		_cfg_file = file;
+
+	if(_cfg_file == NULL)
 		return -1;
 
 	// Configuration file size
-	int size = File::GetFileSize(file);
+	int size = File::GetFileSize(_cfg_file);
 
 	if(size == -1)
+	{
+		Os::GetLastErrorText(NULL, _cfg_read_err, CFG_ERROR_LEN);
 		return -1;
+	}
  
 	char *input = new char[(size_t)size + 1];
 
 	// Get content of the file (without terminating 'x0')
-	if(File::GetContent(file, input, (size_t)size) == -1)
+	if(File::GetContent(_cfg_file, input, (size_t)size) == -1)
 	{
+		Os::GetLastErrorText(NULL, _cfg_read_err, CFG_ERROR_LEN);
 		delete input;
 		return -1;
 	}
@@ -257,6 +281,7 @@ int Parameters::LoadConfigFile()
 		}
 	}
 
+	_cfg_read_ok = true;
 	delete input;
 
 	return 0;

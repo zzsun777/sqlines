@@ -196,8 +196,10 @@ public:
 	virtual int ReadConstraintColumns(const char *schema, const char *table, const char *constraint, std::string &cols);
 
 	// Get a list of columns for specified primary or unique key
-	virtual int GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output);
-
+	virtual int GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> * = NULL);
+	// Get a list of columns for specified foreign key
+	virtual int GetForeignKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &fcols, std::list<std::string> &pcols, std::string &ptable);
+	
 	// Build a condition to select objects from the catalog
 	virtual void GetCatalogSelectionCriteria(std::string &selection_template, std::string &output);
 
@@ -212,6 +214,7 @@ private:
 	// Metadata reading functions
 	int ReadTableColumns(std::string &condition);
 	int ReadIndexes(std::string &condition);
+	int ReadReferences(std::string &condition);
 
 	// Find Sybase installation paths
 	void FindSybasePaths(std::list<std::string> &paths);

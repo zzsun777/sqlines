@@ -237,6 +237,10 @@ struct SqlConstraints
 	// Foreign key ID (Sybase ASA)
 	int fkid;
 
+	// Primary key table for foreign keys (Sybase ASE)
+	char *pk_schema;
+	char *pk_table;
+
 	// ON UPDATE and ON DELETE actions for foreign keys
 	char fk_on_update;
 	char fk_on_delete;
@@ -247,7 +251,8 @@ struct SqlConstraints
 		r_schema = NULL; r_constraint = NULL;
 		type = '\x0';
 		cnsid = 0; tabid = 0; idxid = 0; r_cnsid = 0; fkid = 0;
-		idxname = NULL;
+		idxname = NULL; 
+		pk_schema = NULL; pk_table = NULL;
 		fk_on_update = 0; fk_on_delete = 0;
 	}
 
@@ -256,6 +261,7 @@ struct SqlConstraints
 		delete schema; delete table; delete constraint; 
 		delete condition; delete r_schema; delete r_constraint;
 		delete idxname;
+		delete pk_schema; delete pk_table;
 	}
 };
 
@@ -268,20 +274,23 @@ struct SqlConsColumns
 	char *constraint;
 	char *column;
 
-	// Constraint ID (Sybase ASA)
+	// Constraint ID (Sybase ASE, Sybase ASA)
 	int cnsid;
-	// Table ID (Sybase ASA)
+	// Table ID (Sybase ASE, Sybase ASA)
 	int tabid;
+
+	// Corresponding primary key column for foreign key (Sybase ASE)
+	char *pk_column;
 
 	SqlConsColumns()
 	{
-		schema = NULL; table = NULL; constraint = NULL; column = NULL;
+		schema = NULL; table = NULL; constraint = NULL; column = NULL; pk_column = NULL;
 		cnsid = 0; tabid = 0;
 	}
 
 	~SqlConsColumns()
 	{
-		delete schema;	delete table; delete constraint; delete column;
+		delete schema;	delete table; delete constraint; delete column; delete pk_column;
 	}
 };
 
@@ -604,7 +613,7 @@ public:
 	virtual int ReadConstraintColumns(const char *schema, const char *table, const char *constraint, std::string &cols) = 0;
 
 	// Get a list of columns for specified primary or unique key
-	virtual int GetKeyConstraintColumns(SqlConstraints & /*cns*/, std::list<std::string> & /*output*/) { return -1; }
+	virtual int GetKeyConstraintColumns(SqlConstraints & /*cns*/, std::list<std::string> & /*output*/, std::list<std::string> * = NULL) { return -1; }
 	int GetKeyConstraintColumns(SqlConstraints &cns, std::string &output);
 
 	// Get a list of columns for specified foreign key

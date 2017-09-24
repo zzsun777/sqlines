@@ -30,6 +30,8 @@ class AppLog
 	bool first_write;
 	bool first_write_trc;
 
+	bool _use_stderr;
+
 	// A function to redirect console output
 	AppLogConsoleFunc _console;
 	void *_console_object;
@@ -61,6 +63,8 @@ public:
 	// Set log and trace file names
 	void SetLogfile(const char *name, const char *default_dir); 
 	void SetTracefile(const char *name, const char *default_dir); 
+
+	void SetUseStdErr(bool val) { _use_stderr = val; }
 
 	void Reset() { first_write = true; }
 

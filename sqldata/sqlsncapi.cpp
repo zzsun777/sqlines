@@ -1,6 +1,20 @@
+/** 
+ * Copyright (c) 2016 SQLines
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 // SqlSncApi SQL Server Native Client API
-// Copyright (c) 2012 SQLines. All rights reserved
 
 #include <string.h>
 #include <string>
@@ -37,6 +51,22 @@ SqlSncApi::SqlSncApi()
 	_native_error_text[0] = '\x0';
 
 	_dll = NULL;
+	_dll_odbc = NULL;
+
+	_SQLAllocHandle = NULL;
+	_SQLBindCol = NULL;
+	_SQLDescribeCol = NULL;
+	_SQLDisconnect = NULL;
+	_SQLDriverConnect = NULL;
+	_SQLExecDirect = NULL;
+	_SQLFetch = NULL;
+	_SQLFreeHandle = NULL;
+	_SQLGetData = NULL;
+	_SQLGetDiagRec = NULL;
+	_SQLNumResultCols = NULL;
+	_SQLSetConnectAttr = NULL;
+	_SQLSetEnvAttr = NULL;
+	_SQLSetStmtAttr = NULL;
 
 	_bcp_batch = NULL;
 	_bcp_bind = NULL;
@@ -56,7 +86,62 @@ SqlSncApi::~SqlSncApi()
 // Initialize API
 int SqlSncApi::Init()
 {
-	// No driver load or initialization is required as ODBC Manager must be used
+	std::string dll;
+
+#if defined(WIN32) || defined(_WIN64)
+	// Define which SQL Server Native Client driver and DLL to use
+	DefineDriver(_driver, dll);
+
+	_dll_odbc = LoadLibraryEx(SQLSRV_ODBC_DLL, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+	_dll = LoadLibraryEx(dll.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+#endif
+		
+	// Get functions
+	if(_dll_odbc != NULL)
+	{
+		_SQLAllocHandle = (SQLAllocHandleFunc)Os::GetProcAddress(_dll_odbc, "SQLAllocHandle");
+		_SQLBindCol = (SQLBindColFunc)Os::GetProcAddress(_dll_odbc, "SQLBindCol");
+		_SQLDescribeCol = (SQLDescribeColFunc)Os::GetProcAddress(_dll_odbc, "SQLDescribeCol");
+		_SQLDisconnect = (SQLDisconnectFunc)Os::GetProcAddress(_dll_odbc, "SQLDisconnect");
+		_SQLDriverConnect = (SQLDriverConnectFunc)Os::GetProcAddress(_dll_odbc, "SQLDriverConnect");
+		_SQLExecDirect = (SQLExecDirectFunc)Os::GetProcAddress(_dll_odbc, "SQLExecDirect");
+		_SQLFetch = (SQLFetchFunc)Os::GetProcAddress(_dll_odbc, "SQLFetch");
+		_SQLFreeHandle = (SQLFreeHandleFunc)Os::GetProcAddress(_dll_odbc, "SQLFreeHandle");
+		_SQLGetData = (SQLGetDataFunc)Os::GetProcAddress(_dll_odbc, "SQLGetData");
+		_SQLGetDiagRec = (SQLGetDiagRecFunc)Os::GetProcAddress(_dll_odbc, "SQLGetDiagRec");
+		_SQLNumResultCols = (SQLNumResultColsFunc)Os::GetProcAddress(_dll_odbc, "SQLNumResultCols");
+		_SQLSetConnectAttr = (SQLSetConnectAttrFunc)Os::GetProcAddress(_dll_odbc, "SQLSetConnectAttr");
+		_SQLSetEnvAttr = (SQLSetEnvAttrFunc)Os::GetProcAddress(_dll_odbc, "SQLSetEnvAttr");
+		_SQLSetStmtAttr = (SQLSetStmtAttrFunc)Os::GetProcAddress(_dll_odbc, "SQLSetStmtAttr");
+
+		if(_dll != NULL)
+		{
+			// Save the full path of the loaded driver
+			Os::GetModuleFileName(_dll, _loaded_driver, 1024);
+
+			_bcp_batch = (bcp_batchFunc)Os::GetProcAddress(_dll, "bcp_batch");
+			_bcp_bind = (bcp_bindFunc)Os::GetProcAddress(_dll, "bcp_bind");
+			_bcp_control = (bcp_controlFunc)Os::GetProcAddress(_dll, "bcp_control");
+			_bcp_done = (bcp_doneFunc)Os::GetProcAddress(_dll, "bcp_done");
+			_bcp_init = (bcp_initFunc)Os::GetProcAddress(_dll, "bcp_initA");
+			_bcp_moretext = (bcp_moretextFunc)Os::GetProcAddress(_dll, "bcp_moretext");
+			_bcp_sendrow = (bcp_sendrowFunc)Os::GetProcAddress(_dll, "bcp_sendrow");
+		}
+
+		if(_SQLAllocHandle == NULL || _SQLBindCol == NULL || _SQLDescribeCol == NULL || 
+			_SQLDisconnect == NULL || _SQLDriverConnect == NULL || _SQLExecDirect == NULL || 
+			_SQLFetch == NULL || _SQLFreeHandle == NULL || _SQLGetData == NULL || _SQLGetDiagRec == NULL || 
+			_SQLSetConnectAttr == NULL || _SQLSetEnvAttr == NULL || _SQLSetStmtAttr == NULL ||
+			_bcp_batch == NULL || _bcp_bind == NULL || _bcp_control == NULL  || _bcp_init == NULL || 
+			_bcp_moretext == NULL || _bcp_sendrow == NULL)
+			return -1;
+	}
+	else
+	{
+		Os::GetLastErrorText(SQLSRV_DLL_LOAD_ERROR, _native_error_text, 1024);
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -122,28 +207,23 @@ int SqlSncApi::Connect(size_t *time_spent)
 
 	size_t start = (time_spent != NULL) ? Os::GetTickCount() : 0;
 
-	std::string conn, dll;
-
 	// Allocate environment handle
-	int rc = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &_henv);
+	int rc = _SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &_henv);
 
 	// Set ODBC 3 version
 	if(rc == SQL_SUCCESS)
-	{
-		rc = SQLSetEnvAttr(_henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
-	}
+		rc = _SQLSetEnvAttr(_henv, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, 0);
 
 	// Allocate connection handle
-	rc = SQLAllocHandle(SQL_HANDLE_DBC, _henv, &_hdbc);
+	rc = _SQLAllocHandle(SQL_HANDLE_DBC, _henv, &_hdbc);
 
 	// Enable bulk copy API 
-	rc = SQLSetConnectAttr(_hdbc, SQL_COPT_SS_BCP, (SQLPOINTER)SQL_BCP_ON, SQL_IS_INTEGER);
+	rc = _SQLSetConnectAttr(_hdbc, SQL_COPT_SS_BCP, (SQLPOINTER)SQL_BCP_ON, SQL_IS_INTEGER);
 
-	// Set the size of network packets
-	rc = SQLSetConnectAttr(_hdbc, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)(1024*128), 0);
+	// Set the size of network packets (rc = 1 with message Package Size changed)
+	rc = _SQLSetConnectAttr(_hdbc, SQL_ATTR_PACKET_SIZE, (SQLPOINTER)(1024*128), 0);
 
-	// Define which SQL Server Native Client driver and DLL to use
-	DefineDriver(conn, dll);
+	std::string conn = _driver;
 
 	// Build connection string, add server
 	if(*_server)
@@ -175,35 +255,12 @@ int SqlSncApi::Connect(size_t *time_spent)
 		conn += "Trusted_Connection=yes;";
 
 	// Connection string must not contain spaces between parameters, =, values etc.
-	rc = SQLDriverConnect(_hdbc, NULL, (SQLCHAR*)conn.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
+	rc = _SQLDriverConnect(_hdbc, NULL, (SQLCHAR*)conn.c_str(), SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
 
-	if(rc == SQL_ERROR)
+	if(rc == SQL_ERROR || rc < 0)
 		SetError(SQL_HANDLE_DBC, _hdbc);
 	else
 		_connected = true;
-
-	// Load DLL to perform bulk operations
-	if(dll.empty() == false)
-	{
-#if defined(WIN32) || defined(_WIN64)
-		_dll = LoadLibraryEx(dll.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
-#endif
-
-		if(_dll != NULL)
-		{
-			_bcp_batch = (bcp_batchFunc)Os::GetProcAddress(_dll, "bcp_batch");
-			_bcp_bind = (bcp_bindFunc)Os::GetProcAddress(_dll, "bcp_bind");
-			_bcp_control = (bcp_controlFunc)Os::GetProcAddress(_dll, "bcp_control");
-			_bcp_done = (bcp_doneFunc)Os::GetProcAddress(_dll, "bcp_done");
-			_bcp_init = (bcp_initFunc)Os::GetProcAddress(_dll, "bcp_initA");
-			_bcp_moretext = (bcp_moretextFunc)Os::GetProcAddress(_dll, "bcp_moretext");
-			_bcp_sendrow = (bcp_sendrowFunc)Os::GetProcAddress(_dll, "bcp_sendrow");
-
-			if(_bcp_batch == NULL || _bcp_bind == NULL || _bcp_control == NULL  || _bcp_init == NULL || 
-				_bcp_moretext == NULL || _bcp_sendrow == NULL)
-				return -1;			  
-		}
-	}
 
 	// Identify the version of the connected database
 	SetVersion();
@@ -224,8 +281,8 @@ void SqlSncApi::Disconnect()
 	if(_connected == false)
 		return;
 
-	SQLDisconnect(_hdbc);
-	SQLFreeHandle(SQL_HANDLE_DBC, _hdbc);
+	_SQLDisconnect(_hdbc);
+	_SQLFreeHandle(SQL_HANDLE_DBC, _hdbc);
 	
 	_hdbc = SQL_NULL_HANDLE;
 	_connected = false;
@@ -238,7 +295,7 @@ void SqlSncApi::Deallocate()
 
 	if(_henv != SQL_NULL_HANDLE)
 	{
-		SQLFreeHandle(SQL_HANDLE_ENV, _henv);
+		_SQLFreeHandle(SQL_HANDLE_ENV, _henv);
 		_henv = SQL_NULL_HANDLE;
 	}
 }
@@ -268,31 +325,31 @@ int SqlSncApi::ExecuteScalar(const char *query, int *result, size_t *time_spent)
 	size_t start = GetTickCount();
 
 	// Allocate a statement handle
-	int rc = SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &stmt);
+	int rc = _SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &stmt);
 
 	// Execute the query
-	rc = SQLExecDirect(stmt, (SQLCHAR*)query, SQL_NTS);
+	rc = _SQLExecDirect(stmt, (SQLCHAR*)query, SQL_NTS);
 
 	// Error raised
 	if(rc == -1)
 	{
 		SetError(SQL_HANDLE_STMT, stmt);
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+		_SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 
 		return rc;
 	}
 
 	// Bind the result
-	rc = SQLBindCol(stmt, 1, SQL_C_SLONG, &q_result, 4, NULL);
+	rc = _SQLBindCol(stmt, 1, SQL_C_SLONG, &q_result, 4, NULL);
 
 	// Fetch the result
-	rc = SQLFetch(stmt);
+	rc = _SQLFetch(stmt);
 
 	// Set the query result
 	if(result)
 		*result = q_result;
 
-	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	_SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 
 	if(time_spent != NULL)
 		*time_spent = GetTickCount() - start;
@@ -308,16 +365,16 @@ int SqlSncApi::ExecuteNonQuery(const char *query, size_t *time_spent)
 	size_t start = GetTickCount();
 
 	// Allocate a statement handle
-	int rc = SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &stmt);
+	int rc = _SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &stmt);
 
 	// Execute the query
-	rc = SQLExecDirect(stmt, (SQLCHAR*)query, SQL_NTS);
+	rc = _SQLExecDirect(stmt, (SQLCHAR*)query, SQL_NTS);
 
 	// Error raised
 	if(rc == -1)
 		SetError(SQL_HANDLE_STMT, stmt);
 
-	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	_SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 
 	if(time_spent != NULL)
 		*time_spent = GetTickCount() - start;
@@ -332,16 +389,16 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 	size_t start = GetTickCount();
 
 	// Allocate a statement handle
-	int rc = SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &_hstmt_cursor);
+	int rc = _SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &_hstmt_cursor);
 
 	// Execute the query
-	rc = SQLExecDirect(_hstmt_cursor, (SQLCHAR*)query, SQL_NTS);
+	rc = _SQLExecDirect(_hstmt_cursor, (SQLCHAR*)query, SQL_NTS);
 
 	// Error raised
 	if(rc == -1)
 	{
 		SetError(SQL_HANDLE_STMT, _hstmt_cursor);
-		SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
+		_SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
 
 		_hstmt_cursor = SQL_NULL_HANDLE;
 
@@ -349,7 +406,7 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 	}
 
 	// Define the number of columns
-	rc = SQLNumResultCols(_hstmt_cursor, (SQLSMALLINT*)&_cursor_cols_count);
+	rc = _SQLNumResultCols(_hstmt_cursor, (SQLSMALLINT*)&_cursor_cols_count);
 
 	if(_cursor_cols_count > 0)
 		_cursor_cols = new SqlCol[_cursor_cols_count];
@@ -366,9 +423,8 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 		SQLSMALLINT decimal_digits;
 		SQLSMALLINT nullable;
 
-		rc = SQLDescribeCol(_hstmt_cursor, (SQLUSMALLINT)(i + 1), (SQLCHAR*)_cursor_cols[i]._name, 256, NULL, &native_dt, &column_size,
-					&decimal_digits, &nullable); 
-      
+		rc = _SQLDescribeCol(_hstmt_cursor, (SQLUSMALLINT)(i + 1), (SQLCHAR*)_cursor_cols[i]._name, 256, NULL, &native_dt, &column_size, &decimal_digits, &nullable); 
+
 		_cursor_cols[i]._native_dt = native_dt;
 		_cursor_cols[i]._len = column_size;
 
@@ -432,9 +488,20 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 
 	_cursor_allocated_rows = 1;
 
+	if(row_size == 0)
+		row_size = 1;
+
 	// Define how many rows fetch at once
 	if(buffer_rows > 0)
-		_cursor_allocated_rows = buffer_rows;
+	{
+		// Row length can be large for bound LOB buffers so inforce hard limit of buffer size
+		size_t buffer_rows_max = (100*1024*1024)/row_size;
+
+		if(buffer_rows < buffer_rows_max)
+			_cursor_allocated_rows = buffer_rows;
+		else
+			_cursor_allocated_rows = buffer_rows_max;		
+	}
 	else
 	if(buffer_memory > 0)
 	{
@@ -608,6 +675,15 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 
 			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
 		}
+		else
+		// DATETIMEOFFSET (-155)
+		if(_cursor_cols[i]._native_dt == SQL_SS_TIMESTAMPOFFSET)
+		{
+			_cursor_cols[i]._native_fetch_dt = SQL_C_CHAR;
+			_cursor_cols[i]._fetch_len = _cursor_cols[i]._len + 1;	
+
+			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
+		}
 		else 
 		// BIT data type (_len is 1)
 		if(_cursor_cols[i]._native_dt == SQL_BIT)
@@ -662,14 +738,14 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 
 			if(_cursor_cols[i]._lob == false)
 			{
-				rc = SQLBindCol(_hstmt_cursor, SQLUSMALLINT(i + 1), (SQLSMALLINT)_cursor_cols[i]._native_fetch_dt, _cursor_cols[i]._data, 
+				rc = _SQLBindCol(_hstmt_cursor, SQLUSMALLINT(i + 1), (SQLSMALLINT)_cursor_cols[i]._native_fetch_dt, _cursor_cols[i]._data, 
 					(SQLLEN)_cursor_cols[i]._fetch_len, (SQLLEN*)_cursor_cols[i].ind);
 
 				if(rc == -1)
                 {
 					SetError(SQL_HANDLE_STMT, _hstmt_cursor);
 
-                    SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
+                    _SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
 		            _hstmt_cursor = SQL_NULL_HANDLE;
 
 		            return -1;
@@ -679,8 +755,8 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 	}
 
 	// Prepare array fetch
-	rc = SQLSetStmtAttr(_hstmt_cursor, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)_cursor_allocated_rows, 0); 
-	rc = SQLSetStmtAttr(_hstmt_cursor, SQL_ATTR_ROWS_FETCHED_PTR, &_cursor_fetched, 0);
+	rc = _SQLSetStmtAttr(_hstmt_cursor, SQL_ATTR_ROW_ARRAY_SIZE, (SQLPOINTER)_cursor_allocated_rows, 0); 
+	rc = _SQLSetStmtAttr(_hstmt_cursor, SQL_ATTR_ROWS_FETCHED_PTR, &_cursor_fetched, 0);
 
 	// Perform initial fetch, return SQL_SUCCESS even if there are less rows than array size
 	rc = Fetch(NULL, NULL);
@@ -689,7 +765,7 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
     {
 		SetError(SQL_HANDLE_STMT, _hstmt_cursor);
 
-        SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
+        _SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
 	    _hstmt_cursor = SQL_NULL_HANDLE;
 
 	    return -1;
@@ -722,7 +798,7 @@ int SqlSncApi::Fetch(int *rows_fetched, size_t *time_spent)
 	size_t start = GetTickCount();
 
 	// Fetch the data
-	int rc = SQLFetch(_hstmt_cursor);
+	int rc = _SQLFetch(_hstmt_cursor);
 
 	// Read not bound LOB data (first chunk)
 	if((rc == SQL_SUCCESS || rc == SQL_SUCCESS_WITH_INFO) && _cursor_lob_exists == true)
@@ -756,7 +832,7 @@ int SqlSncApi::GetLobPart(size_t /*row*/, size_t column, void * /*data*/, size_t
 {
 	SQLLEN ind = 0;
 	
-	int rc = SQLGetData(_hstmt_cursor, (SQLUSMALLINT)(column + 1), (SQLSMALLINT)_cursor_cols[column]._native_fetch_dt, 
+	int rc = _SQLGetData(_hstmt_cursor, (SQLUSMALLINT)(column + 1), (SQLSMALLINT)_cursor_cols[column]._native_fetch_dt, 
 					_cursor_cols[column]._data, (SQLLEN)_cursor_cols[column]._fetch_len, &ind);
 
 	_cursor_cols[column]._lob_fetch_status = rc;
@@ -807,7 +883,7 @@ int SqlSncApi::GetLobPart(size_t /*row*/, size_t column, void * /*data*/, size_t
 int SqlSncApi::CloseCursor()
 {
 	// Close the statement handle
-	int rc = SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
+	int rc = _SQLFreeHandle(SQL_HANDLE_STMT, _hstmt_cursor);
 
 	_hstmt_cursor = SQL_NULL_HANDLE;
 
@@ -1114,8 +1190,9 @@ int SqlSncApi::TransferRows(SqlCol *s_cols, int rows_fetched, int *rows_written,
 				_source_api_type == SQLDATA_SQL_SERVER)
 				bytes += *ind;
 
-			// Oracle VARCHAR2
-			if((_source_api_type == SQLDATA_ORACLE && s_cols[k]._native_fetch_dt == SQLT_STR) ||
+			// Oracle VARCHAR2, RAW
+			if((_source_api_type == SQLDATA_ORACLE && 
+				(s_cols[k]._native_fetch_dt == SQLT_STR || s_cols[k]._native_fetch_dt == SQLT_BIN)) ||
 				// Sybase CHAR
 				(_source_api_type == SQLDATA_SYBASE && s_cols[k]._native_fetch_dt == CS_CHAR_TYPE && s_cols[k]._fetch_len <= 8000) ||
 				// MySQL all data types except BLOB
@@ -1299,7 +1376,7 @@ int SqlSncApi::WriteLob(SqlCol *s_cols, size_t row, size_t *lob_bytes)
 		return -1;
 
 	int rc = 0;
-	SQLINTEGER len = 0;
+	size_t len = 0;
 	size_t row_len = 0;
 	char *data = NULL;
 
@@ -1320,7 +1397,7 @@ int SqlSncApi::WriteLob(SqlCol *s_cols, size_t row, size_t *lob_bytes)
 			// LOB contains data
 			rc = _source_api_provider->GetLobLength(row, k, (size_t*)&len);
 
-			if(rc == -1 || len == 0)
+			if(rc == -1)
 				break;
 
 			// LOB is empty
@@ -1353,7 +1430,7 @@ int SqlSncApi::WriteLob(SqlCol *s_cols, size_t row, size_t *lob_bytes)
 				continue;
 			}
 
-			len = s_cols[k]._len_ind4[row];
+			len = (size_t)s_cols[k]._len_ind4[row];
 
 			// LOB is empty
 			if(len == 0)
@@ -1373,12 +1450,12 @@ int SqlSncApi::WriteLob(SqlCol *s_cols, size_t row, size_t *lob_bytes)
 			// First chunk already read, BCP indicator is 4-byte on both 32-bit and 64-bit platforms
 			if(s_cols[k].ind != NULL)
 			{
-				len = (SQLINTEGER)s_cols[k].ind[row];
+				len = s_cols[k].ind[row];
 
 #if defined(WIN64)
 				// DB2 11 64-bit CLI driver still writes indicators to 4-byte array
 				if(_source_api_type == SQLDATA_DB2 && s_cols[k].ind[0] & 0xFFFFFFFF00000000)
-					len = ((SQLINTEGER*)(s_cols[k].ind))[row];
+					len = (size_t)((SQLINTEGER*)(s_cols[k].ind))[row];
 #endif
 			}
 			
@@ -1426,7 +1503,7 @@ int SqlSncApi::WriteLob(SqlCol *s_cols, size_t row, size_t *lob_bytes)
 				if(read_rc == -1)
 					break;
 
-				len = (SQLINTEGER)s_cols[k].ind[row];
+				len = s_cols[k].ind[row];
 			}
 		}
 		else
@@ -1434,7 +1511,7 @@ int SqlSncApi::WriteLob(SqlCol *s_cols, size_t row, size_t *lob_bytes)
 		{
 			// Full value already read
 			if(s_cols[k].ind != NULL)
-				len = (SQLINTEGER)s_cols[k].ind[row];
+				len = s_cols[k].ind[row];
 			
 			// LOB is NULL
 			if(len == -1)
@@ -1533,11 +1610,13 @@ int SqlSncApi::DropReferences(const char* table, size_t *time_spent)
 
 	SplitQualifiedName(table, schema, name);
 
+	// NOLOCK is used to prevent "[Microsoft][SQL Server Native Client 11.0][SQL Server]Transaction (Process ID 54) was deadlocked on lock resources with 
+	// another process and has been chosen as the deadlock victim. Rerun the transaction."
 	std::string drop = "BEGIN "\
 					   "DECLARE @stmt VARCHAR(300);"\
 					   "DECLARE cur CURSOR FOR SELECT 'ALTER TABLE [' + OBJECT_SCHEMA_NAME(parent_object_id) "\
 					   " + '].[' + OBJECT_NAME(parent_object_id) + '] DROP CONSTRAINT ' + name " \
-					   "FROM sys.foreign_keys WHERE ";
+					   "FROM sys.foreign_keys WITH (NOLOCK) WHERE ";
 					   
 	if(schema.empty() == false)
 	{
@@ -1608,20 +1687,20 @@ int SqlSncApi::GetAvailableTables(std::string &table_template, std::string & /*e
 	SQLHANDLE stmt;
 
 	// Allocate a statement handle
-	int rc = SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &stmt);
+	int rc = _SQLAllocHandle(SQL_HANDLE_STMT, _hdbc, &stmt);
 
 	// Execute the query
-	rc = SQLExecDirect(stmt, (SQLCHAR*)query.c_str(), SQL_NTS);
+	rc = _SQLExecDirect(stmt, (SQLCHAR*)query.c_str(), SQL_NTS);
 
     // The first query may fail (SQL Server 2000 i.e)
 	if(rc < 0)
-		rc = SQLExecDirect(stmt, (SQLCHAR*)query2.c_str(), SQL_NTS);
+		rc = _SQLExecDirect(stmt, (SQLCHAR*)query2.c_str(), SQL_NTS);
 
 	// Error raised
 	if(rc == -1)
 	{
 		SetError(SQL_HANDLE_STMT, stmt);
-		SQLFreeHandle(SQL_HANDLE_STMT, stmt); 
+		_SQLFreeHandle(SQL_HANDLE_STMT, stmt); 
 
 		return -1;
 	}
@@ -1632,13 +1711,13 @@ int SqlSncApi::GetAvailableTables(std::string &table_template, std::string & /*e
 	*owner = '\x0';
 	*name = '\x0';
 
-	rc = SQLBindCol(stmt, 1, SQL_C_CHAR, (SQLCHAR*)owner, 1024, &cbOwner);
-	rc = SQLBindCol(stmt, 2, SQL_C_CHAR, (SQLCHAR*)name, 1024, &cbName);
+	rc = _SQLBindCol(stmt, 1, SQL_C_CHAR, (SQLCHAR*)owner, 1024, &cbOwner);
+	rc = _SQLBindCol(stmt, 2, SQL_C_CHAR, (SQLCHAR*)name, 1024, &cbName);
 
     // Fetch tables
 	while(rc == 0)
 	{
-		rc = SQLFetch(stmt);
+		rc = _SQLFetch(stmt);
 
 		if(rc != SQL_SUCCESS)
 			break;
@@ -1658,7 +1737,7 @@ int SqlSncApi::GetAvailableTables(std::string &table_template, std::string & /*e
 		tables.push_back(tab);
 	}
 
-	SQLFreeHandle(SQL_HANDLE_STMT, stmt);
+	_SQLFreeHandle(SQL_HANDLE_STMT, stmt);
 
 	return (rc == SQL_NO_DATA ) ? 0 : rc;
 }
@@ -1993,11 +2072,20 @@ int SqlSncApi::ReadReservedWords()
 	return 0;
 }
 
-
 // Define which SQL Server Native Client driver to use
 void SqlSncApi::DefineDriver(std::string &driver, std::string &dll)
 {
-	char desc[256];
+#if defined(WIN32) || defined(_WIN64)
+	HKEY hKey;
+
+	// Keys: SQL Server, SQL Server Native Client 10.0, SQL Server Native Client 11.0
+	int rc = RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\ODBC\\ODBCINST.INI", 0, KEY_READ | KEY_ENUMERATE_SUB_KEYS, &hKey);
+
+	if(rc != ERROR_SUCCESS)
+		return;
+
+	char key[1024];
+	DWORD i = 0;
 
 	bool sql2000 = false;
 	bool sql2005 = false;
@@ -2006,33 +2094,41 @@ void SqlSncApi::DefineDriver(std::string &driver, std::string &dll)
 
 	bool more = true;
 
+	// Enumerate through all keys
 	while(more)
 	{
-		// Get the next driver 
-		int rc = SQLDrivers(_henv, SQL_FETCH_NEXT, (SQLCHAR*)desc, 256, NULL, NULL, 0, NULL);
+		// Size modified with each call to RegEnumKeyEx
+		int size = 1024;
 
-		if(rc == SQL_ERROR || rc == SQL_NO_DATA)
+		// Get next key
+		rc = RegEnumKeyEx(hKey, i, key, (LPDWORD)&size, NULL, NULL, NULL, NULL);
+ 
+		if(rc != ERROR_SUCCESS)
 		{
 			more = false;
 			break;
 		}
 
 		// SQL Server 2000 driver
-		if(strcmp(desc, "SQL Server") == 0)
+		if(strcmp(key, "SQL Server") == 0)
 			sql2000 = true;
 		else
 		// SQL Server 2005 Native client
-		if(strcmp(desc, "SQL Native Client") == 0)
+		if(strcmp(key, "SQL Native Client") == 0)
 			sql2005 = true;
 		else
 		// SQL Server 2008 Native client
-		if(strcmp(desc, "SQL Server Native Client 10.0") == 0)
+		if(strcmp(key, "SQL Server Native Client 10.0") == 0)
 			sql2008 = true;
 		else
 		// SQL Server 2012, 2014 and 2016 Native client
-		if(strcmp(desc, "SQL Server Native Client 11.0") == 0)
+		if(strcmp(key, "SQL Server Native Client 11.0") == 0)
 			sql2012 = true;
+
+		i++;
 	}
+
+	RegCloseKey(hKey);
 
 	// Return the highest available version (this driver is also used for 2014 and 2016)
 	if(sql2012)
@@ -2059,7 +2155,7 @@ void SqlSncApi::DefineDriver(std::string &driver, std::string &dll)
 		dll = "sqlsrv32.dll";
 	}
     
-	return;
+#endif
 }
 
 // Set version of the connected database
@@ -2114,8 +2210,10 @@ void SqlSncApi::SetError(SQLSMALLINT handle_type, SQLHANDLE handle)
 {
 	SQLCHAR sqlstate[6]; *sqlstate = '\x0';
 
+	_native_error_text[0] = '\x0';
+
 	// Get native error information
-	SQLGetDiagRec(handle_type, handle, 1, sqlstate, (SQLINTEGER*)&_native_error, (SQLCHAR*)_native_error_text, 1024, NULL);
+	_SQLGetDiagRec(handle_type, handle, 1, sqlstate, (SQLINTEGER*)&_native_error, (SQLCHAR*)_native_error_text, 1024, NULL);
 
 	_error = SQL_DBAPI_UNKNOWN_ERROR;
 	*_error_text = '\x0';

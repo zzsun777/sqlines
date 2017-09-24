@@ -71,6 +71,7 @@ SqlData::SqlData()
 
 	_parameters = NULL;
 	_log = NULL;
+	_trace = false;
 
 	_migrate_tables = true;
 	_migrate_data = true;
@@ -199,6 +200,9 @@ short SqlData::DefineDbType(const char *conn)
 	else
 	if(_strnicmp(conn, "odbc", 4) == 0)
 		return SQLDATA_ODBC;
+	else
+	if(_strnicmp(conn, "stdout", 6) == 0)
+		return SQLDATA_STDOUT;
 
 	return -1;
 }
@@ -596,6 +600,8 @@ int SqlData::CreateMetadataQueues(std::string &select, std::string &exclude)
 
 			MapObjectName(schema, name, task.t_name);
 
+			task.t_o_name = task.t_name;
+
 			task.type = SQLDATA_CMD_CREATE_SEQUENCE;
 
 			task.statement = "CREATE SEQUENCE ";
@@ -735,6 +741,8 @@ int SqlData::DropReferences(int *all_keys, size_t *time_spent)
 // Initialize local (in-process) database interface
 int SqlData::InitLocal(SqlDataReply & /*reply*/, int db_types, int *s_rc, int *t_rc)
 {
+	TRACE("SqlData InitLocal() Entered");
+
 	_db.SetParameters(_parameters);
 	_db.SetAppLog(_log);
 	_db.SetSessionId(1);
@@ -751,6 +759,7 @@ int SqlData::InitLocal(SqlDataReply & /*reply*/, int db_types, int *s_rc, int *t
 	// Initialize source and target database interfaces (continue connecting even if static init failed for one of the database, helps test connections)
 	rc = _db.Init(db_types, _source_conn.c_str(), _target_conn.c_str(), s_rc, t_rc);
 
+	TRACE("SqlData InitLocal() Left");
 	return rc;
 }
 
@@ -2407,6 +2416,9 @@ void SqlData::GetIdentityMetaTask(SqlColMeta &col)
 void SqlData::SetParameters(Parameters *p) 
 { 
 	_parameters = p; 
+
+	if(_parameters->GetTrue("-trace") != NULL)
+		_trace = true;
 
 	if(_parameters->GetFalse("-ddl_tables") != NULL)
 		_migrate_tables = false;

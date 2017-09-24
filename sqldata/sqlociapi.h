@@ -48,6 +48,7 @@ typedef sword (*OCIEnvCreateFunc)(OCIEnv **envhpp, ub4 mode, CONST dvoid *ctxp, 
 typedef sword (*OCIErrorGetFunc)(dvoid *, ub4, text *, sb4 *, text *, ub4, ub4);
 typedef sword (*OCIHandleAllocFunc)(void *, void **, ub4, size_t, void **);
 typedef sword (*OCIHandleFreeFunc)(dvoid *, ub4);
+typedef sword (*OCILobCharSetFormFunc)(OCIEnv *envhp, OCIError *errhp, CONST OCILobLocator *locp, ub1 *csfrm);
 typedef sword (*OCILobCopyFunc)(OCISvcCtx *, OCIError *, OCILobLocator *dst, OCILobLocator *src, ub4 amount, ub4 dst_ffset, ub4 src_offset);
 typedef sword (*OCILobCreateTemporaryFunc)(OCISvcCtx *, OCIError *, OCILobLocator *, ub2 csid, ub1 csfrm, ub1 lobtype, boolean cache, OCIDuration);
 typedef sword (*OCILobFreeTemporaryFunc)(OCISvcCtx *, OCIError *, OCILobLocator *);
@@ -183,7 +184,7 @@ public:
 	virtual int ReadConstraintColumns(const char *schema, const char *table, const char *constraint, std::string &cols);
 
 	// Get a list of columns for specified primary or unique key
-	virtual int GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output);
+	virtual int GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> * = NULL);
 
 	// Get a list of columns for specified index
 	virtual int GetIndexColumns(SqlIndexes &idx, std::list<std::string> &idx_cols, std::list<std::string> &idx_sorts);
@@ -238,6 +239,7 @@ private:
 	OCIStmtFetch2Func _ociStmtFetch2;
 	OCIHandleAllocFunc _ociHandleAlloc;
 	OCIHandleFreeFunc _ociHandleFree;
+	OCILobCharSetFormFunc _ociLobCharSetForm;
 	OCILobCopyFunc _ociLobCopy;
 	OCILobCreateTemporaryFunc _ociLobCreateTemporary;
 	OCILobFreeTemporaryFunc _ociLobFreeTemporary;

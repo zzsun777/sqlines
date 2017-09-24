@@ -1,5 +1,5 @@
 /** 
- * Copyright (c) 2016 SQLines
+ * Copyright (c) 2017 SQLines
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,50 +14,23 @@
  * limitations under the License.
  */
 
-// SqlOdbcApi ODBC API
+// SqlStdApi Standard Output API
 
-#ifndef sqlines_sqlodbcapi_h
-#define sqlines_sqlodbcapi_h
+#ifndef sqlines_sqlstdapi_h
+#define sqlines_sqlstdapi_h
 
 #if defined(WIN32) || defined(_WIN64)
 #include <windows.h>
 #endif
 
-#include <sql.h>
-#include <sqlext.h>
-#include <sqltypes.h> 
 #include "sqlapibase.h"
 #include "sqldb.h"
 
-class SqlOdbcApi : public SqlApiBase
+class SqlStdApi : public SqlApiBase
 {
-	// Database type
-	short _db_type;
-
-	// Environment and connection handles
-	SQLHENV _henv;
-	SQLHDBC _hdbc;
-	SQLHANDLE _hstmt_cursor;
-
-	// Connection information
-	std::string _user;
-	std::string _pwd;
-	std::string _server;
-	std::string _instance;
-	std::string _port;
-	std::string _db;
-	std::string _driver;
-	std::string _conn;
-
-	// Attribute to store last number of fetched rows (SQL_ATTR_ROWS_FETCHED_PTR)
-	int _cursor_fetched;
-
-	// SQLGetData feature supported (SQL_GETDATA_EXTENSIONS attribute)
-	SQLUINTEGER _sqlGetData_features;
-
 public:
-	SqlOdbcApi();
-	~SqlOdbcApi();
+	SqlStdApi();
+	~SqlStdApi();
 
 	// Initialize API
 	virtual int Init();
@@ -130,21 +103,8 @@ public:
 	virtual void GetCatalogSelectionCriteria(std::string &selection_template, std::string &output);
 
 	// Get database subtype
-	virtual short GetType() { return SQLDATA_ODBC; }
-	virtual short GetSubType() { return _db_type; }
-
-private:
-	// Free connection and environment handles 
-	void Deallocate();
-
-	// Set the connection string to connect to Oracle
-	void SetOracleConnectionString(const char *conn);
-
-	// Write LOB data using BCP API
-	int WriteLob(SqlCol *s_cols, int row, int *lob_bytes);
-
-	// Set error code and message for the last API call
-	void SetError(SQLSMALLINT handle_type, SQLHANDLE handle);
+	virtual short GetType() { return SQLDATA_STDOUT; }
+	virtual short GetSubType() { return 0; }
 };
 
-#endif // sqlines_sqlodbcapi_h
+#endif // sqlines_sqlstdapi_h

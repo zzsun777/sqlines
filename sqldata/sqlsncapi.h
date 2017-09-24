@@ -1,6 +1,20 @@
+/** 
+ * Copyright (c) 2016 SQLines
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 // SqlSncApi SQL Server Native Client API
-// Copyright (c) 2012 SQLines. All rights reserved
 
 #ifndef sqlines_sqlsncapi_h
 #define sqlines_sqlsncapi_h
@@ -20,12 +34,35 @@
 #include "sqlapibase.h"
 #include "sqldb.h"
 
+// BCP functions require ODBC Manager handles to use, not SQL Server Native Client handles
+// Underlying SQL Server Native Client functions can be successfully used to query and retrieve data except BCP extension
+
+#define SQLSRV_ODBC_DLL			"odbc32.dll"
+
+#define SQLSRV_DLL_LOAD_ERROR	"Loading SQL Server library:"
+
+// ODBC API Functions
+typedef SQLRETURN (SQL_API *SQLAllocHandleFunc)(SQLSMALLINT HandleType, SQLHANDLE InputHandle, SQLHANDLE *OutputHandle);
+typedef SQLRETURN (SQL_API *SQLBindColFunc)(SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLSMALLINT TargetType, SQLPOINTER TargetValue, SQLLEN BufferLength, SQLLEN *StrLen_or_Ind);
+typedef SQLRETURN (SQL_API *SQLDescribeColFunc)(SQLHSTMT StatementHandle, SQLUSMALLINT ColumnNumber, SQLCHAR *ColumnName, SQLSMALLINT BufferLength, SQLSMALLINT *NameLength, SQLSMALLINT *DataType, SQLULEN *ColumnSize, SQLSMALLINT *DecimalDigits, SQLSMALLINT *Nullable);
+typedef SQLRETURN (SQL_API *SQLDisconnectFunc)(SQLHDBC ConnectionHandle);
+typedef SQLRETURN (SQL_API *SQLDriverConnectFunc)(SQLHDBC hdbc, SQLHWND hwnd, SQLCHAR* szConnStrIn, SQLSMALLINT cchConnStrIn, SQLCHAR* szConnStrOut, SQLSMALLINT cchConnStrOutMax, SQLSMALLINT* pcchConnStrOut, SQLUSMALLINT fDriverCompletion);
+typedef SQLRETURN (SQL_API *SQLExecDirectFunc)(SQLHSTMT StatementHandle, SQLCHAR* StatementText, SQLINTEGER TextLength);
+typedef SQLRETURN (SQL_API *SQLFetchFunc)(SQLHSTMT StatementHandle);
+typedef SQLRETURN (SQL_API *SQLFreeHandleFunc)(SQLSMALLINT HandleType, SQLHANDLE Handle);
+typedef SQLRETURN (SQL_API *SQLGetDataFunc)(SQLHSTMT StatementHandle, SQLUSMALLINT Col_or_Param_Num, SQLSMALLINT TargetType, SQLPOINTER TargetValuePtr, SQLLEN BufferLength, SQLLEN *StrLen_or_IndPtr);
+typedef SQLRETURN (SQL_API *SQLGetDiagRecFunc)(SQLSMALLINT HandleType, SQLHANDLE Handle, SQLSMALLINT RecNumber, SQLCHAR *Sqlstate, SQLINTEGER *NativeError, SQLCHAR* MessageText, SQLSMALLINT BufferLength, SQLSMALLINT *TextLength);
+typedef SQLRETURN (SQL_API *SQLNumResultColsFunc)(SQLHSTMT StatementHandle, SQLSMALLINT *ColumnCount);
+typedef SQLRETURN (SQL_API *SQLSetConnectAttrFunc)(SQLHDBC ConnectionHandle, SQLINTEGER Attribute, SQLPOINTER ValuePtr, SQLINTEGER StringLength);
+typedef SQLRETURN (SQL_API *SQLSetEnvAttrFunc)(SQLHENV EnvironmentHandle, SQLINTEGER Attribute, SQLPOINTER Value, SQLINTEGER StringLength);
+typedef SQLRETURN (SQL_API *SQLSetStmtAttrFunc)(SQLHSTMT StatementHandle, SQLINTEGER Attribute, SQLPOINTER Value, SQLINTEGER StringLength);
+
 // Bulk copy API functions
 typedef DBINT (SQL_API *bcp_batchFunc)(HDBC);
 typedef RETCODE (SQL_API *bcp_bindFunc)(HDBC, LPCBYTE, INT, DBINT, LPCBYTE, INT, INT, INT);
 typedef RETCODE (SQL_API *bcp_controlFunc)(HDBC, INT, void*);
 typedef DBINT (SQL_API *bcp_doneFunc)(HDBC);
-typedef RETCODE (SQL_API *bcp_initFunc)(HDBC, LPCTSTR, LPCTSTR, LPCTSTR, INT);
+typedef RETCODE (SQL_API *bcp_initFunc)(HDBC, const char*, const char*, const char*, INT);
 typedef RETCODE (SQL_API *bcp_moretextFunc)(HDBC, DBINT, LPCBYTE);
 typedef RETCODE (SQL_API *bcp_sendrowFunc)(HDBC);
 
@@ -43,6 +80,8 @@ class SqlSncApi : public SqlApiBase
 	char _db[256];
 	bool _trusted;
 
+	std::string _driver;
+
 	// Attribute to store last number of fetched rows (SQL_ATTR_ROWS_FETCHED_PTR)
 	int _cursor_fetched;
 
@@ -56,9 +95,27 @@ class SqlSncApi : public SqlApiBase
 	// SQL Server Native Client DDL (for Bulk Copy API)
 #if defined(WIN32) || defined(_WIN64)
 	HMODULE _dll;
+	HMODULE _dll_odbc;
 #else
 	void* _dll;
+	void* _dll_odbc;
 #endif
+
+	// ODBC API functions
+	SQLAllocHandleFunc _SQLAllocHandle;
+	SQLBindColFunc _SQLBindCol;
+	SQLDescribeColFunc _SQLDescribeCol;
+	SQLDisconnectFunc _SQLDisconnect;
+	SQLDriverConnectFunc _SQLDriverConnect;
+	SQLExecDirectFunc _SQLExecDirect;
+	SQLFetchFunc _SQLFetch;
+	SQLFreeHandleFunc _SQLFreeHandle;
+	SQLGetDataFunc _SQLGetData;
+	SQLGetDiagRecFunc _SQLGetDiagRec;
+	SQLNumResultColsFunc _SQLNumResultCols;
+	SQLSetConnectAttrFunc _SQLSetConnectAttr;
+	SQLSetEnvAttrFunc _SQLSetEnvAttr;
+	SQLSetStmtAttrFunc _SQLSetStmtAttr;
 
 	// Bulk copy API functions
 	bcp_batchFunc _bcp_batch;

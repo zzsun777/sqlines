@@ -61,6 +61,8 @@ SqlDataCmd::SqlDataCmd()
 	_transfer_table_num = 1;
 	_validate_table_num = 1;
 	_assess_table_num = 1;
+
+	_td_stdout = false;
 }
 
 // Run the data transfer or validation
@@ -95,6 +97,12 @@ int SqlDataCmd::Run()
 		return rc;
 
 	PrintCurrentTimestamp();
+	_log.LogFile("\nCurrent directory: %s", Os::CurrentWorkingDirectory());
+	_log.LogFile("\nConfiguration file: %s", _parameters.GetConfigFile());
+
+	// Check status for configuration file reading
+	if(!_parameters.IsCfgReadOk())
+		_log.LogFile("\n\nError reading the configuration file: %s", _parameters.GetCfgReadError());
 
 	// Connect to the database to read metadata
 	rc = Connect();
@@ -1046,6 +1054,9 @@ void SqlDataCmd::LogConnection(int type, int rc, const char *version, const char
 	else
 	if(type == SQLDATA_ASA)
 		_log.Log("Sybase SQL Anywhere ");
+	else
+	if(type == SQLDATA_STDOUT)
+		_log.Log("Standard output ");
     else
     if(type == -1)
         _log.Log("Unknown database ");
@@ -1344,6 +1355,15 @@ int SqlDataCmd::SetParameters()
 		_logname = value;
 	else
 		_logname = SQLDATA_LOGFILE;
+
+	value = _parameters.Get(TD_OPTION);
+
+	// Check for data outout to stdout
+	if(value != NULL && _strnicmp(value, "stdout", 6) == 0)
+	{
+		_td_stdout = true;
+		_log.SetUseStdErr(true);
+	}
 
 	// Set the directory and name for log and trace files
 	_log.SetLogfile(_logname.c_str(), _out.c_str());

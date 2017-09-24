@@ -1907,7 +1907,7 @@ void SqlAsaApi::SetIdentity(SqlColMeta &col_meta, int id_max)
 }
 
 // Get a list of columns for specified primary or unique key
-int SqlAsaApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output)
+int SqlAsaApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> *)
 {
 	// Find constraint columns
 	for(std::list<SqlConsColumns>::iterator i = _table_cons_columns.begin(); i != _table_cons_columns.end(); i++)

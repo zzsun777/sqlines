@@ -88,10 +88,12 @@ SqlMysqlApi::~SqlMysqlApi()
 }
 
 // Initialize API for process (MySQL C library can be compiled as non thread-safe)
-int SqlMysqlApi::InitStatic(Parameters *parameters)
+int SqlMysqlApi::InitStatic()
 {
 	if(_static_init == true)
 		return 0;
+
+	TRACE("MySQL/C InitStatic() Entered");
 
 	const char *mysql_default_lib = MYSQL_C_DLL; 
 	const char *mysql_load_error = MYSQL_DLL_LOAD_ERROR;
@@ -102,33 +104,45 @@ int SqlMysqlApi::InitStatic(Parameters *parameters)
 
 	if(_subtype == SQLDATA_SUBTYPE_MARIADB)
 	{
+		TRACE("MySQL/C InitStatic() for MariaDB");
+
 		mysql_default_lib = MARIADB_C_DLL;
 		mysql_load_error = MARIADB_DLL_LOAD_ERROR;
 		mysql_64bit_load_error = MARIADB_64BIT_DLL_LOAD_ERROR; 
 		mysql_c_func_load_error = MARIADB_C_FUNC_LOAD_ERROR; 
 		
-		if(parameters != NULL)
-			mysql_lib = parameters->Get("-mariadb_lib");
+		if(_parameters != NULL)
+			mysql_lib = _parameters->Get("-mariadb_lib");
 	}
 
 	if(mysql_lib != NULL)
+	{
+		TRACE_P("MySQL/C InitStatic() library: %s", mysql_lib);
 		_dll = Os::LoadLibrary(mysql_lib);
+	}
 	else
+	{
 		// Try to load the library by default path
+		TRACE_P("MySQL/C InitStatic() default library: %s", mysql_default_lib);
 		_dll = Os::LoadLibrary(mysql_default_lib);
+	}
+
+	if(_dll == NULL)
+	{
+		Os::GetLastErrorText(mysql_load_error, _native_error_text, 1024);
+		TRACE_P("MySQL/C InitStatic() error: %s", _native_error_text);
+	}
 
 	// DLL load failed (do not search if library path is set)
 	if(_dll == NULL && mysql_lib == NULL)
 	{
 #if defined(WIN32) || defined(_WIN64)
+
 		// No error set if DLL is 64-bit and current sqldata build is 32-bit
 		bool sf = Os::Is64Bit(mysql_default_lib);
 
 		if(sf == true)
 			strcpy(_native_error_text, mysql_64bit_load_error);
-		else
-			// Set error for the current search item 
-			Os::GetLastErrorText(mysql_load_error, _native_error_text, 1024);
 
 		// Try to find MySQL installation paths
 		// Note that search is performed for MySQL C Connector even for MariaDB
@@ -145,22 +159,21 @@ int SqlMysqlApi::InitStatic(Parameters *parameters)
 			if(_dll != NULL)
 				break;
 
+			// Set error for the current search item 
+			Os::GetLastErrorText(MYSQL_DLL_LOAD_ERROR, _native_error_text, 1024);
+
 			// No error set if DLL is 64-bit
 			sf = Os::Is64Bit(MYSQL_C_DLL);
 
 			if(sf == true)
 				strcpy(_native_error_text, MYSQL_64BIT_DLL_LOAD_ERROR);
-			else
-				// Set error for the current search item 
-				Os::GetLastErrorText(MYSQL_DLL_LOAD_ERROR, _native_error_text, 1024);
 		}		
 #else
-		strcpy(_native_error_text, Os::LoadLibraryError());
+		char *error = Os::LoadLibraryError();
+		if(error != NULL)
+			strcpy(_native_error_text, error);
 #endif
 	}
-
-	// Save the full path of the loaded driver
-	Os::GetModuleFileName(_dll, _loaded_driver, 1024);
 
 	// Get functions
 	if(_dll != NULL)
@@ -217,6 +230,7 @@ int SqlMysqlApi::InitStatic(Parameters *parameters)
 	}
 
 	_static_init = true;
+	TRACE("MySQL/C InitStatic() Left");
 
 	return 0;
 }
@@ -339,9 +353,7 @@ int SqlMysqlApi::InitSession()
 
 	// mysql_set_character_set is available since 5.0.7
 	if(Str::IsSet(value) == true && _mysql_set_character_set != NULL)
-	{
 		rc = _mysql_set_character_set(&_mysql, value);
-	}
 
 	value = _parameters->Get("-mysql_set_foreign_key_checks");
 
@@ -359,7 +371,16 @@ int SqlMysqlApi::InitSession()
 	if(IsVersionEqualOrHigher(5, 1, 17) == true)
 		rc = ExecuteNonQuery("SET GLOBAL INNODB_STATS_ON_METADATA=0", NULL);
 
-	rc = ExecuteNonQuery("SET sql_log_bin=0", NULL);
+	// Binary logging for replication
+	if(_subtype == SQLDATA_SUBTYPE_MARIADB)
+	{
+		value = _parameters->Get("-mariadb_set_sql_log_bin");
+
+		if(Str::IsSet(value))
+			rc = ExecuteNonQuery(std::string("SET sql_log_bin=").append(value).c_str(), NULL);
+	}
+	else
+		rc = ExecuteNonQuery("SET sql_log_bin=0", NULL);
 
 	// If AUTOCOMMIT is set to 0 in the database or client side, LOAD DATA INFILE require a COMMIT statement 
 	// to put data to the table, so we force AUTOCOMMIT to 1 for connection

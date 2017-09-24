@@ -51,6 +51,7 @@
 #define SQLDATA_INFORMIX					7
 #define SQLDATA_DB2							8
 #define SQLDATA_ASA							9
+#define SQLDATA_STDOUT						10
 
 // Database subtypes
 #define SQLDATA_SUBTYPE_MARIADB				1
@@ -289,9 +290,13 @@ class SqlDb
 	Parameters *_parameters;
 	AppLog *_log;
 
-	// Validation options
-	bool _trace_diff_data;
+	// Validation options	
 	int _validation_not_equal_max_rows;
+	int _validation_datetime_fraction;
+
+	char *_mysql_validation_collate;
+	
+	bool _trace_diff_data;
 	AppLog _trace_diff;
 	
 	// Session number of the interface
@@ -340,6 +345,12 @@ public:
 
 	// Compare string representations of numbers .5 and 0.50
 	bool ValidateCompareNumbers(SqlCol *s_col, const char *s_string, int s_len, SqlCol *t_col, const char *t_string, int t_len, int *equal);
+	// Compare datetime values fetched as strings
+	bool ValidateCompareDatetimes(SqlCol *s_col, const char *s_string, int s_len, SqlCol *t_col, const char *t_string, int t_len, int *equal);
+	// Compare strings
+	bool ValidateCompareStrings(SqlCol *s_col, const char *s_string, int s_len, SqlCol *t_col, const char *t_string, int t_len, int *equal);
+	// Compare LOB values
+	bool ValidateCompareLobs(SqlCol *s_col, int s_len, SqlCol *t_col, int t_len, int *equal);
 	// Dump differences in column
 	void ValidateDiffDump(SqlCol *s_col, SqlCol *t_col, int row, int s_len, int t_len, char *s_string, char *t_string);
 	void ValidateDiffDumpValue(int len, char *str);
@@ -424,7 +435,7 @@ private:
 	int Execute(int cmd1, int cmd2);
 
 	// Initialize database API once per process
-	int InitStaticApi(const char *conn, Parameters *parameters, std::string &error);
+	int InitStaticApi(const char *conn, std::string &error);
 	// Create database API object for source database
 	SqlApiBase* CreateDatabaseApi(const char *conn, short *type);
 

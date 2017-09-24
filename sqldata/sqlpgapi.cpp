@@ -80,7 +80,9 @@ int SqlPgApi::Init()
 				break;
 		}		
 #else
-		strcpy(_native_error_text, Os::LoadLibraryError());
+		char *error = Os::LoadLibraryError();
+		if(error != NULL)
+			strcpy(_native_error_text, error);
 #endif
 	}
 

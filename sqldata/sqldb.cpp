@@ -34,6 +34,7 @@
 #include "sqlifmxapi.h"
 #include "sqldb2api.h"
 #include "sqlodbcapi.h"
+#include "sqlstdapi.h"
 #include "str.h"
 #include "os.h"
 
@@ -62,6 +63,8 @@ SqlDb::SqlDb()
 
 	_trace_diff_data = false;
 	_validation_not_equal_max_rows = -1;
+	_validation_datetime_fraction = -1;
+	_mysql_validation_collate = NULL;
 }
 
 // Destructor
@@ -145,7 +148,7 @@ int SqlDb::InitStatic(int db_types, const char *source_conn, const char *target_
 {
 	std::string error_text;
 
-	int s_rc = InitStaticApi(source_conn, _parameters, error_text);
+	int s_rc = InitStaticApi(source_conn, error_text);
 
 	if(s_rc == -1)
 	{
@@ -162,7 +165,7 @@ int SqlDb::InitStatic(int db_types, const char *source_conn, const char *target_
 	
 	error_text.clear();
 	
-	int t_rc = InitStaticApi(target_conn, _parameters, error_text);
+	int t_rc = InitStaticApi(target_conn, error_text);
 
 	if(t_rc == -1)
 	{
@@ -180,7 +183,7 @@ int SqlDb::InitStatic(int db_types, const char *source_conn, const char *target_
 }
 
 // Initialize database API once per process
-int SqlDb::InitStaticApi(const char *conn, Parameters *parameters, std::string &error)
+int SqlDb::InitStaticApi(const char *conn, std::string &error)
 {
 	if(conn == NULL)
 		return -1;
@@ -193,11 +196,13 @@ int SqlDb::InitStaticApi(const char *conn, Parameters *parameters, std::string &
 	if(_strnicmp(cur, "mysql", 5) == 0 || _strnicmp(cur, "mariadb", 7) == 0)
 	{
 		SqlMysqlApi mysqlApi;
+		mysqlApi.SetParameters(_parameters);
+		mysqlApi.SetAppLog(_log);
 
 		if(_strnicmp(cur, "mariadb", 7) == 0)
 			mysqlApi.SetSubType(SQLDATA_SUBTYPE_MARIADB);
 
-		rc = mysqlApi.InitStatic(parameters);
+		rc = mysqlApi.InitStatic();
 
 		if(rc == -1)
 			error = mysqlApi.GetNativeErrorText();
@@ -226,7 +231,6 @@ SqlApiBase* SqlDb::CreateDatabaseApi(const char *conn, short *type)
 		if(type != NULL)
 			*type = SQLDATA_ORACLE;
 	}
-#if defined(WIN32) || defined(_WIN64)
 	else
 	// Check for SQL Server Native Client
 	if(_strnicmp(cur, "sql", 3) == 0)
@@ -237,7 +241,6 @@ SqlApiBase* SqlDb::CreateDatabaseApi(const char *conn, short *type)
 		if(type != NULL)
 			*type = SQLDATA_SQL_SERVER;
 	}
-#endif
 	else
 	// Check for MySQL C API
 	if(_strnicmp(cur, "mysql", 5) == 0)
@@ -324,6 +327,16 @@ SqlApiBase* SqlDb::CreateDatabaseApi(const char *conn, short *type)
 			*type = SQLDATA_ODBC;
 	}
 #endif
+	else
+	// Check for Standard Output
+	if(_strnicmp(cur, "stdout", 6) == 0)
+	{
+		db_api = new SqlStdApi();
+		cur += 6;
+
+		if(type != NULL)
+			*type = SQLDATA_STDOUT;
+	}
 	
 	cur = Str::SkipSpaces(cur);
 
@@ -493,7 +506,7 @@ int SqlDb::TestConnection(std::string &conn, std::string &error, std::string &lo
 	}
 	
 	// Initialize the database API library for process
-	int rc = InitStaticApi(conn.c_str(), NULL, error);
+	int rc = InitStaticApi(conn.c_str(), error);
 
 	if(rc == 0)
 	{
@@ -1763,7 +1776,11 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 			sprintf(fraction, "%d", s_cols[i]._scale);
 
 			if(target_type == SQLDATA_SQL_SERVER)
-				sql += "DATETIME2";
+			{
+				sql += "DATETIMEOFFSET(";
+				sql += fraction;
+				sql += ')';
+			}
 			else
 			if(target_type == SQLDATA_ORACLE)
 			{
@@ -2031,6 +2048,16 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 				sql += "CHAR(18)";
 			else
 				sql += "ROWID";
+		}
+		else
+		// Oracle object type
+		if(source_type == SQLDATA_ORACLE && s_cols[i]._native_dt == SQLT_NTY)
+		{
+			Str::IntToString((int)s_cols[i]._len, int1);
+			
+			sql += "VARCHAR(";
+			sql += int1;
+			sql += ")";
 		}
 
 		std::string default_clause;
@@ -2688,41 +2715,39 @@ int SqlDb::ValidateCompareRows(SqlCol *s_cols, SqlCol *t_cols, int s_col_count, 
 			if(t_len != -1)
 				tb += t_len;
 
-			// Get the source and target values
-			GetColumnData(s_cols, i, k, source_type, _source_ca.db_api, &s_string, &s_int_set, &s_int, &s_ts_struct, &s_ora_date);
-			GetColumnData(t_cols, i, k, target_type, _target_ca.db_api, &t_string, &t_int_set, &t_int, &t_ts_struct, &t_ora_date);
-
 			int equal = -1;
 
+			// If LOBs perform their comparison first
+			bool lob = ValidateCompareLobs(&s_cols[k], s_len, &t_cols[k], t_len, &equal);
+
+			// Get the source and target values
+			if(!lob)
+			{
+				GetColumnData(s_cols, i, k, source_type, _source_ca.db_api, &s_string, &s_int_set, &s_int, &s_ts_struct, &s_ora_date);
+				GetColumnData(t_cols, i, k, target_type, _target_ca.db_api, &t_string, &t_int_set, &t_int, &t_ts_struct, &t_ora_date);
+			}
+
 			// Compare 2 string values
-			if(s_string != NULL && t_string != NULL)
+			if(s_string != NULL && t_string != NULL && !lob)
 			{
 				// Compare string representations of numbers .5 and 0.50
 				bool num = ValidateCompareNumbers(&s_cols[k], s_string, s_len, &t_cols[k], t_string, t_len, &equal);
+				bool datetime = false;
 
-				if(num == false)
+				if(!num)
+					datetime = ValidateCompareDatetimes(&s_cols[k], s_string, s_len, &t_cols[k], t_string, t_len, &equal);
+
+				if(!num && !datetime)
 				{
-					// Oracle TIMESTAMP compared with MySQL DATETIME without fraction
-					if((source_type == SQLDATA_ORACLE && target_type == SQLDATA_MYSQL &&
-						s_cols[k]._native_dt == SQLT_TIMESTAMP) ||
-						// Sybase ASE SMALLDATETIME contains minutes only, seconds always 00
-						(source_type == SQLDATA_SYBASE && s_cols[k]._native_dt == CS_DATETIME4_TYPE))
-						s_len = 19;
+					if(s_len == t_len)
+						equal = memcmp(s_string, t_string, (size_t)s_len);
 					else
-					// Sybase ASE DATE that fetched with 00:00:00.000000 time part
-					if(source_type == SQLDATA_SYBASE && s_cols[k]._native_dt == CS_DATE_TYPE)
-						s_len = 10;
-					else
-					// Sybase ASE DATETIME uses milliseconds
-					if(source_type == SQLDATA_SYBASE && s_cols[k]._native_dt == CS_DATETIME_TYPE)
-						s_len = 23;
-
-					equal = memcmp(s_string, t_string, (size_t)s_len);
+						ValidateCompareStrings(&s_cols[k], s_string, s_len, &t_cols[k], t_string, t_len, &equal);
 				}
 			}
 			else
 			// Compare string and integer
-			if((s_int_set && t_string != NULL) || (s_string != NULL && t_int_set))
+			if(((s_int_set && t_string != NULL) || (s_string != NULL && t_int_set)) && !lob)
 			{
 				char *str = (s_string != NULL) ? s_string : t_string;
 				int int_v = s_int_set ? s_int : t_int;
@@ -2733,7 +2758,7 @@ int SqlDb::ValidateCompareRows(SqlCol *s_cols, SqlCol *t_cols, int s_col_count, 
 			}
 			else
 			// Compare ODBC SQL_TIMESTAMP_STRUCT and string
-			if((s_ts_struct != NULL && t_string != NULL) || (t_ts_struct != NULL && s_string != NULL))
+			if(((s_ts_struct != NULL && t_string != NULL) || (t_ts_struct != NULL && s_string != NULL))  && !lob)
 			{
 				SQL_TIMESTAMP_STRUCT *ts = (s_ts_struct != NULL) ? s_ts_struct : t_ts_struct;
 				char *str = (s_string != NULL) ? s_string : t_string;
@@ -2750,18 +2775,19 @@ int SqlDb::ValidateCompareRows(SqlCol *s_cols, SqlCol *t_cols, int s_col_count, 
 			}
 			else
 			// Compare Oracle DATE and string
-			if((s_ora_date != NULL && t_string != NULL) || (t_ora_date != NULL && s_string != NULL))
+			if(((s_ora_date != NULL && t_string != NULL) || (t_ora_date != NULL && s_string != NULL))  && !lob)
 			{
 				char *ora_date = (s_ora_date != NULL) ? s_ora_date : t_ora_date;
 				char *str = (s_string != NULL) ? s_string : t_string;
 
 				// String can contain date only or date and time
-				int str_len = (s_string != NULL) ? s_len : t_len;
+				// int str_len = (s_string != NULL) ? s_len : t_len;
 
 				// Convert 7-byte packed Oracle DATE to string (non-null terminated, exactly 19 characters)
 				Str::OraDate2Str((unsigned char*)ora_date, ora_date_str);
 
-				equal = memcmp(ora_date_str, str, (size_t)str_len);
+				// Target SQL Server i.e. may have trailing .000 in string, so let's use Oracle len
+				equal = memcmp(ora_date_str, str, 19);
 			}
 			
 			// Not equal
@@ -2805,7 +2831,7 @@ bool SqlDb::ValidateCompareNumbers(SqlCol *s_col, const char *s_string, int s_le
 	bool comp = false;
 
 	// Check is the source data type is a number fetched as string
-	if((source_type == SQLDATA_ORACLE && s_col->_native_dt == SQLT_NUM) || 
+	if((source_type == SQLDATA_ORACLE && s_col->_native_dt == SQLT_NUM && s_col->_scale != 129 /*floating*/) || 
 		(source_type == SQLDATA_SYBASE && s_col->_native_fetch_dt == CS_CHAR_TYPE &&
 			(s_col->_native_dt == CS_NUMERIC_TYPE || s_col->_native_dt == CS_DECIMAL_TYPE || 
 			 s_col->_native_dt == CS_MONEY_TYPE || s_col->_native_dt == CS_MONEY4_TYPE)) ||
@@ -2820,8 +2846,9 @@ bool SqlDb::ValidateCompareNumbers(SqlCol *s_col, const char *s_string, int s_le
 	else
 	// Compare floating point numbers that can be different due to rounding issues
 	// Sybase ASE can return 6.7000000000000002 for value 6.7
-	if(source_type == SQLDATA_SYBASE && s_col->_native_fetch_dt == CS_CHAR_TYPE &&
-		(s_col->_native_dt == CS_REAL_TYPE || s_col->_native_dt == CS_FLOAT_TYPE)) 
+	if((source_type == SQLDATA_ORACLE && s_col->_native_dt == SQLT_NUM && s_col->_scale == 129 /*floating*/) ||		
+		(source_type == SQLDATA_SYBASE && s_col->_native_fetch_dt == CS_CHAR_TYPE &&
+		(s_col->_native_dt == CS_REAL_TYPE || s_col->_native_dt == CS_FLOAT_TYPE))) 
 	{
 		double d1 = 0.0, d2 = 0.0;
 		char f1[11], f2[11];
@@ -2843,6 +2870,151 @@ bool SqlDb::ValidateCompareNumbers(SqlCol *s_col, const char *s_string, int s_le
 		*equal = comp ? 0 : -1;
 
 	return num;
+}
+
+// Compare datetime values featched as strings
+bool SqlDb::ValidateCompareDatetimes(SqlCol *s_col, const char *s_string, int s_len, SqlCol *t_col, 
+										const char *t_string, int t_len, int *equal)
+{
+	if(s_col == NULL || s_string == NULL || t_col == NULL || t_string == NULL)
+		return false;
+
+	bool datetime = false;
+	int comp = -1;
+
+	// Oracle TIMESTAMP compared with MySQL DATETIME without fraction
+	if((source_type == SQLDATA_ORACLE && s_col->_native_dt == SQLT_TIMESTAMP) ||
+		(source_type == SQLDATA_SYBASE && (s_col->_native_dt == CS_DATETIME_TYPE || s_col->_native_dt == CS_DATETIME4_TYPE || s_col->_native_dt == CS_DATE_TYPE))
+		&& (target_type == SQLDATA_MYSQL))
+	{
+		int s_len_new = s_len;
+		int t_len_new = t_len;
+
+		// All datetime data types are fetched with 26 length from Sybase ASE, so we need to correct the length
+		if(source_type == SQLDATA_SYBASE)
+		{
+			// Sybase ASE DATE that fetched with 00:00:00.000000 time part
+			if(s_col->_native_dt == CS_DATE_TYPE)
+				s_len_new = 10;
+			else
+			// Sybase ASE SMALLDATETIME contains minutes only, seconds always 00
+			if(s_col->_native_dt == CS_DATETIME4_TYPE)
+				s_len_new = 19;
+		}
+
+		// Number of fractional digits to compare
+		if(_validation_datetime_fraction != -1)
+		{
+			if(s_len_new > 20 + _validation_datetime_fraction)
+				s_len_new = 20 + _validation_datetime_fraction;
+
+			if(t_len_new > 19 + _validation_datetime_fraction)
+				t_len_new = 20 + _validation_datetime_fraction;
+		}
+			
+		// If length are not equal allow only difference in number of 0s in fractional part, so consider .0 and .000 equal
+		if(s_len_new != t_len_new)
+		{
+			int l_len = s_len_new;
+			int m_len = t_len_new;
+			const char *m_string = t_string;
+				
+			if(s_len_new > t_len_new) 
+			{
+				l_len = t_len_new;
+				m_len = s_len_new;
+				m_string = s_string;
+			}
+
+			comp = memcmp(s_string, t_string, (size_t)l_len);	
+
+			// Common part is equal
+			if(!comp)
+			{
+				// Larger part must contain 0s
+				for(int i = l_len; i < m_len; i++)
+				{
+					if(m_string[i] != '0')
+					{
+						comp = -1;
+						break;
+					}
+				}
+			}
+		}
+		else
+			comp = memcmp(s_string, t_string, (size_t)s_len_new);				
+
+		datetime = true;
+	}
+
+	if(equal != NULL)
+		*equal = comp;
+
+	return datetime;
+}
+
+// Compare strings
+bool SqlDb::ValidateCompareStrings(SqlCol *s_col, const char *s_string, int s_len, SqlCol *t_col, const char *t_string, int t_len, int *equal)
+{
+	if(s_col == NULL || s_string == NULL || t_col == NULL || t_string == NULL)
+		return false;
+
+	const char *max_s = s_string;
+	int max_len = s_len;
+	int min_len = t_len;
+
+	if(s_len < t_len)
+	{
+		max_s = t_string;
+		max_len = t_len;
+		min_len = s_len;
+	}
+
+	// First compare data for matched size
+	int comp = memcmp(s_string, t_string, (size_t)min_len);
+
+	// Common part is equal
+	if(comp == 0)
+	{
+		// Larger part must contain spaces only
+		for(int i = min_len; i < max_len; i++)
+		{
+			if(max_s[i] != ' ')
+			{
+				comp = -1;
+				break;
+			}
+		}
+	}
+
+	if(equal != NULL)
+		*equal = comp;
+
+	return true;
+}
+
+// Compare LOB values
+bool SqlDb::ValidateCompareLobs(SqlCol *s_col, int s_len, SqlCol *t_col, int t_len, int *equal)
+{
+	if(s_col == NULL || t_col == NULL)
+		return false;
+
+	bool lob = false;
+	int comp = -1;
+
+	if(source_type == SQLDATA_ORACLE && (s_col->_native_dt == SQLT_CLOB || s_col->_native_dt == SQLT_BLOB))
+	{
+		if(s_len == t_len)
+			comp = 0;
+
+		lob = true;
+	}
+
+	if(lob && equal != NULL)
+		*equal = comp;
+
+	return lob;
 }
 
 // Dump differences in column
@@ -2930,7 +3102,7 @@ int SqlDb::GetColumnDataLen(SqlCol *cols, int row, int column, int db_type, SqlA
 			len = cols[column].ind[row];
 	}
 	else
-	if(db_type == SQLDATA_INFORMIX)
+	if(db_type == SQLDATA_SQL_SERVER || db_type == SQLDATA_INFORMIX)
 	{
 		if(cols[column].ind != NULL && cols[column].ind[row] != -1)
 			len = cols[column].ind[row];
@@ -2957,8 +3129,14 @@ int SqlDb::GetColumnData(SqlCol *cols, int row, int column, int db_type, SqlApiB
 
 	if(db_type == SQLDATA_ORACLE)
 	{
-		if(cols[column]._native_fetch_dt == SQLT_STR)
+		if(cols[column]._native_fetch_dt == SQLT_STR || cols[column]._native_fetch_dt == SQLT_BIN)
 			s = cols[column]._data + cols[column]._fetch_len * row;
+		else
+		if(cols[column]._native_fetch_dt == SQLT_INT)
+		{
+			int_v = *((int*)(cols[column]._data + cols[column]._fetch_len * row));
+			int_s = true;
+		}
 		else
 		if(cols[column]._native_fetch_dt == SQLT_DAT)
 			ora_d = cols[column]._data + cols[column]._fetch_len * row;
@@ -2981,9 +3159,9 @@ int SqlDb::GetColumnData(SqlCol *cols, int row, int column, int db_type, SqlApiB
 		s = cols[column]._data + cols[column]._fetch_len * row;
 	}
 	else
-	if(db_type == SQLDATA_INFORMIX)
+	if(db_type == SQLDATA_SQL_SERVER || db_type == SQLDATA_INFORMIX)
 	{
-		if(cols[column]._native_fetch_dt == SQL_C_CHAR)
+		if(cols[column]._native_fetch_dt == SQL_C_CHAR || cols[column]._native_fetch_dt == SQL_C_BINARY)
 			s = cols[column]._data + cols[column]._fetch_len * row;
 		else
 		if(cols[column]._native_fetch_dt == SQL_C_LONG)
@@ -3181,7 +3359,12 @@ int SqlDb::BuildQuery(std::string &s_query, std::string &t_query, const char *s_
 					s_query += c;
 					s_query += "\"";	
 
-					t_query += c;
+					if(target_type == SQLDATA_SQL_SERVER)
+					{
+						t_query += '[';
+						t_query += c;
+						t_query += "]";
+					}
 
 					column_added = true;
 				}
@@ -3201,7 +3384,14 @@ int SqlDb::BuildQuery(std::string &s_query, std::string &t_query, const char *s_
 				// Add column as is
 				if(column_added == false)
 				{
+					if(source_type == SQLDATA_ORACLE)
+						s_query += '"';
+					
 					s_query += c;
+					
+					if(source_type == SQLDATA_ORACLE)
+						s_query += '"';
+					
 					t_query += c;
 				}
 			
@@ -3295,7 +3485,7 @@ int SqlDb::BuildQueryAddOrder(std::string &s_query, std::string &s_schema, std::
 					continue;
 	
 			// Now find the key columns
-			db_api->GetKeyConstraintColumns((*i), s_order);
+			db_api->GetKeyConstraintColumns((*i), s_order, &s_order_types);
 			
 			pk_exists = true;
 			break;
@@ -3451,6 +3641,20 @@ int SqlDb::BuildQueryAddOrder(std::string &s_query, std::string &s_schema, std::
 			else
 			if((source_type == SQLDATA_MYSQL || source_type == SQLDATA_INFORMIX) && target_type == SQLDATA_ORACLE)
 				t_query += " NULLS FIRST";
+			else
+			// MySQL/MariaDB uses collation defined in the table, for some reason it does not use COLLATION_CONNECTION session value
+			// so we redefine COLLATE in ORDER BY for strings
+			if(target_type == SQLDATA_MYSQL)
+			{
+				if(_mysql_validation_collate != NULL && type == "String")
+					t_query.append(" COLLATE ").append(_mysql_validation_collate);
+			}
+			else
+			if(target_type == SQLDATA_SQL_SERVER)
+			{
+				if(type == "String")
+					t_query.append(" COLLATE Latin1_General_bin");
+			}
 			else
 			// Informix and PostgreSQL have differences in string and NULL order
 			if(source_type == SQLDATA_INFORMIX && target_type == SQLDATA_POSTGRESQL)
@@ -3720,6 +3924,8 @@ void SqlDb::SetParameters(Parameters *p)
 		_trace_diff_data = true;
 
 	_validation_not_equal_max_rows = _parameters->GetInt("-validation_not_equal_max_rows", -1);
+	_validation_datetime_fraction = _parameters->GetInt("-validation_datetime_fraction", -1);
+	_mysql_validation_collate = _parameters->Get("-mysql_validation_collate");
 }
 
 // Get errors on the DB interface

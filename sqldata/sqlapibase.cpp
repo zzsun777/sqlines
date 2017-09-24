@@ -240,6 +240,20 @@ void SqlApiBase::SplitConnectionString(const char *conn, std::string &user, std:
 	if(amp != NULL)
 	{
 		db = amp + 1; 
+
+		const char *cur = amp;
+
+		// @ can be used in password, so find the latest @
+		while(cur != NULL)
+		{
+			cur = strchr(cur + 1, '@');
+
+			if(cur != NULL)
+			{
+				amp = cur;
+				db = amp + 1; 
+			}
+		}
 	}
 
 	if(amp == NULL)

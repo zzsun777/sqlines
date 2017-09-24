@@ -1223,7 +1223,7 @@ int SqlDb2Api::ReadConstraintColumns(std::string &condition)
 }
 
 // Get a list of columns for specified primary or unique key
-int SqlDb2Api::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output)
+int SqlDb2Api::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> *)
 {
 	bool found = false;
 

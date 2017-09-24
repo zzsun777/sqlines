@@ -1752,7 +1752,7 @@ void SqlIfmxApi::AddSystemTablesFilter(const char *alias, std::string &query)
 }
 
 // Get a list of columns for specified primary or unique key
-int SqlIfmxApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output)
+int SqlIfmxApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> *)
 {
 	bool found = false;
 

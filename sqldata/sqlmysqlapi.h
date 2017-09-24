@@ -145,7 +145,7 @@ public:
 	~SqlMysqlApi();
 
 	// Initialize API for process
-	int InitStatic(Parameters *parameters);
+	int InitStatic();
 	// Initialize API for thread
 	virtual int Init();
 

@@ -25,7 +25,8 @@ int main(int argc, char** argv)
 	}
 
 #if !defined(WIN32) && !defined(_WIN64)
-	printf("\n");
+	if(!cmd.IsStdOut())
+		printf("\n");
 #endif
 
 	return rc;

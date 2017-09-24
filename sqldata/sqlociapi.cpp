@@ -59,6 +59,7 @@ SqlOciApi::SqlOciApi()
 	_ociErrorGet = NULL;
 	_ociStmtFetch2 = NULL;
 	_ociHandleAlloc = NULL;
+	_ociLobCharSetForm = NULL;
 	_ociLobCopy = NULL;
 	_ociLobCreateTemporary = NULL;
 	_ociLobFreeTemporary = NULL;
@@ -84,28 +85,32 @@ int SqlOciApi::Init()
 {
 	TRACE("OCI Init() Entered");
 
+	const char *oci_lib_param = (_parameters != NULL) ? _parameters->Get("-oci_lib") : NULL;
+	const char *oci_lib = (oci_lib_param != NULL)? oci_lib_param : OCI_DLL; 
+
 #if defined(WIN32) || defined(WIN64)
 
 	// Force UTF-8 codepage at the client side if the target loader supports it
 	if(_target_api_provider != NULL && _target_api_provider->IsTargetUtf8LoadSupported())
 		_putenv("NLS_LANG=American_America.AL32UTF8");
 
-	_oci_dll = LoadLibraryEx(OCI_DLL, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+	_oci_dll = LoadLibraryEx(oci_lib, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
 
 	// DLL load failed
 	if(_oci_dll == NULL)
 	{
+		// Set error for the current search item 
+		Os::GetLastErrorText(OCI_DLL_LOAD_ERROR, _native_error_text, 1024);
+
 		// No error set if DLL is 64-bit and current sqldata build is 32-bit
-		bool sf = Os::Is64Bit(OCI_DLL);
+		bool sf = Os::Is64Bit(oci_lib);
 
 		if(sf == true)
 			strcpy(_native_error_text, OCI_64BIT_DLL_LOAD_ERROR);
-		else
-			// Set error for the current search item 
-			Os::GetLastErrorText(OCI_DLL_LOAD_ERROR, _native_error_text, 1024);
 
-		// Try to find Oracle installation paths
-		FindOraclePaths();
+		// Try to find Oracle installation paths if the library is not set explicitly
+		if(oci_lib_param == NULL)
+			FindOraclePaths();
 
 		for(std::list<std::string>::iterator i = _driver_paths.begin(); i != _driver_paths.end() ; i++)
 		{
@@ -118,24 +123,28 @@ int SqlOciApi::Init()
 			if(_oci_dll != NULL)
 				break;
 
+			// Set error for the current search item 
+			Os::GetLastErrorText(OCI_DLL_LOAD_ERROR, _native_error_text, 1024);
+
 			// No error set if DLL is 64-bit
 			sf = Os::Is64Bit(OCI_DLL);
 
 			if(sf == true)
 				strcpy(_native_error_text, OCI_64BIT_DLL_LOAD_ERROR);
-			else
-				// Set error for the current search item 
-				Os::GetLastErrorText(OCI_DLL_LOAD_ERROR, _native_error_text, 1024);
 		}
 	}
 #else
-	_oci_dll = Os::LoadLibrary(OCI_DLL);
+	_oci_dll = Os::LoadLibrary(oci_lib);
 #endif
 
 	if(_oci_dll == NULL)
 	{
+		char *error = Os::LoadLibraryError();
+		if(error != NULL)
+			strcpy(_native_error_text, error);
+
 		TRACE("OCI Init() OCI load failed");
-		strcpy(_native_error_text, Os::LoadLibraryError());
+		TRACE("OCI Init() Left");
 		return -1;
 	}
 
@@ -157,6 +166,7 @@ int SqlOciApi::Init()
 	_ociStmtFetch2 = (OCIStmtFetch2Func)Os::GetProcAddress(_oci_dll, "OCIStmtFetch2");
 	_ociHandleAlloc = (OCIHandleAllocFunc)Os::GetProcAddress(_oci_dll, "OCIHandleAlloc");
 	_ociHandleFree = (OCIHandleFreeFunc)Os::GetProcAddress(_oci_dll, "OCIHandleFree");
+	_ociLobCharSetForm = (OCILobCharSetFormFunc)Os::GetProcAddress(_oci_dll, "OCILobCharSetForm");
 	_ociLobCopy = (OCILobCopyFunc)Os::GetProcAddress(_oci_dll, "OCILobCopy");
 	_ociLobCreateTemporary = (OCILobCreateTemporaryFunc)Os::GetProcAddress(_oci_dll, "OCILobCreateTemporary");
 	_ociLobFreeTemporary = (OCILobFreeTemporaryFunc)Os::GetProcAddress(_oci_dll, "OCILobFreeTemporary");
@@ -178,7 +188,7 @@ int SqlOciApi::Init()
 	if(_ociAttrGet == NULL || _ociAttrSet == NULL ||
 		_ociAttrSet == NULL || _ociBindByPos == NULL || _ociDefineByPos == NULL || 
 		_ociDescriptorAlloc == NULL || _ociDescriptorFree == NULL || _ociEnvCreate == NULL ||
-		_ociErrorGet == NULL || _ociHandleAlloc == NULL || _ociHandleFree == NULL || 
+		_ociErrorGet == NULL || _ociHandleAlloc == NULL || _ociHandleFree == NULL || _ociLobCharSetForm == NULL ||
 		_ociLobCopy == NULL || _ociLobCreateTemporary == NULL || _ociLobFreeTemporary == NULL ||
 		_ociLobTrim == NULL || _ociLobWrite == NULL || _ociLobWriteAppend == NULL || _ociParamGet == NULL || 
 		_ociSessionBegin == NULL || _ociSessionEnd == NULL || _ociServerAttach == NULL || 
@@ -187,14 +197,13 @@ int SqlOciApi::Init()
 	{
 		strcpy(_native_error_text, "OCI function(s) not found");
 		TRACE("OCI Init() Function not found");
-
+		TRACE("OCI Init() Left");
 		return -1;
 	}
 
 	ReadReservedWords();
 
 	TRACE("OCI Init() Left");
-
 	return 0;
 }
 
@@ -347,6 +356,9 @@ int SqlOciApi::SetSession()
 	// Change timestamp format FF means no fraction, FF6 means 6 digits
 	const char *query = "ALTER SESSION SET NLS_TIMESTAMP_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF6'";
 	int rc = ExecuteNonQuery(query, NULL);
+
+	query = "ALTER SESSION SET NLS_TIMESTAMP_TZ_FORMAT = 'YYYY-MM-DD HH24:MI:SS.FF6 TZH:TZM'";
+	rc = ExecuteNonQuery(query, NULL);
 
 	query = "ALTER SESSION SET NLS_DATE_FORMAT = 'YYYY-MM-DD HH24:MI:SS'";
 	rc = ExecuteNonQuery(query, NULL);
@@ -908,12 +920,21 @@ int SqlOciApi::GetLobContent(size_t row, size_t column, void *data, size_t lengt
 	OCILobLocator *loc = ((OCILobLocator**)_cursor_cols[column]._data)[row];
 
 	oraub8 len = (oraub8)length;
+	int rc = 0;
+	ub1 csfrm = 0;
 
 	// When reading CLOB containing one byte in UTF-8, and when byte_amtp is used, input len must be 4, 
 	// otherwise OCI_NEED_DATA returned. But after calling OCILobRead2 len will contain 1 (number if bytes)
 
+	// To read CLOB csfrm must be set to 0 or SQLCS_IMPLICIT in OCILobRead2 call; to read NCLOB csfrm must be set SQLCS_NCHAR
+	// otherwise ORA-24806: LOB form mismatch returned
+
+	// Get SQLCS_IMPLICIT for CLOB and SQLCS_NCHAR for NCLOB locator (SQLT_CLOB type is returned for both CLOB and NCLOB)
+	if(_cursor_cols[column]._native_dt == SQLT_CLOB)
+		rc = _ociLobCharSetForm(_envhp, _errhp, loc, &csfrm);
+
 	// Read the LOB value
-	int rc = _ociLobRead2(_svchp, _errhp, loc, &len, NULL, 1, data, (oraub8)length, OCI_ONE_PIECE, NULL, NULL, 0, 0);
+	rc = _ociLobRead2(_svchp, _errhp, loc, &len, NULL, 1, data, (oraub8)length, OCI_ONE_PIECE, NULL, NULL, 0, csfrm);
 
 	if(rc < 0)
 		SetError();
@@ -935,24 +956,24 @@ int SqlOciApi::GetAvailableTables(std::string &select, std::string &exclude,
 	GetSelectionCriteria(select.c_str(), exclude.c_str(), "owner", "table_name", condition, _user, true);
 
 	// Build the query
-	std::string query = "SELECT owner, table_name FROM all_tables ";
+	std::string query = "SELECT owner, table_name FROM all_tables WHERE";
+
+	// Exclude overflow tables for index organized tables
+	// In any case, user cannot access them directly, Oracle returns ORA-25191: cannot reference overflow table of an index-organized table
+	// IOT_NAME column available even in Oracle 9i
+	query += " iot_name IS NULL";
 	
 	// Add filter
 	if(condition.empty() == false)
 	{
-		query += " WHERE ";
+		query += " AND ";
 		query += condition;
 	}
 
 	// Exclude system and Oracle specific schemas if *.* condition is set
 	if(strcmp(select.c_str(), "*.*") == 0)
 	{
-		if(condition.empty())
-			query += " WHERE ";
-		else 
-			query += " AND ";
-
-		query += " owner NOT IN ('APPQOSSYS','DBSNMP','CTXSYS','FLOWS_FILES','MDSYS','OUTLN','SYS',";
+		query += " AND owner NOT IN ('APPQOSSYS','DBSNMP','CTXSYS','FLOWS_FILES','MDSYS','OUTLN','SYS',";
 		query += " 'SYSTEM','XDB')";
 		query += " AND owner NOT LIKE 'APEX%'";
 	}
@@ -1986,7 +2007,7 @@ int SqlOciApi::ReadIndExpressions(std::string &selection)
 }
 
 // Get a list of columns for specified primary or unique key
-int SqlOciApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output)
+int SqlOciApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> *types)
 {
 	bool found = false;
 
@@ -2008,6 +2029,31 @@ int SqlOciApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::strin
 		{
 			output.push_back(col);
 			found = true;
+
+			// Find data type
+			if(types != NULL)
+			{
+				for(std::list<SqlColMeta>::iterator m = _table_columns.begin(); m != _table_columns.end(); m++)
+				{
+					char *cs = (*m).schema;
+					char *ct = (*m).table;
+					char *ccol = (*m).column;
+					char *dt = (*m).data_type;
+
+					if(cs == NULL || ct == NULL || ccol == NULL || dt == NULL)
+						break;
+
+					if(strcmp(cs, s) == 0 && strcmp(ct, t) == 0 && strcmp(ccol, col) == 0)
+					{
+						if(!_stricmp(dt, "CHAR") || !_stricmp(dt, "VARCHAR2") || !_stricmp(dt, "VARCHAR"))
+							types->push_back("String");
+						else
+							types->push_back(dt);
+						
+						break;
+					}
+				}
+			}
 		}
 		else
 		if(found)
@@ -3053,6 +3099,8 @@ void SqlOciApi::SetError()
 {
 	if(_ociErrorGet == NULL)
 		return;
+
+	_native_error_text[0] = '\x0';
 
 	// Get error information
 	_ociErrorGet(_errhp, 1, NULL, &_native_error, (text*)_native_error_text, 1024, OCI_HTYPE_ERROR);

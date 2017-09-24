@@ -16,6 +16,8 @@ AppLog::AppLog()
 	first_write = true;
 	first_write_trc = true;
 
+	_use_stderr = false;
+
 	_console = NULL;
 	_console_object = NULL;
 
@@ -67,8 +69,16 @@ void AppLog::Log(const char *format, ...)
 	// log message to console
 	if(_console == NULL)
 	{
-		vprintf(format, args);
-		fflush(stdout);
+		if(!_use_stderr)
+		{
+			vprintf(format, args);
+			fflush(stdout);
+		}
+		else
+		{
+			vfprintf(stderr, format, args);
+			fflush(stderr);
+		}
 	}
 	else
 		_console(_console_object, format, args);
@@ -156,11 +166,11 @@ void AppLog::LogFile(const char *data, int len)
 {
 	if(first_write)
 	{
-		File::Write(_filename.c_str(), data, len);
+		File::Write(_filename.c_str(), data, (size_t)len);
 		first_write = false;
 	}
 	else
-		File::Append(_filename.c_str(), data, len);
+		File::Append(_filename.c_str(), data, (unsigned int)len);
 }
 
 // Write to trace file

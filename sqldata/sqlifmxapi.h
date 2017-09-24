@@ -156,7 +156,7 @@ public:
 	virtual int ReadConstraintColumns(const char *schema, const char *table, const char *constraint, std::string &cols);
 
 	// Get a list of columns for specified primary or unique key
-	virtual int GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output);
+	virtual int GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> * = NULL);
 	// Get a list of columns for specified foreign key
 	virtual int GetForeignKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &fcols, std::list<std::string> &pcols, std::string &ptable); 
 	

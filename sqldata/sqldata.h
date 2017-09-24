@@ -34,7 +34,7 @@
 #include "applog.h"
 
 #define SQLDATA_NAME  		        "SQLines Data"	
-#define SQLDATA_VERSION_NUMBER		"3.1.177"	
+#define SQLDATA_VERSION_NUMBER		"3.1.317"	
 
 #if defined(_WIN64)
 #define SQLDATA_VERSION				SQLDATA_NAME ## " " ## SQLDATA_VERSION_NUMBER ##" x64"	
@@ -177,6 +177,7 @@ class SqlData
 
 	Parameters *_parameters;
 	AppLog *_log;
+	bool _trace;
 
 	// SQL parser object
 	void *_sqlParser;

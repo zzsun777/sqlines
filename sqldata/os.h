@@ -22,13 +22,20 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifndef PATH_MAX
+#define PATH_MAX	260
+#endif
+
 #if defined(WIN32) || defined(_WIN64)
 #include <windows.h>
+#include <direct.h>
 #else
 #include <dlfcn.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/time.h>
+
+#define _getcwd getcwd
 
 // POSIX synchronization event
 struct Event
@@ -89,6 +96,9 @@ public:
 
 	// Get the current timestamp string
 	static const char* CurrentTimestamp();
+
+	// Get the current working directory
+	static const char* CurrentWorkingDirectory();
 
 	// Check if DDL is 64-bit
 	static bool Is64Bit(const char *filename);

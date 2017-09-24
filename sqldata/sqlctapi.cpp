@@ -1064,6 +1064,9 @@ int SqlCtApi::ReadSchema(const char *select, const char *exclude, bool read_cns,
 	if(read_cns || read_idx)
 		rc = ReadIndexes(condition);
 
+	if(read_cns)
+		rc = ReadReferences(condition);
+
 	return rc;
 }
 
@@ -1071,10 +1074,11 @@ int SqlCtApi::ReadSchema(const char *select, const char *exclude, bool read_cns,
 int SqlCtApi::ReadTableColumns(std::string &condition)
 {
 	// Tested on Sybase ASE 16
-	// Note that systypes contains duplicate type, only usertype is unique, and we join using 2 columns
+	// Note that systypes contains duplicate type, only usertype is unique
+	// Do **not** join on 2 columns: c.type = t.type AND c.usertype = t.usertype - it does not match (tested on pubs3 and some columns can be lost)
 	std::string query = "select u.name, o.name, c.name, t.name, c.colid, o.id, c.status"; 
     query += " FROM sysusers u, sysobjects o, syscolumns c, systypes t";
-	query += " WHERE o.type = 'U' AND o.uid = u.uid AND o.id = c.id AND c.type = t.type AND c.usertype = t.usertype";
+	query += " WHERE o.type = 'U' AND o.uid = u.uid AND o.id = c.id AND c.usertype = t.usertype";
 
 	if(condition.empty() == false)
 	{
@@ -1362,6 +1366,192 @@ int SqlCtApi::ReadIndexes(std::string &condition)
 	return 0;
 }
 
+// Read information about foreign keys
+int SqlCtApi::ReadReferences(std::string &condition)
+{
+	// Tested on Sybase ASE 16
+	std::string query = "select pu.name, po.name, u.name, o.name, co.name, r.tableid, r.constrid,";
+	query += " col_name(r.tableid,fokey1), col_name(r.tableid,fokey2), col_name(r.tableid,fokey3), col_name(r.tableid,fokey4), col_name(r.tableid,fokey5),";
+	query += " col_name(r.tableid,fokey6), col_name(r.tableid,fokey7), col_name(r.tableid,fokey8), col_name(r.tableid,fokey9), col_name(r.tableid,fokey10),";
+	query += " col_name(r.tableid,fokey11), col_name(r.tableid,fokey12), col_name(r.tableid,fokey13), col_name(r.tableid,fokey14), col_name(r.tableid,fokey15),";
+	query += " col_name(r.tableid,fokey16),"; 
+	query += " col_name(r.reftabid,refkey1), col_name(r.reftabid,refkey2), col_name(r.reftabid,refkey3), col_name(r.reftabid,refkey4), col_name(r.reftabid,refkey5),";
+	query += " col_name(r.reftabid,refkey6), col_name(r.reftabid,refkey7), col_name(r.reftabid,refkey8), col_name(r.reftabid,refkey9), col_name(r.reftabid,refkey10),";
+	query += " col_name(r.reftabid,refkey11), col_name(r.reftabid,refkey12), col_name(r.reftabid,refkey13), col_name(r.reftabid,refkey14), col_name(r.reftabid,refkey15),";
+	query += " col_name(r.reftabid,refkey16)"; 
+	query += " from sysreferences r, sysobjects po, sysusers pu, sysobjects o, sysusers u, sysobjects co";
+	query += " where r.reftabid = po.id and po.uid = pu.uid and r.tableid = o.id and o.uid = u.uid and r.constrid = co.id";
+
+	if(condition.empty() == false)
+	{
+		query += " AND ";
+		query += condition;
+	}
+	
+	size_t col_count = 0;
+	size_t allocated_rows = 0;
+	int rows_fetched = 0; 
+	size_t time_read = 0;
+	
+	SqlCol *cols = NULL;
+	SqlConstraints cns;
+
+	// Open cursor allocating 100 rows buffer
+	int rc = OpenCursor(query.c_str(), 100, 0, &col_count, &allocated_rows, &rows_fetched, &cols, 
+		&time_read, true);
+
+	while(rc >= 0)
+	{
+		// Copy column information
+		for(int i = 0; i < rows_fetched; i++)
+		{
+			SQLLEN len;
+
+			cns.schema = NULL; 
+			cns.table = NULL; 
+			cns.constraint = NULL;
+			cns.type = 'R';
+			cns.tabid = 0;
+			cns.pk_schema = NULL; 
+			cns.pk_table = NULL;
+
+			len = GetLen(&cols[0], i);
+			
+			// Primary key table schema
+			if(len != -1)
+			{
+				cns.pk_schema = new char[(size_t)len + 1];
+
+				strncpy(cns.pk_schema, cols[0]._data + cols[0]._fetch_len * i, (size_t)len);
+				cns.pk_schema[len] = '\x0';
+			}
+
+			len = GetLen(&cols[1], i);
+
+			// Primary key table name
+			if(len != -1)
+			{
+				cns.pk_table = new char[(size_t)len + 1];
+
+				strncpy(cns.pk_table, cols[1]._data + cols[1]._fetch_len * i, (size_t)len);
+				cns.pk_table[len] = '\x0';
+			}
+
+			len = GetLen(&cols[2], i);
+			
+			// Schema
+			if(len != -1)
+			{
+				cns.schema = new char[(size_t)len + 1];
+
+				strncpy(cns.schema, cols[2]._data + cols[2]._fetch_len * i, (size_t)len);
+				cns.schema[len] = '\x0';
+			}
+
+			len = GetLen(&cols[3], i);
+
+			// Table
+			if(len != -1)
+			{
+				cns.table = new char[(size_t)len + 1];
+
+				strncpy(cns.table, cols[3]._data + cols[3]._fetch_len * i, (size_t)len);
+				cns.table[len] = '\x0';
+			}
+
+			len = GetLen(&cols[4], i);
+			
+			// Constraint name
+			if(len != -1)
+			{
+				cns.constraint = new char[(size_t)len + 1];
+
+				strncpy(cns.constraint, cols[4]._data + cols[4]._fetch_len * i, (size_t)len);
+				cns.constraint[len] = '\x0';
+			}
+
+			len = GetLen(&cols[5], i);
+
+			// Table ID (INTEGER)
+			if(len == 4)
+				cns.tabid = *((int*)(cols[5]._data + cols[5]._fetch_len * i));
+
+			len = GetLen(&cols[6], i);
+
+			// Constraint ID (INTEGER)
+			if(len == 4)
+				cns.cnsid = *((int*)(cols[6]._data + cols[6]._fetch_len * i));
+
+			_table_constraints.push_back(cns);
+
+			// Define columns
+			for(int k = 0; k < 16; k++)
+			{
+				len = GetLen(&cols[7 + k], i);
+
+				// No more columns in the foreign key - COL_NAME() returns NULL when applied for column ID 0
+				if(len == -1)
+					break;
+
+				SqlConsColumns cns_col;
+
+				cns_col.schema = (char*)Str::GetCopy(cns.schema);
+				cns_col.table = (char*)Str::GetCopy(cns.table);
+				cns_col.constraint = (char*)Str::GetCopy(cns.constraint);
+
+				cns_col.tabid = cns.tabid;
+				cns_col.cnsid = cns.cnsid;
+
+				// FK column name
+				cns_col.column = new char[(size_t)len + 1];
+
+				strncpy(cns_col.column, cols[7 + k]._data + cols[7 + k]._fetch_len * i, (size_t)len);
+				cns_col.column[len] = '\x0';
+
+				len = GetLen(&cols[7 + 16 + k], i);
+
+				// PK column name
+				if(len != -1)
+				{
+					cns_col.pk_column = new char[(size_t)len + 1];
+
+					strncpy(cns_col.pk_column, cols[7 + 16 + k]._data + cols[7 + 16 + k]._fetch_len * i, (size_t)len);
+					cns_col.pk_column[len] = '\x0';
+				}
+
+				_table_cons_columns.push_back(cns_col);
+
+				// Pointers now belong to the list
+				cns_col.schema = NULL;
+				cns_col.table = NULL;
+				cns_col.constraint = NULL;
+				cns_col.column = NULL;
+				cns_col.pk_column = NULL;
+			}
+		}
+
+		rc = Fetch(&rows_fetched, &time_read);
+
+		// No more rows
+		if(rc == 100)
+			break;
+	}
+
+	// Set pointer to NULL to avoid delete if destructor (values belong to list now)
+	cns.schema = NULL; 
+	cns.table = NULL; 
+	cns.constraint = NULL; 
+	cns.condition = NULL; 
+	cns.r_schema = NULL; 
+	cns.r_constraint = NULL;
+	cns.idxname = NULL;
+	cns.pk_schema = NULL; 
+	cns.pk_table = NULL;
+	CloseCursor();
+
+	return 0;
+}
+
 // Get table name by constraint name
 int SqlCtApi::ReadConstraintTable(const char * /*schema*/, const char * /*constraint*/, std::string & /*table*/)
 {
@@ -1375,7 +1565,7 @@ int SqlCtApi::ReadConstraintColumns(const char * /*schema*/, const char * /*tabl
 }
 
 // Get a list of columns for specified primary or unique key
-int SqlCtApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output)
+int SqlCtApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &output, std::list<std::string> *)
 {
 	bool found = false;
 
@@ -1400,6 +1590,30 @@ int SqlCtApi::GetKeyConstraintColumns(SqlConstraints &cns, std::list<std::string
 		}
 	}
 				
+	return 0;
+}
+
+// Get a list of columns for specified foreign key
+int SqlCtApi::GetForeignKeyConstraintColumns(SqlConstraints &cns, std::list<std::string> &fcols, std::list<std::string> &pcols, std::string &ptable)
+{
+	ptable = cns.pk_schema;
+	ptable += ".";
+	ptable += cns.pk_table;
+
+	bool found = false;
+
+	// Find columns
+	for(std::list<SqlConsColumns>::iterator i = _table_cons_columns.begin(); i != _table_cons_columns.end(); i++)
+	{
+		if((*i).cnsid == cns.cnsid && (*i).tabid == cns.tabid)
+		{
+			fcols.push_back((*i).column);
+			pcols.push_back((*i).pk_column);
+		}
+		else if(found)
+			break;
+	}
+
 	return 0;
 }
 

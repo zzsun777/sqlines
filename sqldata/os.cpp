@@ -145,13 +145,13 @@ void Os::Sleep (unsigned int sec)
 #endif
 }
 
-// Check if DDL is 64-bit
-#if defined(WIN32) || defined(_WIN64)
+// Check if DDL is 64-bit (check runs on 32-bit Windows systems only)
+#if defined(WIN32) && !defined(_WIN64)
 bool Os::Is64Bit(const char *filename)
 {
+	bool is64 = false;
 	HMODULE module = LoadLibraryEx(filename, NULL, LOAD_LIBRARY_AS_DATAFILE);
 	char *cur = (char*)module;
-	bool is64 = false;
 
 	// For some reason memory starts from Z, not MZ
     if (cur == NULL || *cur != 'Z')
@@ -166,6 +166,11 @@ bool Os::Is64Bit(const char *filename)
 
 	FreeLibrary(module);
 	return is64;
+}
+#elif defined(_WIN64)
+bool Os::Is64Bit(const char* /*filename*/)
+{
+	return false;
 }
 #endif
 
@@ -198,7 +203,11 @@ void Os::GetLastErrorText(const char *prefix, char *output, int len)
 	if(rc > 2 && error[rc - 2] == '\r')
 		error[rc - 2] = '\x0';
 
-	strcpy(output, prefix);
+	if(prefix != NULL)
+		strcpy(output, prefix);
+	else
+		*output = '\x0';
+
 	strcat(output, error);
 
 #endif
@@ -225,3 +234,15 @@ const char *Os::CurrentTimestamp()
 #endif
 	return ts;
 }
+
+// Get the current working directory
+const char* Os::CurrentWorkingDirectory()
+{
+	static char cwd[PATH_MAX];
+
+	if(_getcwd(cwd, PATH_MAX) == NULL)
+		*cwd = '\x0';
+
+	return cwd;
+}
+
