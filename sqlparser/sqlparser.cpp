@@ -63,13 +63,23 @@ SqlParser::SqlParser()
 SqlParser::~SqlParser() {}
 
 // Set target programming language
-void SqlParser::SetLang(const char *pl)
+void SqlParser::SetLang(const char *value, bool source)
 {
-    if(pl == NULL)
+    if(value == NULL)
         return;
 
-    if(_stricmp(pl, "-java") == 0)
-        _target_app = APP_JAVA;
+	short app = 0;
+
+    if(_stricmp(value, "java") == 0)
+        app = APP_JAVA;
+	else
+    if(_stricmp(value, "cobol") == 0)
+        app = APP_COBOL;
+
+	if(source)
+		_source_app = app;
+	else
+		_target_app = app;
 }
 
 
@@ -102,9 +112,13 @@ void SqlParser::SetOption(const char *option, const char *value)
 	if(_stricmp(option, "-meta") == 0 && value != NULL)
 		SetMetaFromFile(value);
     else
+	// Source programming language
+	if(_stricmp(option, "-sl") == 0 && value != NULL)
+		SetLang(value, true);
+    else
 	// Target programming language
-	if(_stricmp(option, "-pl") == 0 && value != NULL)
-		SetLang(value);
+	if(_stricmp(option, "-tl") == 0 && value != NULL)
+		SetLang(value, false);
 }
 
 // Perform conversion
@@ -124,7 +138,7 @@ int SqlParser::Convert(const char *input, int size, const char **output, int *ou
 	// Byte order mark for Unicode
 	GetBomToken();
 
-	// Try to define application type (Java, C#, PowerBuilder, COBOL etc.)
+	// Set application type (Java, C#, PowerBuilder, COBOL etc.)
 	SetApplicationSource();
 
 	// Process tokens until the end of input

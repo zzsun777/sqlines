@@ -205,10 +205,15 @@
 #define APPEND_FIRST_FMT(token, string, format) AppendFirst(token, string, L##string, sizeof(string) - 1, format)
 #define APPEND_FIRST_NOFMT(token, string) AppendFirstNoFormat(token, string, L##string, sizeof(string) - 1)
 #define APPEND_NOFMT(token, string) AppendNoFormat(token, string, L##string, sizeof(string) - 1)
+#define APPENDS(token, tokenstr) Append(token, tokenstr)
+
+#define APPENDSTR(tokenstr, string) tokenstr.Append(string, L##string, sizeof(string) - 1)
 
 #define PREPEND(token, string) Prepend(token, string, L##string, sizeof(string) - 1)
 #define PREPEND_FMT(token, string, format) Prepend(token, string, L##string, sizeof(string) - 1, format)
 #define PREPEND_NOFMT(token, string) PrependNoFormat(token, string, L##string, sizeof(string) - 1)
+
+#define LOOKNEXT(string) LookNext(string, L##string, sizeof(string) - 1)
 
 #define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
 
@@ -495,7 +500,7 @@ public:
 	// Set source and target types
 	void SetTypes(short source, short target) { _source = source; _target = target; }
     // Set target programming language
-    void SetLang(const char *pl);
+    void SetLang(const char *value, bool source);
 	// Set option
 	void SetOption(const char *option, const char *value);
 
@@ -541,6 +546,9 @@ public:
 	// Handle local block variables
 	void EnterLocalVariablesBlock();
 	void LeaveLocalVariablesBlock();
+
+	void AddVariable(Token *name) { _spl_variables.Add(name); }
+	void AddParameter(Token *name) { _spl_parameters.Add(name); }
 
 	// Return the last fetched token to the input
 	void PushBack(Token *token);
@@ -1424,7 +1432,10 @@ public:
 	bool CompareIdentifiersExistingParts(Token *first, Token *second);
 	bool CompareIdentifierPart(TokenStr &first, TokenStr &second);
 
-	// Define application type (Java, C#, PowerBuilder, COBOL etc.)
+	// Set parser level (application, SQL, string i.e.)
+	void SetLevel(int level) { _level = level; }
+
+	// Set application type (Java, C#, PowerBuilder, COBOL etc.)
 	void SetApplicationSource();
 
     // Create report file

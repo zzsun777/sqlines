@@ -20,6 +20,7 @@
 #include <string.h>
 #include "sqlparser.h"
 #include "str.h"
+#include "cobol.h"
 
 // Convert an identifier
 void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
@@ -2159,25 +2160,31 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 	// This can be an identifier 
 	if(first->type == TOKEN_WORD || first->type == TOKEN_IDENT)
 	{
-		// Check if a variable exists with this name
-		Token *var = GetVariable(first);
+		// In COBOL EXEC SQL block all variables/parameters are prefixed with :
+		if(_source_app == APP_COBOL && _level == LEVEL_SQL && _cobol != NULL)
+			_cobol->ConvertDeclaredIdentifierInSql(first);
+		else
+		{
+			// Check if a variable exists with this name
+			Token *var = GetVariable(first);
 
-		// Change only if it was changed at the declaration
-		if(var != NULL && var->t_len != 0)
-			ConvertVariableIdentifier(first, var);
+			// Change only if it was changed at the declaration
+			if(var != NULL && var->t_len != 0)
+				ConvertVariableIdentifier(first, var);
 
-		Token *param = NULL;
+			Token *param = NULL;
 
-		// Check if a parameter exists with this name
-		if(var == NULL)
-			param = GetParameter(first);
+			// Check if a parameter exists with this name
+			if(var == NULL)
+				param = GetParameter(first);
 
-		// Change only if it was changed at the declaration
-		if(param != NULL && param->t_len != 0)
-			ConvertParameterIdentifier(first, param);
+			// Change only if it was changed at the declaration
+			if(param != NULL && param->t_len != 0)
+				ConvertParameterIdentifier(first, param);
 
-		if(var == NULL && param == NULL)
-			ConvertIdentifier(first, SQL_IDENT_COLUMN);
+			if(var == NULL && param == NULL)
+				ConvertIdentifier(first, SQL_IDENT_COLUMN);
+		}
 
 		exists = true;
 	}

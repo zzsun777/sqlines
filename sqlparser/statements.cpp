@@ -4343,7 +4343,7 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 		else
 		{
 			// Cut FOR SELECT to be used in OPEN
-			if(Target(SQL_ORACLE, SQL_SQL_SERVER))
+			if(Target(SQL_ORACLE, SQL_SQL_SERVER) && _source_app != APP_COBOL)
 			{
 				Token *cut_start = for_;
 

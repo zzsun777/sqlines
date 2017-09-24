@@ -1252,33 +1252,9 @@ void SqlParser::ClearSplScope()
 	_exp_select = 0;
 }
 
-// Try to define application type (Java, C#, PowerBuilder, COBOL etc.)
+// Set application type (Java, C#, PowerBuilder, COBOL etc.)
 void SqlParser::SetApplicationSource()
 {
-	if(_remain_size == 0)
-		return;
-
-	const char *cur = _next_start;
-	int len = _remain_size;
-
-	// Skip spaces in the source code
-	while(len > 0)
-	{
-		if(*cur != ' ' && *cur != '\t' && *cur != '\r' && *cur != '\n')
-			break;
-
-		cur++;
-		len--;
-	}
-
-	// All blanks
-	if(len == 0)
-		return;
-
-	// Check for COBOL program that can start with a comment * (in 7th position if strictly, but check first non-space)
-	if(*cur == '*')
-		_source_app = APP_COBOL;
-
 	// Set the target language
 	if(_source_app == APP_COBOL)
 	{
