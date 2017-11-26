@@ -200,6 +200,9 @@ bool SqlParser::ParseStorageClause(Token *table_name, Token **id_start, Token **
 	if(_source == SQL_TERADATA && ParseTeradataStorageClause(last_colname, last_colend) == true)
 		return true;
 
+	if(_source == SQL_SYBASE_ADS && ParseSybaseAdsStorageClause() == true)
+		return true;
+
 	return false;
 }
 
@@ -1010,6 +1013,38 @@ bool SqlParser::ParseTeradataStorageClause(Token *last_colname, Token *last_cole
             // WITH DATA is default in EsgynDB
             if(no == NULL && data != NULL && Target(SQL_ESGYNDB))
                 Token::Remove(next, data);
+
+			exists = true;
+			continue;
+		}
+
+		// Not a storage clause
+		PushBack(next);
+		break;
+	}
+
+	return exists;
+}
+
+// Parse Sybase ADS CREATE TABLE storage clause
+bool SqlParser::ParseSybaseAdsStorageClause()
+{
+	bool exists = false;
+
+	while(true)
+	{
+		Token *next = GetNextToken();
+
+		if(next == NULL)
+			break;
+
+		// IN DATABASE
+		if(TOKEN_CMP(next, "IN"))
+		{
+			Token *database = TOKEN_GETNEXTW("DATABASE");
+
+			if(_target != SQL_SYBASE_ADS)
+				Token::Remove(next, database);
 
 			exists = true;
 			continue;

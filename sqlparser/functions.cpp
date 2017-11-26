@@ -192,6 +192,12 @@ bool SqlParser::ParseFunction(Token *name)
 	if(name->Compare("CURRENT_BIGTIME", L"CURRENT_BIGTIME", 15) == true)
 		exists = ParseFunctionCurrentBigtime(name, open);
 	else
+	if(name->Compare("CURRENT_DATE", L"CURRENT_DATE", 12) == true)
+		exists = ParseFunctionCurrentDate(name, open);
+	else
+	if(name->Compare("CURRENT_TIMESTAMP", L"CURRENT_TIMESTAMP", 17) == true)
+		exists = ParseFunctionCurrentTimestamp(name, open);
+	else
 	if(name->Compare("CURSOR_ROWCOUNT", L"CURSOR_ROWCOUNT", 15) == true)
 		exists = ParseFunctionCursorRowcount(name, open);
 	else
@@ -379,9 +385,12 @@ bool SqlParser::ParseFunction(Token *name)
 
 	if(exists)
 	{
+		name->type = TOKEN_FUNCTION;
         FUNC_STATS(name);
 
-		name->type = TOKEN_FUNCTION;
+		if(_stats != NULL)
+			_stats->LogFuncCall(name, GetLastToken(), _option_cur_file);
+		
 		return exists;
 	}
 
@@ -445,6 +454,9 @@ bool SqlParser::ParseFunction(Token *name)
 	else
 	if(name->Compare("LAST_DAY", L"LAST_DAY", 8) == true)
 		exists = ParseFunctionLastDay(name, open);
+	else
+	if(name->Compare("LASTAUTOINC", L"LASTAUTOINC", 11) == true)
+		exists = ParseFunctionLastAutoInc(name, open);
 	else
 	if(name->Compare("LCASE", L"LCASE", 5) == true)
 		exists = ParseFunctionLcase(name, open);
@@ -673,9 +685,12 @@ bool SqlParser::ParseFunction(Token *name)
 
 	if(exists)
 	{
+		name->type = TOKEN_FUNCTION;
         FUNC_STATS(name);
 
-		name->type = TOKEN_FUNCTION;
+		if(_stats != NULL)
+			_stats->LogFuncCall(name, GetLastToken(), _option_cur_file);
+
 		return exists;
 	}
 
@@ -995,15 +1010,20 @@ bool SqlParser::ParseFunction(Token *name)
 
 	if(exists || udt_exists)
     {
-        if(udt_exists)
+		name->type = TOKEN_FUNCTION;
+
+		if(udt_exists)
         {
             UDF_FUNC_STATS(name);
             exists = true;
         }
         else
+		{
             FUNC_STATS(name);
 
-		name->type = TOKEN_FUNCTION;
+			if(_stats != NULL)
+				_stats->LogFuncCall(name, GetLastToken(), _option_cur_file);
+		}
     }
 	
 	return exists;
@@ -2429,12 +2449,12 @@ bool SqlParser::ParseFunctionChr(Token *name, Token* /*open*/)
 
 	Token *close = GetNextCharToken(')', L')');
 
-	// Convert to CHAR in MySQL
-	if(Target(SQL_MARIADB, SQL_MYSQL))
+	// Convert to CHAR in SQL Server, MySQL
+	if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL))
 	{
 		Token::Change(name, "CHAR", L"CHAR", 4);
 
-		if(usng == NULL)
+		if(usng == NULL && Target(SQL_MARIADB, SQL_MYSQL))
 			Prepend(close, " USING ASCII", L" USING ASCII", 12, name);
 	}
 
@@ -2734,8 +2754,8 @@ bool SqlParser::ParseFunctionConvert(Token *name, Token *open)
 	if(name == NULL)
 		return false;
 
-	// MySQL uses different order CONVERT(exp, type)
-	if(_source == SQL_MYSQL)
+	// MySQL, Sybase ADS use different order CONVERT(exp, type)
+	if(Source(SQL_MYSQL, SQL_SYBASE_ADS))
 		return ParseFunctionConvertMySql(name, open);
 
 	// First is a keyword specifying data type in SQL Server, Sybase ASE, Sybase ASA
@@ -2789,7 +2809,7 @@ bool SqlParser::ParseFunctionConvert(Token *name, Token *open)
 	return true;
 }
 
-// CONVERT function in MySQL
+// CONVERT function in MySQL, Sybase ADS
 bool SqlParser::ParseFunctionConvertMySql(Token *name, Token* /*open*/)
 {
 	if(name == NULL)
@@ -2808,12 +2828,19 @@ bool SqlParser::ParseFunctionConvertMySql(Token *name, Token* /*open*/)
 	// Data type
 	Token *datatype = GetNextToken();
 
-	ParseDataType(datatype, SQL_SCOPE_CASE_FUNC);
+	// Sybase ADS has specific constants for target type
+	if(_source == SQL_SYBASE_ADS)
+	{
+		if(TOKEN_CMP(datatype, "SQL_CHAR"))
+			TOKEN_CHANGE(datatype, "VARCHAR");
+	}
+	else
+		ParseDataType(datatype, SQL_SCOPE_CASE_FUNC);
 
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
 	// Other databases use different order in CONVERT; Oracle does not support such conversion function
-	if(_target != SQL_MYSQL)
+	if(!Target(SQL_MYSQL, SQL_SYBASE_ADS))
 	{
 		Token::Change(name, "CAST", L"CAST", 4);
 		Token::Change(comma, " AS ", L" AS ", 4, name);
@@ -3441,7 +3468,34 @@ bool SqlParser::ParseFunctionCurrentBigtime(Token *name, Token *open)
 	return true;
 }
 
-// CURRENT_DATE in Oracle, DB2, MySQL, Sybase ASE
+// CURRENT_DATE with () in Sybase ASE, Sybase ADS
+bool SqlParser::ParseFunctionCurrentDate(Token *name, Token *open)
+{
+	if(name == NULL)
+		return false;
+
+	Token *close = TOKEN_GETNEXT(')');
+
+	// If target type is not Sybase ASE, Sybase ADS remove parentheses
+	if(!Target(SQL_SYBASE, SQL_SYBASE_ADS))
+		Token::Remove(open, close);
+
+	// Convert to TRUNC(SYSDATE) in Oracle
+	if(_target == SQL_ORACLE && _source != SQL_ORACLE)
+		Token::Change(name, "TRUNC(SYSDATE)", L"TRUNC(SYSDATE)", 14);
+	else
+	// Convert to GETDATE in SQL Server
+	if(_target == SQL_SQL_SERVER && _source != SQL_ORACLE)
+		Token::Change(name, "CONVERT(DATE, GETDATE())", L"CONVERT(DATE, GETDATE())", 24);
+	else
+	// Convert Oracle CURRENT_DATE to NOW() in MySQL
+	if(Target(SQL_MARIADB, SQL_MYSQL) && _source == SQL_ORACLE)
+		Token::Change(name, "NOW()", L"NOW()", 5);
+
+	return true;
+}
+
+// CURRENT_DATE in Oracle, DB2, MySQL, Sybase ASE, Sybase ADS
 bool SqlParser::ParseFunctionCurrentDate(Token *name)
 {
 	if(name == NULL)
@@ -3450,8 +3504,8 @@ bool SqlParser::ParseFunctionCurrentDate(Token *name)
 	Token *open = NULL;
 	Token *close = NULL;
 
-	// Get parentheses for Sybase ASE
-	if(_source == SQL_SYBASE)
+	// Get parentheses for Sybase ASE, Sybase ADS
+	if(Source(SQL_SYBASE, SQL_SYBASE_ADS))
 	{
 		open = GetNextCharToken('(', L'(');
 		close = GetNextCharToken(')', L')');
@@ -3514,6 +3568,27 @@ bool SqlParser::ParseFunctionCurrentTimestamp(Token *name)
 	// Convert Oracle CURRENT_DATE to NOW() in MySQL
 	if(Target(SQL_MARIADB, SQL_MYSQL) && _source == SQL_ORACLE)
 		Token::Change(name, "NOW()", L"NOW()", 5);
+
+	name->data_type = TOKEN_DT_DATETIME;
+	name->nullable = false;
+
+	return true;
+}
+
+// CURRENT_TIMESTAMP(n) in Teradata; CURRENT_TIMESTAMP() in Sybase ADS
+bool SqlParser::ParseFunctionCurrentTimestamp(Token *name, Token *open)
+{
+	if(name == NULL)
+		return false;
+
+	// Optional precision
+	/*Token *num */ (void) GetNextNumberToken();
+
+	Token *close = TOKEN_GETNEXT(')');
+
+	// CURRENT_TIMESTAMP in SQL Server
+	if(_target == SQL_SQL_SERVER)
+		Token::Remove(open, close);
 
 	name->data_type = TOKEN_DT_DATETIME;
 	name->nullable = false;
@@ -6316,7 +6391,7 @@ bool SqlParser::ParseFunctionIdentity(Token *name, Token *open)
 	return true;
 }
 
-// IFNULL in Sybase ASA, MySQL
+// IFNULL in MySQL, Sybase ASA, Sybase ADS
 bool SqlParser::ParseFunctionIfnull(Token *name, Token *open)
 {
 	if(name == NULL)
@@ -6345,7 +6420,7 @@ bool SqlParser::ParseFunctionIfnull(Token *name, Token *open)
 	Token *exp3 = NULL;
 	Token *end_exp3 = NULL;
 
-	// Third expression is optional in Sybase ASA; only 2 expressions allowed in MySQL
+	// Third expression is optional in Sybase ASA; only 2 expressions allowed in MySQL and Sybase ADS
 	if(comma2 != NULL)
 	{
 		exp3 = GetNextToken();
@@ -6386,21 +6461,27 @@ bool SqlParser::ParseFunctionIfnull(Token *name, Token *open)
 	// Convert to CASE expression in SQL Server
 	if(_target == SQL_SQL_SERVER)
 	{
-		Token::Change(name, "CASE WHEN ", L"CASE WHEN ", 10);
-		Token::Remove(open);
-		Append(end_exp, " IS NULL THEN ", L" IS NULL THEN ", 14, name);
-		Token::Remove(comma);
-
-		if(exp3 != NULL)
-		{
-			Append(end_exp2, " ELSE ", L" ELSE ", 6, name);
-			Token::Remove(comma2);
-			Append(end_exp3, " END", L" END", 4, name);
-		}
+		// Sybase ADS support 2 arguments only
+		if(_source == SQL_SYBASE_ADS)
+			TOKEN_CHANGE(name, "ISNULL");
 		else
-			Append(end_exp2, " ELSE NULL END", L" ELSE NULL END", 14, name);
+		{
+			Token::Change(name, "CASE WHEN ", L"CASE WHEN ", 10);
+			Token::Remove(open);
+			Append(end_exp, " IS NULL THEN ", L" IS NULL THEN ", 14, name);
+			Token::Remove(comma);
 
-		Token::Remove(close);
+			if(exp3 != NULL)
+			{
+				Append(end_exp2, " ELSE ", L" ELSE ", 6, name);
+				Token::Remove(comma2);
+				Append(end_exp3, " END", L" END", 4, name);
+			}
+			else
+				Append(end_exp2, " ELSE NULL END", L" ELSE NULL END", 14, name);
+
+			Token::Remove(close);
+		}
 	}
 
 	return true;
@@ -6887,6 +6968,20 @@ bool SqlParser::ParseFunctionInstr(Token *name, Token *open)
 
 	/*Token *close */ (void) GetNextCharToken(')', L')');
 
+	if(Target(SQL_SQL_SERVER))
+	{
+		// For 2 and 3 parameters, convert to CHARINDEX
+		if(instance == NULL)
+		{
+			TOKEN_CHANGE(name, "CHARINDEX");
+
+			// Different order of parameters
+			AppendCopy(open, search, end_search);
+			APPEND_NOFMT(open, ", ");
+			Token::Remove(comma, end_search);
+		}
+	}
+	else
 	if(Target(SQL_MARIADB, SQL_MYSQL))
 	{
 		// For 3 parameters, convert to LOCATE in MySQL
@@ -6899,6 +6994,8 @@ bool SqlParser::ParseFunctionInstr(Token *name, Token *open)
 			Token::Remove(comma, end_search);
 		}
 	}
+
+	name->subtype = TOKEN_SUB_FUNC_STRING;
 
 	return true;
 }
@@ -7190,6 +7287,38 @@ bool SqlParser::ParseFunctionLastDay(Token *name, Token* /*open*/)
 	ParseExpression(date);
 
 	/*Token *close */ (void) GetNextCharToken(')', L')');
+
+	return true;
+}
+
+// LASTAUTOINC in Sybase ADS
+bool SqlParser::ParseFunctionLastAutoInc(Token *name, Token *open)
+{
+	if(name == NULL)
+		return false;
+
+	Token *option = GetNextToken();
+	Token *close = (option !=  NULL) ? TOKEN_GETNEXT(')') : NULL;
+
+	// Statement level identity value (the same scope)
+	if(TOKEN_CMP(option, "STATEMENT"))
+	{
+		if(_target == SQL_SQL_SERVER)
+		{
+			TOKEN_CHANGE(name, "SCOPE_IDENTITY");
+			Token::Remove(option);
+		}
+	}
+	else
+	// Connection level identity value (all scopes)
+	if(TOKEN_CMP(option, "CONNECTION"))
+	{
+		if(_target == SQL_SQL_SERVER)
+		{
+			TOKEN_CHANGE(name, "@@IDENTITY");
+			Token::Remove(open, close);
+		}
+	}
 
 	return true;
 }
@@ -10382,9 +10511,15 @@ bool SqlParser::ParseFunctionSqlPercent(Token *name)
 	// Oracle SQL%ROWCOUNT
 	if(rowcount != NULL)
 	{
+		if(_target == SQL_SQL_SERVER)
+		{
+			TOKEN_CHANGE(cent, "@@");
+			Token::Remove(name);
+		}
+		else
 		if(_target == SQL_NETEZZA)
 		{
-			Token::Change(name, "ROW_COUNT", L"ROW_COUNT", 9);
+			TOKEN_CHANGE(name, "ROW_COUNT");
 			Token::Remove(cent, rowcount);
 		}
 	}

@@ -757,7 +757,10 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 
         // Check if we are in the outer BEGIN block
         if(_spl_begin_blocks.GetCount() == 0)
+		{
             _spl_last_outer_declare_var = last_declare_var;
+			_spl_last_outer_declare_varname = name;
+		}
 
 		if(semi == NULL)
 			break;

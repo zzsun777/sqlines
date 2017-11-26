@@ -26,6 +26,9 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
     if(name == NULL)
         return false;
 
+    if(ParseAutoIncType(name) == true)
+        return true;
+
     if(ParseBfileType(name) == true)
         return true;
 
@@ -75,6 +78,9 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
         return true;
 
     if(ParseClobType(name) == true)
+        return true;
+
+    if(ParseCurDoubleType(name) == true)
         return true;
 
     if(ParseDatetimeType(name) == true)
@@ -140,6 +146,9 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
     if(ParseInt8Type(name) == true)
         return true;
 
+    if(ParseLogicalType(name) == true)
+        return true;
+
     if(ParseLongblobType(name) == true)
         return true;
 
@@ -161,6 +170,9 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
     if(ParseMediumtextType(name) == true)
         return true;
 
+    if(ParseMemoType(name) == true)
+        return true;
+
     if(ParseMiddleintType(name) == true)
         return true;
 
@@ -176,6 +188,9 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
     if(ParseNclobType(name) == true)
         return true;
 
+    if(ParseNmemoType(name) == true)
+        return true;
+
     if(ParseNtextType(name) == true)
         return true;
 
@@ -188,7 +203,7 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
     if(ParseNvarcharType(name) == true)
         return true;
 
-    if(ParseNvarchar2Type(name) == true)
+    if(ParseNvarchar2Type(name, clause_scope) == true)
         return true;
 
     if(ParseRawType(name) == true)
@@ -216,6 +231,9 @@ bool SqlParser::ParseDataType(Token *name, int clause_scope)
         return true;
 
     if(ParseSerial8Type(name) == true)
+        return true;
+
+    if(ParseShortType(name) == true)
         return true;
 
     if(ParseSmalldatetimeType(name) == true)
@@ -424,6 +442,24 @@ bool SqlParser::ParseTypedVariable(Token *var, Token *ref_type)
             }
 
             return true;
+}
+
+// AutoInc in Sybase ADS
+bool SqlParser::ParseAutoIncType(Token *name)
+{
+    if(name == NULL)
+        return false;
+
+    if(!TOKEN_CMP(name, "AUTOINC"))
+        return false;
+
+    if(_target == SQL_SQL_SERVER)
+		TOKEN_CHANGE(name, "INT IDENTITY");
+
+    DTYPE_STATS(name)
+    DTYPE_DTL_STATS_0(name)
+
+    return true;
 }
 
 // BFILE in Oracle
@@ -1614,6 +1650,39 @@ bool SqlParser::ParseClobType(Token *name)
     return true;
 }
 
+// CURDOUBLE in Sybase ADS
+bool SqlParser::ParseCurDoubleType(Token *name)
+{
+    if(name == NULL && _source != SQL_SYBASE_ADS)
+        return false;
+
+    if(!TOKEN_CMP(name, "CURDOUBLE"))
+        return false;
+
+    DTYPE_STATS(name)
+    DTYPE_DTL_STATS_L(name)
+
+	Token *open = TOKEN_GETNEXT('(');
+	Token *close = NULL;
+	    
+    if(open != NULL)
+    {
+        /*Token *num */ (void) GetNextNumberToken();
+        close = TOKEN_GETNEXT(')');
+    }
+
+    // Convert to VARCHAR(max) in SQL Server
+    if(_target == SQL_SQL_SERVER)
+	{
+        TOKEN_CHANGE(name, "FLOAT");
+
+		if(open != NULL)
+			Token::Remove(open, close);
+	}
+    
+    return true;
+}
+
 // DATETIME in SQL Server, MySQL, Informix, Sybase ASE, Sybase ASA
 bool SqlParser::ParseDatetimeType(Token *name)
 {
@@ -2011,10 +2080,13 @@ bool SqlParser::ParseDateType(Token *name)
             Token::Change(name, "TIMESTAMP(0)", L"TIMESTAMP(0)", 12);
     }
     else
-        // Remove [] for other databases
-        if(_target != SQL_SQL_SERVER && date_in_braces == true)
-            Token::ChangeNoFormat(name, name, 1, name->len - 2);
+    // Remove [] for other databases
+    if(_target != SQL_SQL_SERVER && date_in_braces == true)
+        Token::ChangeNoFormat(name, name, 1, name->len - 2);
         
+	name->data_type = TOKEN_DT_DATETIME;
+	name->data_subtype = (_source == SQL_ORACLE) ? TOKEN_DT2_DATETIME_SEC : TOKEN_DT2_DATE;
+
     DTYPE_STATS(name)
     DTYPE_DTL_STATS_0(name)
 
@@ -3375,6 +3447,24 @@ bool SqlParser::ParseLongType(Token *name)
                                                         return true;
 }
 
+// LOGICAL in Sybase ADS
+bool SqlParser::ParseLogicalType(Token *name)
+{
+    if(name == NULL || _source != SQL_SYBASE_ADS)
+        return false;
+
+    if(!TOKEN_CMP(name, "LOGICAL"))
+        return false;
+
+    if(_target != SQL_SYBASE_ADS)
+        TOKEN_CHANGE(name, "CHAR(1)");
+                
+    DTYPE_STATS(name)
+    DTYPE_DTL_STATS_0(name)
+
+    return true;
+}
+
 // LONGBLOB in MySQL
 bool SqlParser::ParseLongblobType(Token *name)
 {
@@ -4056,6 +4146,68 @@ bool SqlParser::ParseNclobType(Token *name)
     return true;
 }
 
+// NMEMO in Sybase ADS
+bool SqlParser::ParseNmemoType(Token *name)
+{
+    if(name == NULL || _source != SQL_SYBASE_ADS)
+        return false;
+
+    if(!TOKEN_CMP(name, "NMEMO"))
+        return false;
+
+    DTYPE_STATS(name)
+
+    // Convert to NVARCHAR(max) in SQL Server
+    if(_target == SQL_SQL_SERVER)
+    {
+        Token::Change(name, "NVARCHAR", L"NVARCHAR", 8);
+        AppendNoFormat(name, "(max)", L"(max)", 5);
+    }
+    else
+    // Convert to LONGTEXT in MySQL
+    if(Target(SQL_MARIADB, SQL_MYSQL))
+		Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
+    else
+    // Convert to TEXT in PostgreSQL
+    if(_target == SQL_POSTGRESQL)
+        Token::Change(name, "TEXT", L"TEXT", 4);
+
+    DTYPE_DTL_STATS_L(name)
+
+    return true;
+}
+
+// MEMO in Sybase ADS
+bool SqlParser::ParseMemoType(Token *name)
+{
+    if(name == NULL || _source != SQL_SYBASE_ADS)
+        return false;
+
+    if(!TOKEN_CMP(name, "MEMO"))
+        return false;
+
+    DTYPE_STATS(name)
+
+    // Convert to NVARCHAR(max) in SQL Server
+    if(_target == SQL_SQL_SERVER)
+    {
+        Token::Change(name, "VARCHAR", L"VARCHAR", 7);
+        AppendNoFormat(name, "(max)", L"(max)", 5);
+    }
+    else
+    // Convert to LONGTEXT in MySQL
+    if(Target(SQL_MARIADB, SQL_MYSQL))
+		Token::Change(name, "LONGTEXT", L"LONGTEXT", 8);
+    else
+    // Convert to TEXT in PostgreSQL
+    if(_target == SQL_POSTGRESQL)
+        Token::Change(name, "TEXT", L"TEXT", 4);
+
+    DTYPE_DTL_STATS_L(name)
+
+    return true;
+}
+
 // NTEXT in SQL Server, Sybase ASA
 bool SqlParser::ParseNtextType(Token *name)
 {
@@ -4141,13 +4293,19 @@ bool SqlParser::ParseNumberType(Token *name, int clause_scope)
         if(clause_scope == SQL_SCOPE_FUNC_PARAMS || clause_scope == SQL_SCOPE_PROC_PARAMS ||
             clause_scope == SQL_SCOPE_VAR_DECL)
         {
+			if(!_option_oracle_plsql_number_mapping.empty())
+			{
+				TokenStr number(_option_oracle_plsql_number_mapping);
+				Token::ChangeNoFormat(name, number);
+			}
+			else 
             if(_target == SQL_SQL_SERVER)
                 Token::Change(name, "FLOAT", L"FLOAT", 5);
             else
-                if(Target(SQL_MARIADB, SQL_MYSQL))
-                    Token::Change(name, "DOUBLE", L"DOUBLE", 6);
-                else
-                    Token::Change(name, "INT", L"INT", 3);
+            if(Target(SQL_MARIADB, SQL_MYSQL))
+                Token::Change(name, "DOUBLE", L"DOUBLE", 6);
+            else
+                Token::Change(name, "INT", L"INT", 3);
         }
         else
             // Convert to FLOAT in SQL Server
@@ -4246,6 +4404,7 @@ bool SqlParser::ParseNumberType(Token *name, int clause_scope)
         }
     }
 
+	name->data_type = TOKEN_DT_NUMBER;
     DTYPE_DTL_STATS_L(name)
 
     return true;
@@ -4452,7 +4611,7 @@ bool SqlParser::ParseNvarcharType(Token *name)
 }
 
 // NVARCHAR2 in Oracle
-bool SqlParser::ParseNvarchar2Type(Token *name)
+bool SqlParser::ParseNvarchar2Type(Token *name, int clause_scope)
 {
     if(name == NULL)
         return false;
@@ -4475,6 +4634,10 @@ bool SqlParser::ParseNvarchar2Type(Token *name)
         else
             // Convert to NVARCHAR in other databases
             Token::Change(name, "NVARCHAR", L"NVARCHAR", 8);
+
+		// When used in parameter list for a function or procedure add length
+        if(clause_scope == SQL_SCOPE_FUNC_PARAMS || clause_scope == SQL_SCOPE_PROC_PARAMS)
+			APPEND_NOFMT(name, "(2000)");
     }
 
     DTYPE_DTL_STATS_L(name)
@@ -4792,6 +4955,24 @@ bool SqlParser::ParseSerial8Type(Token *name)
         // Convert to BIGINT in SQL Server
         if(_target == SQL_SQL_SERVER)
             Token::Change(name, "BIGINT", L"BIGINT", 6);
+
+    DTYPE_STATS(name)
+    DTYPE_DTL_STATS_0(name)
+
+    return true;
+}
+
+// SHORT in Sybase ADS
+bool SqlParser::ParseShortType(Token *name)
+{
+    if(name == NULL || _source != SQL_SYBASE_ADS)
+        return false;
+
+    if(!TOKEN_CMP(name, "SHORT"))
+        return false;
+
+    if(_target != SQL_SYBASE_ADS)
+		TOKEN_CHANGE(name, "SMALLINT");
 
     DTYPE_STATS(name)
     DTYPE_DTL_STATS_0(name)
@@ -6383,13 +6564,22 @@ bool SqlParser::ParseVarchar2Type(Token *name, int clause_scope)
                 AppendNoFormat(name, "(4000)", L"(4000)", 6);
         }
         else
-            // CAST function
-            if(clause_scope == SQL_SCOPE_CASE_FUNC)
-            {
-                // Netezza requires size
-                if(_target == SQL_NETEZZA)
-                    Append(name, "(30)", L"(30)", 4);
-            }
+        // CAST function
+        if(clause_scope == SQL_SCOPE_CASE_FUNC)
+        {
+            // Netezza requires size
+            if(_target == SQL_NETEZZA)
+                Append(name, "(30)", L"(30)", 4);
+        }
+		else
+		// Inside PL/SQL VARCHAR2 can be up to 32767  even in Oracle 9i
+		if(size != NULL)
+		{
+			int sz = size->GetInt();
+
+			if(_target == SQL_SQL_SERVER && sz > 8000)
+				TOKEN_CHANGE_FMT(size, "MAX", name);
+		}
     }
 
     name->data_type = TOKEN_DT_STRING;

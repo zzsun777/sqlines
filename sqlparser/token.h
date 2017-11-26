@@ -33,6 +33,10 @@
 #define TOKEN_FUNCTION	9		// Function
 #define TOKEN_STATEMENT	10		// Statement
 
+// Token subtype
+#define TOKEN_SUB_IDENT_SEQNEXTVAL    1    // Sequence nextval (ident.nextval)
+#define TOKEN_SUB_FUNC_STRING         2    // String function
+
 // Token data type
 #define TOKEN_DT_DATETIME		1		// Date and time
 #define TOKEN_DT_STRING			2		// String
@@ -41,13 +45,14 @@
 
 // Token data subtype
 #define TOKEN_DT2_DATETIME		1		// Date and time
-#define TOKEN_DT2_DATE			2		// Date only
-#define TOKEN_DT2_TIME			3		// Time only
-#define TOKEN_DT2_INT8			4		// 8-bit integer
-#define TOKEN_DT2_INTVL_MON		5		// Month interval
-#define TOKEN_DT2_INTVL_DAY		6		// Day interval
-#define TOKEN_DT2_INTVL_MIN		7		// Minute interval
-#define TOKEN_DT2_INTVL_SEC		8		// Second interval
+#define TOKEN_DT2_DATETIME_SEC	2		// Date and time up to seconds
+#define TOKEN_DT2_DATE			3		// Date only
+#define TOKEN_DT2_TIME			4		// Time only
+#define TOKEN_DT2_INT8			5		// 8-bit integer
+#define TOKEN_DT2_INTVL_MON		6		// Month interval
+#define TOKEN_DT2_INTVL_DAY		7		// Day interval
+#define TOKEN_DT2_INTVL_MIN		8		// Minute interval
+#define TOKEN_DT2_INTVL_SEC		9		// Second interval
 
 // Token flags
 #define TOKEN_REMOVED            0x1
@@ -67,6 +72,8 @@ public:
 	char type;
 	// Token target type (was function, converted to statement i.e.)
 	char t_type;
+
+	char subtype;
 
 	// Token data type (Column type, function return value)
 	char data_type;
@@ -189,6 +196,7 @@ public:
 
 	TokenStr() { len = 0; prev = NULL; next = NULL; }
 	TokenStr(const char *s, const wchar_t *w, size_t l) { Set(s, w, l); prev = NULL; next = NULL; }
+	TokenStr(std::string &s) { Set(s.c_str(), NULL, s.length()); prev = NULL; next = NULL; }
 	TokenStr(Token *token);
 	
 	void Set(const char *str, const wchar_t *wstr, size_t len);

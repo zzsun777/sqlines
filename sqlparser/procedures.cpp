@@ -70,9 +70,32 @@ bool SqlParser::ParseProcedureRaiseApplicationError(Token *name)
         return false;
 
     // Error message
-    /*Token *error_mess */ (void) ParseExpression();
+    Token *error_mess = ParseExpression();
 
-    /*Token *close */ (void) TOKEN_GETNEXT(')');
+	if(error_mess == NULL)
+        return false;
+
+    Token *close = TOKEN_GETNEXT(')');
+
+	if(_target == SQL_SQL_SERVER)
+	{
+		// Make error number part of the error mesage
+		if(error_mess->type == TOKEN_STRING)
+		{
+			// -20000, 'Text' -> '-20000 Text'
+			TokenStr mess;
+			APPENDSTR(mess, "'");
+			mess.Append(error_num);
+			APPENDSTR(mess, " ");
+			mess.Append(error_mess, 1, error_mess->len - 1);
+
+			Token::ChangeNoFormat(error_num, mess);
+			Token::Remove(comma, error_mess);
+		}
+
+		TOKEN_CHANGE(name, "RAISERROR");
+		PREPEND_NOFMT(close, ", 16, 1");
+	}
 
     PROC_STATS(name) 
 

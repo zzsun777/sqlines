@@ -23,6 +23,8 @@
 #include <map>
 #include "token.h"
 
+#define SQLEXEC_STAT_FILE         "sqlines_func_calls.txt"
+
 struct StatsItem
 {
     // Number of occurrences
@@ -108,6 +110,11 @@ public:
     void Numbers(Token *token)     { Add(_numbers, token); }
     void Word(Token *token)        { Add(_words, token); }
     void Delimiter(Token *token)   { Add(_delimiters, token); }
+
+	// Log function call with all nested expressions
+	void LogFuncCall(Token *name, Token *end, std::string &cur_file);
+	// Get meta type for the specified identificator
+	const char* GetMetaIdent(Token *name);
 
     // Collect statistics for the specified item
     void Add(std::map<std::string, StatsItem> &map, Token *token, bool case_insense = true);

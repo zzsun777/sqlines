@@ -830,6 +830,15 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 
 					dummy_exists = true;
 				}
+				else
+				// Sybase ADS System.iota
+				if(TOKEN_CMP(first, "SYSTEM.IOTA"))
+				{
+					if(_target == SQL_ORACLE)
+						Token::Change(first, "dual", L"dual", 4);
+
+					dummy_exists = true;
+				}
 			}
 		}
 

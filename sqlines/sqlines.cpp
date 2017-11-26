@@ -99,6 +99,8 @@ int Sqlines::ProcessFiles()
 		int in_size = 0;
 		int in_lines = 0;
 
+		SetParserOption(_parser, SQLINES_CURRENT_FILE, relative_name.c_str());
+
 		// Convert the current file
 	    rc = ProcessFile(current, out_name, &in_size, &in_lines);
 
@@ -432,9 +434,18 @@ short Sqlines::DefineType(const char *name)
 	if(_stricmp(name, "mariadb") == 0)
 		type = SQL_MARIADB;
     else
+	if(_stricmp(name, "hive") == 0)
+		type = SQL_HIVE;
+    else
+	if(_stricmp(name, "redshift") == 0)
+		type = SQL_REDSHIFT;
+    else
 	if(_stricmp(name, "esgyndb") == 0 || _stricmp(name, "trafodion") == 0)
 		type = SQL_ESGYNDB;
-
+	else
+	if(_stricmp(name, "ads") == 0)
+		type = SQL_SYBASE_ADS;
+	
 	return type;
 }
 

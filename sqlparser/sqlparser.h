@@ -49,6 +49,7 @@
 #define SQL_HIVE                13
 #define SQL_REDSHIFT            14
 #define SQL_ESGYNDB             15
+#define SQL_SYBASE_ADS          16
 
 // Application types
 #define APP_JAVA				1
@@ -174,7 +175,7 @@
 // Statistics
 #define DTYPE_STATS(value)    { if(_stats != NULL) _stats->DataTypes(value); }
 #define UDTYPE_STATS(value)   { if(_stats != NULL) _stats->UdtDataTypes(value); }
-#define FUNC_STATS(value)     { if(_stats != NULL) _stats->Functions(value); }
+#define FUNC_STATS(name)      { if(_stats != NULL) _stats->Functions(name); }
 #define UDF_FUNC_STATS(value) { if(_stats != NULL) _stats->UdfFunctions(value); }
 #define PROC_STATS(value)     { if(_stats != NULL) _stats->Procedures(value); }
 
@@ -192,11 +193,13 @@
 
 #define TOKEN_GETNEXT(chr)           GetNext(chr, L##chr)
 #define TOKEN_GETNEXTW(string)       GetNext(string, L##string, sizeof(string) - 1)
+#define TOKEN_GETNEXTWP(prev, string) GetNext(prev, string, L##string, sizeof(string) - 1)
 #define TOKEN_CMPC(token, chr)		 Token::Compare(token, chr, L##chr)
 #define TOKEN_CMPCP(token, chr, pos) Token::Compare(token, chr, L##chr, pos)
 #define TOKEN_CMP(token, string)     Token::Compare(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE(token, string)  Token::Change(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE_FMT(token, string, format)  Token::Change(token, string, L##string, sizeof(string) - 1, format)
+#define TOKEN_CHANGE_NOFMT(token, string)  Token::ChangeNoFormat(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_WARN(token, string) { token->flags |= TOKEN_WARNING; token->notes_str = string; }
 #define TOKEN_NO_CONV_REQ(token) { token->flags |= TOKEN_CONV_NOT_REQUIRED; }
 
@@ -350,6 +353,7 @@ class SqlParser
 
     // Last token of last declared variable (not cursor) in the outer PL/SQL DECLARE block
     Token *_spl_last_outer_declare_var;
+	Token *_spl_last_outer_declare_varname;
     
 	// Number of result sets returned from procedure
 	int _spl_result_sets;
@@ -462,6 +466,9 @@ class SqlParser
     bool _spl_not_found_handler;
 	bool _spl_need_not_found_handler;
 
+	// Variable is added to hold dynamic SQL (in SQL Server, it is @sql for sp_executesql that does not allow expressions)
+	bool _spl_dyn_sql_var;
+
 	// Monday is 1 day, Sunday is 7 (false if it is unknown from context)
 	bool _spl_monday_1;
 
@@ -481,6 +488,9 @@ class SqlParser
 
 	// Options
 	bool _option_rems;
+	std::string _option_oracle_plsql_number_mapping;
+	std::string _option_set_explicit_schema;
+	std::string _option_cur_file;
 
 	// Mappings
 	StringMap _object_map;
@@ -657,6 +667,7 @@ public:
 	bool ParseAddSubIntervalChain(Token *first, int prev_operator);
 
 	// Data types
+	bool ParseAutoIncType(Token *name);
 	bool ParseBfileType(Token *name);
 	bool ParseBigdatetimeType(Token *name);
 	bool ParseBigintType(Token *name, int clause_scope);
@@ -674,6 +685,7 @@ public:
 	bool ParseCharacterType(Token *name, int clause_scope);
 	bool ParseCharType(Token *name, int clause_scope);
 	bool ParseClobType(Token *name);
+	bool ParseCurDoubleType(Token *name);
 	bool ParseDatetimeType(Token *name);
 	bool ParseDatetime2Type(Token *name);
 	bool ParseDatetimeoffsetType(Token *name);
@@ -695,6 +707,7 @@ public:
 	bool ParseInt3Type(Token *name);
 	bool ParseInt4Type(Token *name);
 	bool ParseInt8Type(Token *name);
+	bool ParseLogicalType(Token *name);
 	bool ParseLongblobType(Token *name);
 	bool ParseLongType(Token *name);
 	bool ParseLongtextType(Token *name);
@@ -702,16 +715,18 @@ public:
 	bool ParseMediumblobType(Token *name);
 	bool ParseMediumintType(Token *name);
 	bool ParseMediumtextType(Token *name);
+	bool ParseMemoType(Token *name);
 	bool ParseMiddleintType(Token *name);
 	bool ParseMoneyType(Token *name);
 	bool ParseNationalType(Token *name);
 	bool ParseNcharType(Token *name);
 	bool ParseNclobType(Token *name);
+	bool ParseNmemoType(Token *name);
 	bool ParseNtextType(Token *name);
 	bool ParseNumberType(Token *name, int clause_scope);
 	bool ParseNumericType(Token *name);
 	bool ParseNvarcharType(Token *name);
-	bool ParseNvarchar2Type(Token *name);
+	bool ParseNvarchar2Type(Token *name, int clause_scope);
 	bool ParseRawType(Token *name);
 	bool ParseRealType(Token *name);
 	bool ParseRefcursor(Token *name);
@@ -721,6 +736,7 @@ public:
 	bool ParseSerial2Type(Token *name);
 	bool ParseSerial4Type(Token *name);
 	bool ParseSerial8Type(Token *name);
+	bool ParseShortType(Token *name);
 	bool ParseSmalldatetimeType(Token *name);
 	bool ParseSmallfloatType(Token *name);
 	bool ParseSmallintType(Token *name, int clause_scope);
@@ -833,6 +849,7 @@ public:
 	bool ParseRevokeStatement(Token *revoke);
 	bool ParseRollbackStatement(Token *rollback);
 	bool ParseSelectStatement(Token *token, int block_scope, int select_scope, int *result_sets, Token **list_end, ListW *exp_starts, ListW *out_cols, ListW *into_cols, int *appended_subquery_aliases, Token **from_end, Token **where_end);
+	bool ParseSelectExpressionPattern(Token *open, Token *select); 
 	bool ParseSetStatement(Token *set);
 	bool ParseSetOptions(Token *set);
 	bool ParseShowStatement(Token *show);
@@ -907,6 +924,7 @@ public:
 	bool ParseFunctionCurrentBigtime(Token *name, Token *open);
 	bool ParseFunctionCurrentDate(Token *name, Token *open);
 	bool ParseFunctionCurrentTime(Token *name, Token *open);
+	bool ParseFunctionCurrentTimestamp(Token *name, Token *open);
 	bool ParseFunctionCursorRowcount(Token *name, Token *open);
 	bool ParseFunctionDatalength(Token *name, Token *open);
 	bool ParseFunctionDate(Token *name, Token *open);
@@ -989,6 +1007,7 @@ public:
 	bool ParseFunctionIsSingleusermode(Token *name, Token *open);
 	bool ParseFunctionJulianDay(Token *name, Token *open);
 	bool ParseFunctionLastDay(Token *name, Token *open);
+	bool ParseFunctionLastAutoInc(Token *name, Token *open);
 	bool ParseFunctionLcase(Token *name, Token *open);
 	bool ParseFunctionLeast(Token *name, Token *open);
 	bool ParseFunctionLeft(Token *name, Token *open);
@@ -1352,6 +1371,14 @@ public:
 
 	// Greenplum specific functions
 	void AddGreenplumDistributedBy(Token *create, Token *close, ListW &pkcols, Book *col_end);
+
+	// Sybase specific functions
+	bool ParseSybaseAdsStorageClause();
+	bool ParseSybaseExecuteProcedureStatement(Token *execute);
+	bool ParseSybaseWhileFetchStatement(Token *while_, Token *fetch, int scope);
+
+	// Add variable declarations generated in the procedural block
+	void AddGeneratedVariables();
 
 	// Patterns
 	bool SelectNextvalFromDual(Token **sequence, Token **column);

@@ -23,6 +23,134 @@ Stats::Stats() {}
 
 Stats::~Stats() {}
 
+// Log function call with all nested expressions
+void Stats::LogFuncCall(Token *name, Token *end, std::string &cur_file)
+{
+	if(name == NULL || end == NULL)
+		return;
+
+	static bool first_call = true;
+
+	const char *openMode = first_call ? "w" : "a";
+
+	FILE *file = fopen(SQLEXEC_STAT_FILE, openMode);
+
+	if(file != NULL)
+	{
+		// Line and source name
+		fprintf(file, "%s,%d,%.*s,", cur_file.c_str(), name->line, name->len, name->str);
+
+		std::string src, src_meta;
+		std::string tgt, tgt_meta;
+
+		Token *cur = name;
+
+		// Build source and target strings
+		while(true)
+		{
+			const char *meta = GetMetaIdent(cur);
+
+			// Source expression
+			if(!(cur->flags & TOKEN_INSERTED))
+			{
+				if(cur->str != NULL)
+				{
+					src.append(cur->str, cur->len);
+
+					if(meta != NULL)
+						src_meta.append(meta);
+					else
+						src_meta.append(cur->str, cur->len);
+				}
+				else
+				if(cur->chr == '\r' || cur->chr == '\n' || cur->chr == '\t')
+				{
+					src += ' ';
+					src_meta += ' ';
+				}
+				else
+				{
+					src += cur->chr;
+					src_meta += cur->chr;
+				}
+			}
+
+			// Target expression
+			if(!(cur->flags & TOKEN_REMOVED))
+			{
+				if(cur->t_str != NULL)
+				{
+					tgt.append(cur->t_str, cur->t_len);
+
+					if(meta != NULL)
+						tgt_meta.append(meta);
+					else
+						tgt_meta.append(cur->t_str, cur->t_len);
+				}
+				else
+				if(cur->str != NULL)
+				{
+					tgt.append(cur->str, cur->len);
+
+					if(meta != NULL)
+						tgt_meta.append(meta);
+					else
+						tgt_meta.append(cur->str, cur->len);
+				}
+				else
+				if(cur->chr == '\r' || cur->chr == '\n' || cur->chr == '\t')
+				{
+					tgt += ' ';
+					tgt_meta += ' ';
+				}
+				else
+				{
+					tgt += cur->chr;
+					tgt_meta += cur->chr;
+				}
+			}
+
+			if(cur == end)
+				break;
+
+			cur = cur->next;
+		}
+		
+		fprintf(file, "<sqlines>%s</sqlines>,<sqlines>%s</sqlines>,<sqlines>%s</sqlines>,<sqlines>%s</sqlines>", src.c_str(), tgt.c_str(), 
+			src_meta.c_str(), tgt_meta.c_str());
+
+		fprintf(file, "\n");
+		fclose(file);
+	}
+
+	first_call = false;
+}
+
+// Get meta type for the specified identificator
+const char* Stats::GetMetaIdent(Token *name)
+{
+	if(name == NULL || name->type != TOKEN_IDENT)
+		return NULL;
+
+	// Check subtypes first as they are more specific
+	if(name->data_subtype == TOKEN_DT2_DATETIME)
+		return "expr_datetime";
+	else
+	if(name->data_subtype == TOKEN_DT2_DATETIME_SEC)
+		return "expr_datetime_sec";
+	else
+	if(name->data_subtype == TOKEN_DT2_DATE)
+		return "expr_date";
+	else
+	if(name->data_type == TOKEN_DT_NUMBER)
+		return "expr_number";
+	else
+	if(name->data_type == TOKEN_DT_DATETIME)
+		return "expr_datetime";
+	
+	return "expr_null";
+}
+
 // Collect statistics for the specified item
 void Stats::Add(std::map<std::string, StatsItem> &map, Token *token, bool case_insense)
 {

@@ -205,7 +205,7 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 }
 
 // Convert table, view, procedure, function etc. name
-void SqlParser::ConvertObjectIdentifier(Token *token, int /*scope*/)
+void SqlParser::ConvertObjectIdentifier(Token *token, int scope)
 {
 	if(token == NULL)
 		return;
@@ -226,7 +226,7 @@ void SqlParser::ConvertObjectIdentifier(Token *token, int /*scope*/)
 	size_t len = 0;
 
 	// Package function or procedure, add a prefix
-	if(_spl_package != NULL && _target != SQL_ORACLE)
+	if(_spl_package != NULL && _target != SQL_ORACLE && (scope == SQL_SCOPE_FUNC || scope == SQL_SCOPE_PROC))
 		PrefixPackageName(ident);
 
 	// Get the number of parts in quailified identifier
@@ -235,6 +235,16 @@ void SqlParser::ConvertObjectIdentifier(Token *token, int /*scope*/)
 	// Object contains a schema
 	if(parts > 1)
 		ConvertSchemaName(token, ident, &len);
+	else
+	// Set explicit schema if defined by the option
+	if(!_option_set_explicit_schema.empty())
+	{
+		TokenStr schema;
+		schema.Append(_option_set_explicit_schema.c_str(), L"", _option_set_explicit_schema.length());
+		schema.Append(".", L".", 1);
+		schema.Append(ident);
+		ident.Set(schema);
+	}
 
 	ConvertObjectName(token, ident, &len);
 
@@ -673,8 +683,10 @@ void SqlParser::ConvertParameterIdentifier(Token *ref, Token *decl)
 	// Set value of the referenced parameter to the value changed at the declaration
 	Token::Change(ref, decl);
 
-	// Propagate data type
+	// Propagate attributes
+	ref->type = decl->type;
 	ref->data_type = decl->data_type;
+	ref->data_subtype = decl->data_subtype;
 }
 
 // Convert a local variable
@@ -713,8 +725,10 @@ void SqlParser::ConvertVariableIdentifier(Token *ref, Token *decl)
 	// Set value of the referenced variable to the value changed at the declaration
 	Token::Change(ref, decl);
 
-	// Propagate data type
+	// Propagate attributes
+	ref->type = decl->type;
 	ref->data_type = decl->data_type;
+	ref->data_subtype = decl->data_subtype;
 }
 
 // SQL Server, Sybase variable or parameter starting with @
@@ -804,6 +818,7 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 			Append(token, "')", L"')", 2);
 		}
 
+		token->subtype = TOKEN_SUB_IDENT_SEQNEXTVAL;
 		return true;
 	}
 
@@ -2115,7 +2130,10 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 		// Subquery
 		if(Token::Compare(next, "SELECT", L"SELECT", 6) == true)
 		{
-			ParseSelectStatement(next, 0, SQL_SEL_EXP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+			bool select_pattern = ParseSelectExpressionPattern(first, next); 
+
+			if(!select_pattern)
+				ParseSelectStatement(next, 0, SQL_SEL_EXP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 			
 			_exp_select++;
 		}
@@ -2313,7 +2331,12 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 
 		// Subquery
 		if(select != NULL)
-			ParseSelectStatement(select, 0, SQL_SEL_EXP, NULL, &select_list_end, NULL, NULL, NULL, NULL, NULL, NULL);
+		{
+			bool select_pattern = ParseSelectExpressionPattern(open, select); 
+
+			if(!select_pattern)
+				ParseSelectStatement(select, 0, SQL_SEL_EXP, NULL, &select_list_end, NULL, NULL, NULL, NULL, NULL, NULL);
+		}
 		else
 		{
 			// Check for specific DB2 AND syntax: (c1, c2, ...) = (v1, v2, ...)
@@ -2409,13 +2432,28 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 		{
 			not_ = op;
 			op = GetNextToken();
+
+			// NOT can be complex, for example, NOT (SELECT c1 ...) IS NULL
+			if(op != NULL && op->Compare('(', L'('))
+			{
+				Token *select = TOKEN_GETNEXTW("SELECT");
+
+				// Subquery
+				if(select != NULL)
+					ParseSelectStatement(select, 0, SQL_SEL_EXP, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+				else
+					ParseBooleanExpression(scope, stmt_start, conditions_count, rowlimit);
+
+				/*Token *close*/ (void) GetNextCharToken(')', L')');
+				op = GetNextToken();
+			}
 		}
 
 		if(op == NULL)
 			return false;
 	}
 
-	if(spec_and == true)
+	if(spec_and == true || TOKEN_CMPC(op, ')'))
 		unary = true;
 	else
 	// Possible boolean function or expression without following operator (check for terminating word)
@@ -2425,14 +2463,6 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 
 		unary = true;
 		count++;		
-	}
-	else
-	// NOT ()
-	if(not_ != NULL && op->Compare('(', L'(') == true)
-	{
-		ParseBooleanExpression(scope, stmt_start, conditions_count, rowlimit);
-
-		/*Token *close*/ (void) GetNextCharToken(')', L')');
 	}
 	else
 	// IS NULL or IS NOT NULL
@@ -2726,9 +2756,9 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 				PushBack(next);
 			}
 			else
-			// IF block can be terminated with ELSEIF, ELSIF or ELSE keyword
+			// IF block can be terminated with ELSEIF, ELSIF, ELSE or ENDIF keyword
 			if(type == SQL_BLOCK_IF && (token->Compare("ELSEIF", L"ELSEIF", 6) || 
-				token->Compare("ELSIF", L"ELSIF", 5) || token->Compare("ELSE", L"ELSE", 4)))
+				token->Compare("ELSIF", L"ELSIF", 5) || token->Compare("ELSE", L"ELSE", 4) || token->Compare("ENDIF", L"ENDIF", 5)))
 			{
 				PushBack(token);
 				break;
@@ -2999,7 +3029,7 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 
 	Token *second_end = GetLastToken();
 
-	// In SQL Server + is also used to concatenate strings
+	// In SQL Server, Sybase + is also used to concatenate strings
 	if(Source(SQL_SQL_SERVER, SQL_SYBASE) == true)
 	{
 		// Number always has priority in SQL Server: both '5'+ 5 and 5 + '5' give result 10, but
@@ -3052,10 +3082,29 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 			{
 				// If it is first expression add CONCAT( before, and ) after last expression 
 				if(prev_operator != SQL_OPERATOR_PLUS)
-				{
 					Prepend(first, "CONCAT(", L"CONCAT(", 7);
-					Append(GetLastToken(), ")", L")", 1);
+
+				// Sybase ASE treats NULLs in + operator as empty string (unlike SQL Server)
+				// MySQL, MariaDB CONCAT gives NULL if any expression is NULL
+				if(_source == SQL_SYBASE)
+				{
+					// Enclose first expression with IFNULL if it allows NULLs
+					if(first->type != TOKEN_STRING && first->nullable)
+					{
+						PREPEND(first, "IFNULL(");
+						APPEND(first_end, ", '')");
+					}
+
+					// Enclose second expression with IFNULL if it allows NULLs
+					if(second->type != TOKEN_STRING && second->nullable)
+					{
+						PREPEND(second, "IFNULL(");
+						APPEND(second_end, ", '')");
+					}
 				}
+
+				if(prev_operator != SQL_OPERATOR_PLUS)
+					Append(GetLastToken(), ")", L")", 1);
 
 				Token::Change(plus, ",", L",", 1);
 			}

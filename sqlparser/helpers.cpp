@@ -1161,6 +1161,47 @@ Token* SqlParser::GetDeclarationAppend()
 	return append;
 }
 
+// Add variable declarations generated in the procedural block
+void SqlParser::AddGeneratedVariables()
+{
+	// Add not hound handler that must go after all variables and cursors; and initialize not_found variable before second and subsequent OPEN cursors
+	if(_spl_need_not_found_handler && Target(SQL_MYSQL, SQL_MARIADB))
+	{
+		MySQLAddNotFoundHandler();
+		MySQLInitNotFoundBeforeOpen();
+	}
+
+	Token *format_indent = _declare_format;
+
+	// Oracle uses DECLARE block with the keyword at the beginning so use the variable name to define the indention
+	if(_source == SQL_ORACLE)
+	{
+		format_indent = _spl_last_outer_declare_varname;
+
+		// DECLARE is already added before the variable, so use prev token
+		if(_spl_last_outer_declare_varname != NULL && Target(SQL_SQL_SERVER))
+			format_indent = _spl_last_outer_declare_varname->prev;
+	}
+
+	Token *format = Nvl(_declare_format, _spl_outer_begin, _spl_outer_as);
+
+	// Dynamic SQL variable is used
+	if(_spl_dyn_sql_var)
+	{
+		// @sql for sp_executesql that does not allow expressions
+		if(_target == SQL_SQL_SERVER)
+		{
+			Token *append_var = _spl_last_outer_declare_var;
+
+			// sp_executesql requires unicode string
+			APPEND_FMT(append_var, "\n", format_indent);
+			APPEND_FMT(append_var, "DECLARE ", format);
+			APPEND_NOFMT(append_var, "@sql ");
+			APPEND_FMT(append_var, "NVARCHAR(max);", format);
+		}
+	}
+}
+
 // Clear all procedural lists, statuses
 void SqlParser::ClearSplScope()
 {
@@ -1168,6 +1209,8 @@ void SqlParser::ClearSplScope()
 	_spl_name = NULL;
 	_spl_start = NULL;
 	_spl_external = false;
+
+	_declare_format = NULL;
 	
 	// Delete variable and parameters
 	_spl_variables.DeleteAll();
@@ -1176,13 +1219,13 @@ void SqlParser::ClearSplScope()
 	// Clear statements clause scope
 	_scope.DeleteAll();
 
-	_spl_package = NULL;
-    _spl_outer_begin = NULL;
+	_spl_outer_begin = NULL;
 	_spl_outer_as = NULL;
     _spl_begin_blocks.DeleteAll();
 	_spl_last_declare = NULL;
 	_spl_first_non_declare = NULL;
     _spl_last_outer_declare_var = NULL;
+	_spl_last_outer_declare_varname = NULL;
 	_spl_last_stmt = NULL;
 
 	_spl_new_correlation_name = NULL;
@@ -1246,6 +1289,7 @@ void SqlParser::ClearSplScope()
 	_spl_proc_to_func = false;
     _spl_not_found_handler = false;
 	_spl_need_not_found_handler = false;
+	_spl_dyn_sql_var = false;
 
 	_spl_monday_1 = false;   // means unknown from context
 

@@ -50,6 +50,7 @@ SqlParser::SqlParser()
 
 	ClearSplScope();
 
+	_spl_package = NULL;
 	_declare_format = NULL;
 	_push_back_token = NULL;
 
@@ -119,6 +120,15 @@ void SqlParser::SetOption(const char *option, const char *value)
 	// Target programming language
 	if(_stricmp(option, "-tl") == 0 && value != NULL)
 		SetLang(value, false);
+	else
+	if(_stricmp(option, "-oracle_plsql_number_mapping") == 0 && value != NULL)
+		_option_oracle_plsql_number_mapping = value;
+	else
+	if(_stricmp(option, "-set_explicit_schema") == 0 && value != NULL)
+		_option_set_explicit_schema = value;
+	else
+	if(_stricmp(option, "__cur_file__") == 0 && value != NULL)
+		_option_cur_file = value;
 }
 
 // Perform conversion
@@ -1234,8 +1244,8 @@ bool SqlParser::ParseComment()
 			continue;
 		}
 		else
-		// Sybase ASA C++ style comment //
-		if(_source == SQL_SYBASE_ASA && _remain_size >= 2  && *cur == '/' && cur[1] == '/')
+		// Sybase ASA, Sybase ADS C++ style comment //
+		if(Source(SQL_SYBASE_ASA, SQL_SYBASE_ADS) && _remain_size >= 2  && *cur == '/' && cur[1] == '/')
 		{
 			// Use 2 tokens to represent the comment
 			Token *start = new Token();
@@ -1244,8 +1254,8 @@ bool SqlParser::ParseComment()
 			start->len = 2;
 			start->remain_size = _remain_size;
 
-			// Change to -- if target not Sybase ASA
-			if(_target != SQL_SYBASE_ASA)
+			// Change to -- if target not Sybase ASA, Sybase ADS
+			if(!Target(SQL_SYBASE_ASA, SQL_SYBASE_ADS))
 			{
 				start->t_str = Str::GetCopy("--", 2);
 				start->t_len = 2;

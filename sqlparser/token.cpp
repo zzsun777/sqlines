@@ -25,6 +25,7 @@
 Token::Token()
 {
 	type = 0;
+	subtype = 0;
 	t_type = 0;
 	data_type = 0;
 	data_subtype = 0;

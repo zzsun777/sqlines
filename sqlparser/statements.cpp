@@ -459,6 +459,17 @@ bool SqlParser::ParseCreateStatement(Token *create, int *result_sets, bool *proc
 		if(_target != SQL_ORACLE)
 			Token::Remove(force);
 	}
+	else
+	// EDITIONABLE or NONEDITIONABLE for Oracle packages
+	if(TOKEN_CMP(next, "EDITIONABLE") || TOKEN_CMP(next, "NONEDITIONABLE"))
+	{
+		Token *edit = next;
+
+		next = GetNextToken();
+
+		if(_target != SQL_ORACLE)
+			Token::Remove(edit);
+	}
 
 	if(next == NULL)
 		return false;
@@ -2000,6 +2011,10 @@ bool SqlParser::ParseFunctionParameters(Token *function_name)
 		{
 			ParseDataType(data_type, SQL_SCOPE_FUNC_PARAMS);
 			ParseVarDataTypeAttribute();
+
+			// Propagate data type to variable name
+			name->data_type = data_type->data_type;
+			name->data_subtype = data_type->data_subtype;
 		}
 
 		Token *next = GetNextToken();
@@ -2158,13 +2173,17 @@ bool SqlParser::ParseCreatePackageBody(Token *create, Token *or_, Token *replace
 
 	_spl_package = name;
 
-	Token *is = GetNextWordToken("IS", L"IS", 2);
+	Token *is = TOKEN_GETNEXTW("IS");
+	Token *as = NULL;
+
+	if(is == NULL)
+		as = TOKEN_GETNEXTW("AS");
 
 	// Remove if not Oracle
 	if(_target != SQL_ORACLE)
 	{
 		Token::Remove(create, replace);
-		Token::Remove(is);
+		Token::Remove(Nvl(is, as));
 
 		Comment(package, name);
 	}
@@ -2238,7 +2257,7 @@ bool SqlParser::ParseCreateProcedure(Token *create, Token *or_, Token *replace, 
 		Token::Change(procedure, "FUNCTION", L"FUNCTION", 8);
 
 	// Procedure name
-	Token* name = GetNextIdentToken(SQL_IDENT_OBJECT);
+	Token* name = GetNextIdentToken(SQL_IDENT_OBJECT, SQL_SCOPE_PROC);
 
 	if(name == NULL)
 		return false;
@@ -2417,6 +2436,16 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 			Token::Remove(no, cascade);
 	}
 
+	Token *on = NULL;
+	Token *table = NULL;
+
+	// Table name in Sybase ADS
+	if(_source == SQL_SYBASE_ADS)
+	{
+		on = TOKEN_GETNEXTW("ON");
+		table = GetNextIdentToken();
+	}
+
 	// BEFORE, AFTER, INSTEAD OF
 	Token *when = GetNextWordToken("BEFORE", L"BEFORE", 6);
 
@@ -2483,14 +2512,20 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 	}
 
 	// ON table name
-	Token *on = GetNextWordToken("ON", L"ON", 2);
-	Token *table = GetNextIdentToken();
+	if(_source != SQL_SYBASE_ADS)
+	{
+		on = TOKEN_GETNEXTW("ON");
+		table = GetNextIdentToken();
+	}
 
-	// In SQL Server ON TABLE goes before type and event
 	if(_target == SQL_SQL_SERVER)
 	{
-		AppendSpaceCopy(name, on, table); 
-		Token::Remove(on, table);
+		// In SQL Server ON TABLE goes before type and event
+		if(!Source(SQL_SQL_SERVER, SQL_SYBASE_ADS))
+		{
+			AppendSpaceCopy(name, on, table); 
+			Token::Remove(on, table);
+		}
 
 		// BEFORE is not supported in SQL Server, convert to INSTEAD OF
 		if(when->Compare("BEFORE", L"BEFORE", 6) == true)
@@ -2615,6 +2650,17 @@ bool SqlParser::ParseCreateTrigger(Token *create, Token *or_, Token *trigger)
 	Token *end = NULL;
 
 	ParseCreateTriggerBody(create, name, table, when, insert, update, delete_, &end);
+
+	// PRIORITY num in Sybase ADS
+	Token *priority = TOKEN_GETNEXTW("PRIORITY");
+
+	if(priority != NULL)
+	{
+		Token *num = GetNextNumberToken();
+
+		if(_target != SQL_SYBASE_ADS)
+			Token::Remove(priority, num);
+	}
 
 	// In DB2 procedure can be terminated without any special delimiter
 	if(Source(SQL_DB2) && Target(SQL_ORACLE) && _spl_delimiter_set == false)
@@ -3303,6 +3349,10 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 	if(ParseSystemProcedure(execute, NULL) == true)
 		return true;
 
+	// Sybase ADS EXECUTE PROCEDURE statement 
+	if(_source == SQL_SYBASE_ADS && ParseSybaseExecuteProcedureStatement(execute))
+		return true;
+
 	bool semi_set = false;
 
 	// EXECUTE IMMEDIATE in Oracle, Teradata
@@ -3337,16 +3387,42 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 			Token::Remove(close);
 		}
 
+		// INTO clause in Oracle
+		Token *into = TOKEN_GETNEXTW("INTO");
+		ListW into_cols;
+
+		if(into != NULL)
+		{
+			while(true)
+			{
+				Token *var = GetNextIdentToken();
+
+				if(var == NULL)
+					break;
+
+				// Add @ before name
+				if(_target == SQL_SQL_SERVER)
+				{
+					ConvertToTsqlVariable(var);
+					APPEND(var, " OUTPUT");
+				}
+
+				into_cols.Add(var);
+
+				Token *comma = TOKEN_GETNEXT(',');
+
+				if(comma == NULL)
+					break;
+			}
+		}
+
 		// In Teradata USING cannot be specified with EXECUTE IMMEDIATE, only with EXECUTE
-		Token *using_ = GetNextWordToken("USING", L"USING", 5);
+		Token *using_ = TOKEN_GETNEXTW("USING");
+		ListW using_cols;
 
 		// Parameters are specified (declared variables or procedure parameters)
 		if(using_ != NULL)
 		{
-			// Parameter format string for SQL Server '@param datatype, ...'
-			TokenStr format;
-			format.Append(", N'", L", N'", 4);
-
 			while(true)
 			{
 				Token *param = GetNextIdentToken();
@@ -3358,24 +3434,49 @@ bool SqlParser::ParseExecuteStatement(Token *execute)
 				if(_target == SQL_SQL_SERVER)
 					ConvertToTsqlVariable(param);
 
-				format.Append(param);
+				using_cols.Add(param);
 
-				Token *comma = GetNextCharToken(',', L',');
+				Token *comma = TOKEN_GETNEXT(',');
 
 				if(comma == NULL)
 					break;
-
-				format.Append(", ", L", ", 2);
 			}
+		}
 
-			format.Append("',", L"',", 2);
+		// For SQL Server add format string and remove INTO and USING
+		if(_target == SQL_SQL_SERVER && (into != NULL || using_ != NULL))
+		{
+			// Parameter format string for SQL Server '@param datatype, ...'
+			TokenStr format;
+			format.Append(", N'", L", N'", 4);
 
-			// For SQL Server add format string and remove USING
-			if(_target == SQL_SQL_SERVER)
+			int num = 0;
+
+			// Note that assignment in select list 'SELECT @var = ... ' is optional; it is enough just specify OUTPUT parameters
+			for(ListwItem *i = into_cols.GetFirst(); i != NULL; i=i->next)
 			{
-				AppendNoFormat(var, &format);
-				Token::Remove(using_);
+				if(num > 0)
+					APPENDSTR(format, ", ");
+
+				format.Append((Token*)i->value);
+				APPENDSTR(format, " output");
+				num++;
 			}
+
+			for(ListwItem *i = using_cols.GetFirst(); i != NULL; i=i->next)
+			{
+				if(num > 0)
+					APPENDSTR(format, ", ");
+
+				format.Append((Token*)i->value);
+				num++;
+			}
+
+			APPENDSTR(format, "',");
+
+			AppendNoFormat(var, &format);
+			Token::Remove(into);
+			Token::Remove(using_);
 		}
 	}
 	// EXECUTE in SQL Server, PostgreSQL, MySQL, Teradata, Sybase ASE
@@ -3908,7 +4009,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			start_with = GetNextNumberToken();
 
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option, start_with);
 
 			exists = true;
@@ -3922,7 +4023,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			increment_by = GetNextNumberToken();
 
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option, increment_by);
 
 			exists = true;
@@ -3935,7 +4036,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			Token *value = GetNextToken();
 
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option, value);
 
 			exists = true;
@@ -3948,7 +4049,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			Token *value = GetNextToken();
 
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option, value);
 
 			exists = true;
@@ -3961,7 +4062,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 			Token *value = GetNextToken();
 
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option, value);
 
 			exists = true;
@@ -3972,7 +4073,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		if(option->Compare("NOCYCLE", L"NOCYCLE", 7) == true)
 		{
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option);
 
 			exists = true;
@@ -3983,7 +4084,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		if(option->Compare("NOCACHE", L"NOCACHE", 7) == true)
 		{
 			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			if(Target(SQL_MYSQL))
 				Token::Remove(option);
 
 			exists = true;
@@ -3993,8 +4094,8 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 		// NOORDER
 		if(option->Compare("NOORDER", L"NOORDER", 7) == true)
 		{
-			// Remove for MySQL
-			if(Target(SQL_MARIADB, SQL_MYSQL))
+			// Remove for MySQL and MariaDB
+			if(Target(SQL_MYSQL, SQL_MARIADB))
 				Token::Remove(option);
 
 			exists = true;
@@ -4006,7 +4107,7 @@ bool SqlParser::ParseCreateSequence(Token *create, Token *sequence)
 	}
 	
 	// A stored procedure call in MySQL
-	if(Target(SQL_MARIADB, SQL_MYSQL))
+	if(Target(SQL_MYSQL))
 	{
 		Token::Change(create, "CALL", L"CALL", 4);
 		Token::Remove(sequence);
@@ -4295,6 +4396,9 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 	// FOR keyword
 	Token *for_ = GetNextWordToken("FOR", L"FOR", 3);
 
+	// AS keyword in Sybase ADS
+	Token *as = (for_ == NULL)? TOKEN_GETNEXTW("AS") : NULL;
+
 	// SELECT statement, variable, statement ID
 	Token *select = GetNextSelectStartKeyword();
 	
@@ -4329,7 +4433,7 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 	// SELECT statement is specified
 	if(select != NULL)
 	{
-		// Cursor with return to client/caller
+		// Cursor with no return to client/caller
 		if(return_ == NULL)
 		{
 			// CURSOR cur IS SELECT 
@@ -4339,6 +4443,9 @@ bool SqlParser::ParseDeclareCursor(Token *declare, Token *name, Token *cursor)
 				Token::Change(for_, "IS", L"IS", 2);
 				Token::Remove(cursor);
 			}
+			else
+			if(_target == SQL_SQL_SERVER)
+				TOKEN_CHANGE(as, "FOR");
 		}
 		else
 		{
@@ -5278,10 +5385,10 @@ bool SqlParser::ParseForStatement(Token *for_, int scope)
 		Append(var, " CURSOR", L" CURSOR", 7, for_); 
 		Token::Change(Nvl(in, as), "FOR", L"FOR", 3);
 
-        Token::Remove(open);
-        Token::Remove(close);
+		Token::Remove(open);
+		Token::Remove(close);
 
-        Append(select_end, ";", L";", 1);
+		Append(select_end, ";", L";", 1);
 
 		Token *begin = loop;
 
@@ -5827,7 +5934,7 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 			}
 		}
 	}
-	// Oracle, DB2, MySQL, PostgreSQL, Informix, Sybase ASA IF THEN ELSEIF/ELSIF ELSE END IF;
+	// Oracle, DB2, MySQL, PostgreSQL, Informix, Sybase ASA, Sybase ADS IF THEN ELSEIF/ELSIF ELSE END IF;
 	else
 	{
 		bool then_to_begin = false;
@@ -5911,7 +6018,10 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 		// END IF
 		Token *end = GetNextWordToken("END", L"END", 3);
 
-		if(end != NULL)
+		// ENDIF in Sybase ADS
+		Token *endif = (end == NULL) ? TOKEN_GETNEXTW("ENDIF") : NULL;
+
+		if(end != NULL || endif != NULL)
 		{
 			Token *end_if = GetNextWordToken("IF", L"IF", 2);
 			Token *semi = GetNextCharToken(';', L';');
@@ -5922,8 +6032,11 @@ bool SqlParser::ParseIfStatement(Token *if_, int scope)
 				Token::Remove(end_if);
 
 				// Remove last END as well if BEGIN END is also used around true/false blocks 
-				if(then_to_begin == false)
+				if(end != NULL && then_to_begin == false)
 					Token::Remove(end);
+
+				if(endif != NULL)
+					TOKEN_CHANGE(endif, "END");
 
 				// Prevent text merge in case of "end if;select..."
 				Token::Change(semi, " ", L" ", 1);
@@ -5951,6 +6064,18 @@ bool SqlParser::ParseWhileStatement(Token *while_, int scope)
 		return false;
 
     PL_STMS_STATS(while_);
+
+	// WHILE FETCH cur DO ... in Sybase ADS
+	if(_source == SQL_SYBASE_ADS)
+	{
+		Token *fetch = TOKEN_GETNEXTW("FETCH");
+
+		if(fetch != NULL)
+		{
+			ParseSybaseWhileFetchStatement(while_, fetch, scope);
+			return true;
+		}
+	}
 
 	ParseBooleanExpression(SQL_BOOL_WHILE);
 
@@ -6080,6 +6205,8 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 	// Optional column list
 	Token *open1 = GetNextCharToken('(', L'(');
 
+	ListWM cols;
+
 	if(open1 != NULL)
 	{
 		bool column_list = true;
@@ -6098,7 +6225,7 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 		while(column_list)
 		{
 			// Column name
-			Token *col = GetNextIdentToken();
+			Token *col = GetNextIdentToken(SQL_IDENT_COLUMN_SINGLE);
 
 			if(col == NULL)
 				break;
@@ -6106,7 +6233,9 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 			// Comma or )
 			Token *del = GetNextToken();
 
-			if(Token::Compare(del, ',', L',') == true)
+			cols.Add(col, del);
+
+			if(Token::Compare(del, ',', L','))
 				continue;
 
 			break;
@@ -6133,6 +6262,7 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 	if(values != NULL)
 	{
 		int rows = 0;
+		Token *close2 = NULL;
 
 		Enter(SQL_SCOPE_INSERT_VALUES);
 
@@ -6140,10 +6270,12 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 		while(true)
 		{
 			Token *open2 = GetNextCharToken('(', L'(');
-			Token *close2 = NULL;
+			close2 = NULL;
 
 			if(open2 == NULL)
 				return false;
+
+			int num = 0;
 
 			// Get list of values
 			while(true)
@@ -6158,9 +6290,35 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 
 				// Comma or )
 				close2 = GetNextToken();
+				
+				bool val_removed = false;
 
-				if(Token::Compare(close2, ',', L',') == true)
+				// Check for seq.NEXTVAL column
+				if(exp->type == TOKEN_IDENT && exp->subtype == TOKEN_SUB_IDENT_SEQNEXTVAL)
+				{
+					// Remove for SQL Server as identity column will be used
+					if(_target == SQL_SQL_SERVER)
+					{
+						Token::Remove(exp);
+
+						// Remove column name from column list if any
+						ListwmItem *col = cols.GetNth(num);
+
+						if(col != NULL)
+							Token::Remove((Token*)col->value, (Token*)col->value2);
+
+						val_removed = true;
+					}
+				}
+
+				if(Token::Compare(close2, ',', L','))
+				{
+					if(val_removed)
+						Token::Remove(close2);
+
+					num++;
 					continue;
+				}
 
 				break;
 			}
@@ -6193,6 +6351,28 @@ bool SqlParser::ParseInsertStatement(Token *insert)
 		}
 
 		Leave(SQL_SCOPE_INSERT_VALUES);
+
+		// RETURNING clause in Oracle
+		Token *returning = TOKEN_GETNEXTW("RETURNING");
+
+		if(returning != NULL)
+		{
+			Token *col = GetNextIdentToken(SQL_IDENT_COLUMN_SINGLE);
+			Token *into = TOKEN_GETNEXTWP(col, "INTO");
+			Token *var = GetNextIdentToken();
+
+			// SET var = SCOPE_IDENTITY() in SQL Server
+			if(_target == SQL_SQL_SERVER)
+			{
+				ConvertToTsqlVariable(var);
+
+				TOKEN_CHANGE(into, "SET");
+				APPEND_FMT(var, " = SCOPE_IDENTITY()", into);
+
+				APPEND_NOFMT(close2, ";");
+				Token::Remove(returning, col);
+			}
+		}
 	}
 	// SELECT clause
 	else
@@ -6814,20 +6994,77 @@ bool SqlParser::ParseOpenStatement(Token *open)
 		else
 		// FOR variable
 		{
-			// Variable containing SQL statement
-			Token *variable = GetNextToken();
+			// Variable or string containing SQL statement; string literal can be part of concatenation expression
+			Token *exp = ParseExpression();
+			Token *exp_end = GetLastToken();
+			
+			// USING var, ... clause
+			Token *using_ = TOKEN_GETNEXTW("USING");
 
-			// EXECUTE (@variable) in SQL Server, must be enclosed with () unless stored procedure name
+			if(using_ != NULL)
+			{
+				while(true)
+				{
+					Token *var = GetNextIdentToken();
+
+					if(var == NULL)
+						break;
+
+					Token *comma = TOKEN_GETNEXT(',');
+
+					if(comma == NULL)
+						break;
+				}
+			}
+			
 			if(_target == SQL_SQL_SERVER)
 			{
-				Token::Change(open, "EXECUTE", L"EXECUTE", 7);
-				Token::Remove(name, for_);
-				
-				// Add @ before the name
-				ConvertToTsqlVariable(variable);
+				// Single literal or variable
+				if(exp == exp_end)
+				{
+					if(exp->type == TOKEN_STRING)
+					{
+						TOKEN_CHANGE(open, "EXECUTE");
+						TOKEN_CHANGE_NOFMT(name, "sp_executesql");
 
-				PrependNoFormat(variable, "(", L"(", 1);
-				AppendNoFormat(variable, ")", L")", 1);
+						// Only unicode literals are allowed
+						PREPEND_NOFMT(exp, "N");						
+					}
+					// Variable; EXECUTE (@variable) in SQL Server, must be enclosed with () unless stored procedure name
+					else
+					{
+						TOKEN_CHANGE(open, "EXECUTE");
+
+						// Add @ before the name
+						ConvertToTsqlVariable(exp);
+
+						PREPEND_NOFMT(exp, "(");
+						APPEND_NOFMT(exp_end, ")");
+	
+						TOKEN_CHANGE(open, "EXECUTE");
+						Token::Remove(name, for_);
+					}
+				}
+				// Multi-literal expression; sp_executesql does not allow expressions
+				else
+				{
+					// Use a variable to keep dynamic SQL expression
+					TOKEN_CHANGE(open, "SET");
+					TOKEN_CHANGE_NOFMT(name, "@sql = ");
+						
+					APPEND_NOFMT(exp_end, ";");
+					APPEND_FMT(exp_end, "\nEXECUTE", open);
+					APPEND_NOFMT(exp_end, " sp_executesql @sql");
+
+					Token::Remove(for_);
+					_spl_dyn_sql_var = true;
+				}
+
+				if(using_ != NULL)
+				{
+					APPEND_NOFMT(exp_end, ",");
+					Token::Remove(using_);
+				}
 			}
 			else
 			// FOR cur IN EXECUTE variable LOOP in Netezza
@@ -8437,7 +8674,7 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 			else
 				PushBack(param_type);
 		}
-
+		
 		bool sys_refcursor = false;
 
 		Token *data_type = GetNextToken();
@@ -8502,8 +8739,8 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 				Comment(next, default_exp);
 		}
 
-		// In SQL Server OUT or OUTPUT go after the default; Sybase ASE uses OUTPUT
-		if(Source(SQL_SQL_SERVER, SQL_SYBASE))
+		// In SQL Server OUT or OUTPUT go after the default; Sybase ASE, Sybase ADS use OUTPUT
+		if(Source(SQL_SQL_SERVER, SQL_SYBASE, SQL_SYBASE_ADS))
 		{
 			Token *param_type = GetNextToken();
 
@@ -8512,8 +8749,8 @@ bool SqlParser::ParseProcedureParameters(Token *proc_name, int *count, Token **e
 			{
 				out = param_type;
 
-				// In Oracle OUT goes after name
-				if(_target == SQL_ORACLE)
+				// In Oracle, MySQL, MariaDB OUT goes after name
+				if(Target(SQL_ORACLE, SQL_MYSQL, SQL_MARIADB))
 					Append(name, " OUT", L" OUT", 4, out);
 
 				// OUT moved for other databases
@@ -8905,12 +9142,8 @@ bool SqlParser::ParseProcedureBody(Token *create, Token *procedure, Token *name,
 	if(_spl_return_num > 0 && Target(SQL_MYSQL, SQL_MARIADB))
 		PREPEND_NOFMT(Nvl(as, begin), "sp_lbl:\n"); 
 
-	// Add not hound handler that must go after all variables and cursors; and initialize not_found variable before second and subsequent OPEN cursors
-	if(_spl_need_not_found_handler && Target(SQL_MYSQL, SQL_MARIADB))
-	{
-		MySQLAddNotFoundHandler();
-		MySQLInitNotFoundBeforeOpen();
-	}
+	// Add variable declarations generated in the procedural block
+	AddGeneratedVariables();
 
 	return true;
 }
@@ -9828,12 +10061,8 @@ bool SqlParser::ParseFunctionBody(Token *create, Token *function, Token *name, T
     if(Source(SQL_DB2, SQL_MYSQL))
 	    ParseMySQLDelimiter(create);
 
-	// Add not hound handler that must go after all variables and cursors; and initialize not_found variable before second and subsequent OPEN cursors
-	if(_spl_need_not_found_handler && Target(SQL_MYSQL, SQL_MARIADB))
-	{
-		MySQLAddNotFoundHandler();
-		MySQLInitNotFoundBeforeOpen();
-	}
+	// Add variable declarations generated in the procedural block
+	AddGeneratedVariables();
 
 	return true;
 }
