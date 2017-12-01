@@ -141,6 +141,16 @@ int SqlCtApi::Init()
 		}		
 	}
 
+#else
+	_ct_dll = Os::LoadLibrary(CTLIB_DLL);
+    _cs_dll = Os::LoadLibrary(CSLIB_DLL);
+
+	if(_ct_dll == NULL || _cs_dll == NULL)
+	{
+		char *error = Os::LoadLibraryError();
+		if(error != NULL)
+			strcpy(_native_error_text, error);
+	}
 #endif
 
 	// Get functions
@@ -211,26 +221,7 @@ int SqlCtApi::Init()
 // Set the connection string in the API object
 void SqlCtApi::SetConnectionString(const char *conn)
 {
-	if(conn == NULL)
-		return;
-
-	std::string db;
-
-	SplitConnectionString(conn, _user, _pwd, db);
-
-	const char *start = db.c_str();
-
-	// Find , that denotes the database name
-	const char *comma = strchr(start, ',');
-
-	// Define server and database name
-	if(comma != NULL)
-	{
-		_server.assign(start, (size_t)(comma - start));
-		_db = comma + 1;
-	}
-	else
-		_server = start;
+	SplitConnectionString(conn, _user, _pwd, _server, _db, _port);
 }
 
 // Connect to the database
@@ -253,7 +244,25 @@ int SqlCtApi::Connect(size_t *time_spent)
 	rc = _ct_con_props(_connection, CS_SET, CS_USERNAME, (CS_VOID*)_user.c_str(), CS_NULLTERM, NULL);
 	rc = _ct_con_props(_connection, CS_SET, CS_PASSWORD, (CS_VOID*)_pwd.c_str(), CS_NULLTERM, NULL);
 
+	// Check if password encryption required
+	if(_parameters->GetTrue("-sybase_encrypted_password") != NULL)
+	{
+		CS_BOOL sec_encryption = CS_TRUE;
+
+		// Sybase uses extended password encryption as the first preference, if the server cannot support extended password encryption, it uses normal password encryption
+		rc = _ct_con_props(_connection, CS_SET, CS_SEC_EXTENDED_ENCRYPTION, (CS_VOID*)&sec_encryption, CS_UNUSED, NULL);
+		rc = _ct_con_props(_connection, CS_SET, CS_SEC_ENCRYPTION, (CS_VOID*)&sec_encryption, CS_UNUSED, NULL);
+	}
+
 	const char *server = _server.empty() ? NULL : _server.c_str();
+
+	// Check if port is specified
+	if(!_port.empty())
+	{
+		// Use format "server port"
+		std::string serveraddr = _server + " " + _port;
+		rc = _ct_con_props(_connection, CS_SET, CS_SERVERADDR, (CS_VOID*)serveraddr.c_str(), CS_NULLTERM, NULL);
+	}
 
 	// Connect to the server
 	rc = _ct_connect(_connection, (CS_CHAR*)server, CS_NULLTERM);
@@ -507,6 +516,11 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 	// Get column information
 	for(int i = 0; i < _cursor_cols_count; i++)
 	{
+		// Note that CHAR and VARCHAR both have CS_CHAR_TYPE, and you cannot distinguish them using CS_FMT_PADBLANK and CS_FMT_PADNULL in fmt.format
+		// as it is always 0 (CS_FMT_UNUSED) in ct_describe (Not applicable)
+
+		// CS_LONGCHAR_TYPE is returned for VARCHAR > 255 (max length is 32K since ASE 12.5)
+
 		rc = _ct_describe(_cursor_cmd, i + 1, &fmt[i]);
 
 		// Copy the column name
@@ -521,9 +535,9 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 
 		// Get column length for character and binary strings
 		_cursor_cols[i]._len = (size_t)fmt[i].maxlength;
-
-		// TEXT, Sybase ASE 16 returns size 32768, change to 1M
-		if(_cursor_cols[i]._native_dt == CS_TEXT_TYPE)
+				
+		// For TEXT and UNITEXT Sybase ASE 16 returns size 32768, change to 1M
+		if(_cursor_cols[i]._native_dt == CS_TEXT_TYPE || _cursor_cols[i]._native_dt == CS_UNITEXT_TYPE)
 			_cursor_cols[i]._len = 1048576;
 
 		row_size += _cursor_cols[i]._len;
@@ -551,10 +565,19 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 	// Allocate buffers for each column
 	for(int i = 0; i < _cursor_cols_count; i++)
 	{
-		// CHAR data type
-		if(_cursor_cols[i]._native_dt == CS_CHAR_TYPE)
+		// CHAR and VARCHAR data types; CS_CHAR_TYPE for VARCHAR <= 255, and CS_LONGCHAR_TYPE for VARCHAR < 32K
+		if(_cursor_cols[i]._native_dt == CS_CHAR_TYPE || _cursor_cols[i]._native_dt == CS_LONGCHAR_TYPE)
 		{
 			// Do not bind to null-terminating string as zero byte will be included to length indicator
+			_cursor_cols[i]._native_fetch_dt = _cursor_cols[i]._native_dt;
+			_cursor_cols[i]._fetch_len = _cursor_cols[i]._len;
+
+			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
+		}
+		else
+		// BINARY data type
+		if(_cursor_cols[i]._native_dt == CS_BINARY_TYPE)
+		{
 			_cursor_cols[i]._native_fetch_dt = _cursor_cols[i]._native_dt;
 			_cursor_cols[i]._fetch_len = _cursor_cols[i]._len;
 
@@ -758,6 +781,20 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
 
 			fmt[i].datatype = CS_CHAR_TYPE;
+			fmt[i].maxlength = (CS_INT)_cursor_cols[i]._fetch_len;
+		}
+		else
+		// UNITEXT
+		if(_cursor_cols[i]._native_dt == CS_UNITEXT_TYPE)
+		{
+			// Data fetched as UTF-16 i.e. 0x00 byte goes first for first 127 ASCII characters
+			_cursor_cols[i]._native_fetch_dt = CS_UNICHAR_TYPE;
+			_cursor_cols[i]._nchar = true;
+
+			_cursor_cols[i]._fetch_len = _cursor_cols[i]._len;
+			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
+
+			fmt[i].datatype = CS_UNICHAR_TYPE;
 			fmt[i].maxlength = (CS_INT)_cursor_cols[i]._fetch_len;
 		}	
 
@@ -1192,7 +1229,8 @@ int SqlCtApi::ReadTableColumns(std::string &condition)
 			_table_columns.push_back(col_meta);
 		}
 
-		rc = Fetch(&rows_fetched, &time_read);
+		if(rc != 100)
+			rc = Fetch(&rows_fetched, &time_read);
 
 		// No more rows
 		if(rc == 100)
@@ -1345,7 +1383,8 @@ int SqlCtApi::ReadIndexes(std::string &condition)
 			}
 		}
 
-		rc = Fetch(&rows_fetched, &time_read);
+		if(rc != 100)
+			rc = Fetch(&rows_fetched, &time_read);
 
 		// No more rows
 		if(rc == 100)
@@ -1530,7 +1569,8 @@ int SqlCtApi::ReadReferences(std::string &condition)
 			}
 		}
 
-		rc = Fetch(&rows_fetched, &time_read);
+		if(rc != 100)
+			rc = Fetch(&rows_fetched, &time_read);
 
 		// No more rows
 		if(rc == 100)

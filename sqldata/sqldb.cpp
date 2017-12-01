@@ -1291,6 +1291,8 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 		else
 		// Oracle VARCHAR2 (SQLT_CHR) ODBC SQL_VARCHAR 
 		if((source_type == SQLDATA_ORACLE && s_cols[i]._native_dt == SQLT_CHR) ||
+			// Sybase ASE CHAR and VARCHAR (CS_CHAR_TYPE for VARCHAR <= 255, and CS_LONGCHAR_TYPE for VARCHAR < 32K)
+			(source_type == SQLDATA_SYBASE && (s_cols[i]._native_dt == CS_CHAR_TYPE || s_cols[i]._native_dt == CS_LONGCHAR_TYPE)) ||			
 			// MySQL VARCHAR
 		   (source_type == SQLDATA_MYSQL && s_cols[i]._native_dt == MYSQL_TYPE_VAR_STRING) ||
 			// SQL Server, DB2, Informix, Sybase ASA VARCHAR
@@ -1355,8 +1357,6 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 		if((source_type == SQLDATA_ORACLE && s_cols[i]._native_dt == SQLT_AFC) ||
 			// SQL Server CHAR
 			(source_type == SQLDATA_SQL_SERVER && s_cols[i]._native_dt == SQL_CHAR) ||
-			// Sybase ASE CHAR
-			(source_type == SQLDATA_SYBASE && s_cols[i]._native_dt == CS_CHAR_TYPE) ||
 			// Informix CHAR
 			(source_type == SQLDATA_INFORMIX && s_cols[i]._native_dt == SQL_CHAR) ||
 			// DB2 CHAR
@@ -1864,8 +1864,17 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 		}
         else
 		// SQL Server BINARY
-		if(source_type == SQLDATA_SQL_SERVER && s_cols[i]._native_dt == SQL_BINARY)
+		if((source_type == SQLDATA_SQL_SERVER && s_cols[i]._native_dt == SQL_BINARY) ||
+			// Sybase ASE BINARY
+			(source_type == SQLDATA_SYBASE && s_cols[i]._native_dt == CS_BINARY_TYPE)) 
 		{
+			if(target_type == SQLDATA_ORACLE)
+			{
+				sql += "RAW(";
+				sql += Str::IntToString((int)s_cols[i]._len, int1);
+				sql += ")";
+			}
+			else
 			if(target_type == SQLDATA_MYSQL)
 			{
 				sql += "BINARY(";
@@ -1931,8 +1940,8 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 			// Informix TEXT, Sybase ASA LONG VARCHAR
 			((source_type == SQLDATA_INFORMIX || source_type == SQLDATA_ASA || source_type == SQLDATA_ODBC) 
 				&& s_cols[i]._native_dt == SQL_LONGVARCHAR) ||
-			// DB2 CLOB with code -99
-			(source_type == SQLDATA_DB2 && s_cols[i]._native_dt == -99) ||
+			// DB2 CLOB with code -99, LONG VARCHAR with code -1
+			(source_type == SQLDATA_DB2 && (s_cols[i]._native_dt == -99 || s_cols[i]._native_dt == -1)) ||
 			// Informix CLOB with code -103
 			(source_type == SQLDATA_INFORMIX && s_cols[i]._native_dt == -103) ||
 			// MySQL CLOB
@@ -1952,9 +1961,11 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 		}
 		else
 		// SQL Server NTEXT, Sybase ASA LONG NVARCHAR
-		if((source_type == SQLDATA_SQL_SERVER || source_type == SQLDATA_INFORMIX || 
+		if(((source_type == SQLDATA_SQL_SERVER || source_type == SQLDATA_INFORMIX || 
 			source_type == SQLDATA_ASA || source_type == SQLDATA_ODBC) 
-			&& s_cols[i]._native_dt == SQL_WLONGVARCHAR)
+			&& s_cols[i]._native_dt == SQL_WLONGVARCHAR) ||
+			// Sybase ASE UNITEXT
+			(source_type == SQLDATA_SYBASE && s_cols[i]._native_dt == CS_UNITEXT_TYPE))
 		{
 			if(target_type == SQLDATA_SQL_SERVER)
 				sql += "NVARCHAR(MAX)";
@@ -2625,10 +2636,10 @@ int SqlDb::ValidateRows(SqlDataReply &reply)
 	{
 		strncpy(reply.data2, diff_cols_list.c_str(), 1023);
 		reply.data2[1023] = '\x0';
-
-		reply.s_sql_l = s_select;
-		reply.t_sql_l = t_select;
 	}
+
+	reply.s_sql_l = s_select;
+	reply.t_sql_l = t_select;
 
 	reply._s_bigint1 = s_all_bytes;
 	reply._t_bigint1 = t_all_bytes;
@@ -3351,6 +3362,19 @@ int SqlDb::BuildQuery(std::string &s_query, std::string &t_query, const char *s_
 					}
 				}
 				else
+				// Oracle XMLTYPE column that fetched as object type in OCI
+				if(source_type == SQLDATA_ORACLE && d != NULL && !_stricmp(d, "XMLTYPE"))
+				{
+					s_query += "XMLSERIALIZE(CONTENT \"";
+					s_query += c;
+					s_query += "\" AS CLOB) AS ";
+					s_query += c;
+
+					t_query += c;
+
+					column_added = true;
+				}
+				else
 				// Oracle stores quoted columns without " but in the same case as they specified in CREATE TABLE
 				if(source_type == SQLDATA_ORACLE)
 				{
@@ -3365,6 +3389,15 @@ int SqlDb::BuildQuery(std::string &s_query, std::string &t_query, const char *s_
 						t_query += c;
 						t_query += "]";
 					}
+					else
+					if(target_type == SQLDATA_MYSQL)
+					{
+						t_query += '`';
+						t_query += c;
+						t_query += "`";
+					}
+					else
+						t_query += c;
 
 					column_added = true;
 				}

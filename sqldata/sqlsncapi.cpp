@@ -32,10 +32,6 @@ SqlSncApi::SqlSncApi()
 	_hdbc = SQL_NULL_HANDLE;
 	_hstmt_cursor = SQL_NULL_HANDLE;
 
-	*_user = '\x0';
-	*_pwd = '\x0';
-	*_server = '\x0';
-	*_db = '\x0';
 	_trusted = false;
 
 	_cursor_fetched = 0;
@@ -43,6 +39,7 @@ SqlSncApi::SqlSncApi()
 	_bcp_cols_count = 0;
 	_bcp_cols = NULL;
 	_bcp_lob_exists = false;
+	_bcp_codepage = -2; // -1 is used by BCPFILECP_RAW
 
 	_error = 0;
 	_error_text[0] = '\x0';
@@ -94,6 +91,16 @@ int SqlSncApi::Init()
 
 	_dll_odbc = LoadLibraryEx(SQLSRV_ODBC_DLL, NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
 	_dll = LoadLibraryEx(dll.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+#else
+	_dll_odbc = Os::LoadLibrary(SQLSERV_DLL);
+	_dll = _dll_odbc;
+
+	if(_dll_odbc == NULL || _dll == NULL)
+	{
+		char *error = Os::LoadLibraryError();
+		if(error != NULL)
+			strcpy(_native_error_text, error);
+	}
 #endif
 		
 	// Get functions
@@ -142,59 +149,20 @@ int SqlSncApi::Init()
 		return -1;
 	}
 
+	// Initialize options
+	if(_parameters != NULL)
+		_bcp_codepage = _parameters->GetInt("-bcp_codepage", -2);   // -1 is used by BCPFILECP_RAW
+
 	return 0;
 }
 
 // Set the connection string in the API object
 void SqlSncApi::SetConnectionString(const char *conn)
 {
-	if(conn == NULL)
-		return;
-
-	// Find @ that separates user/password from server name
-	const char *amp = strchr(conn, '@');
-	const char *sl = strchr(conn, '/');
-
-	// Set server info
-	if(amp != NULL)
-	{
-		// Find database name
-		const char *comma = strchr(amp + 1, ',');
-
-		if(comma != NULL)
-		{
-			strncpy(_server, amp + 1, (size_t)(comma - amp - 1)); 
-			_server[comma - amp - 1] = '\x0';
-
-			strcpy(_db, Str::SkipSpaces(comma + 1)); 
-		}
-		else
-		{
-			strcpy(_server, amp + 1);
-			*_db = '\x0';
-		}
-	}
-
-	if(amp == NULL)
-		amp = conn + strlen(conn);
-
-	// Define the end of the user name
-	const char *end = (sl == NULL || amp < sl) ? amp : sl;
-
-	strncpy(_user, conn, (size_t)(end - conn));
-	_user[end - conn] = '\x0';
-
-	// Define password
-	if(sl != NULL && amp > sl)
-	{
-		strncpy(_pwd, sl + 1, (size_t)(amp - sl - 1));
-		_pwd[amp - sl - 1] = '\x0';
-	}
-	else
-		*_pwd = '\x0';
+	SplitConnectionString(conn, _user, _pwd, _server, _db, _port);
 
 	// Check for trusted connection
-	_trusted = (_stricmp(_user, "trusted") == 0) ? true : false;
+	_trusted = (_stricmp(_user.c_str(), "trusted") == 0) ? true : false;
 
 	return;
 }
@@ -226,15 +194,22 @@ int SqlSncApi::Connect(size_t *time_spent)
 	std::string conn = _driver;
 
 	// Build connection string, add server
-	if(*_server)
+	if(!_server.empty())
 	{
 		conn += "Server=";
 		conn += _server;
+
+		if(!_port.empty())
+		{
+			conn += ",";
+			conn += _port;
+		}
+
 		conn += ";";
 	}
 
 	// Add server
-	if(*_db)
+	if(!_db.empty())
 	{
 		conn += "Database=";
 		conn += _db;
@@ -526,8 +501,9 @@ int SqlSncApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memo
 		// Data type NCHAR or NVARCHAR
 		if(_cursor_cols[i]._native_dt == SQL_WCHAR || _cursor_cols[i]._native_dt == SQL_WVARCHAR)
 		{
-            // MySQL does not support UCS2 in LOAD DATA INFILE, let's convert to ASCII
-            if(_target_api_provider != NULL && _target_api_provider->GetType() == SQLDATA_MYSQL)
+            // MySQL does not support UCS2 in LOAD DATA INFILE, let's convert to ASCII; also convert to ASCII for target Oracle
+            if(_target_api_provider != NULL && 
+				(_target_api_provider->GetType() == SQLDATA_MYSQL || _target_api_provider->GetType() == SQLDATA_ORACLE))
             {
                 _cursor_cols[i]._native_fetch_dt = SQL_C_CHAR;
 			    _cursor_cols[i]._fetch_len = _cursor_cols[i]._len + 1;
@@ -928,6 +904,12 @@ int SqlSncApi::InitBulkTransfer(const char *table, size_t col_count, size_t allo
 
 	// Use IDENTITY values from the source table
 	rc = _bcp_control(_hdbc, BCPKEEPIDENTITY, (void*)TRUE);
+
+	// Set the BCP codepage defined by the user. 
+	// By default Windows locale defines input data codepage that can cause problems when Windows and table locale does not match
+	// For some reason specifying BCPFILECP_RAW (-1) still causes conversion and cannot be used as default
+	if(_bcp_codepage != -2)
+		rc = _bcp_control(_hdbc, BCPFILECP, (void*)_bcp_codepage);
 
 	_bcp_cols_count = col_count;
 	_bcp_cols = new SqlCol[col_count];

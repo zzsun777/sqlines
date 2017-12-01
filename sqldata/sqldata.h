@@ -34,7 +34,7 @@
 #include "applog.h"
 
 #define SQLDATA_NAME  		        "SQLines Data"	
-#define SQLDATA_VERSION_NUMBER		"3.1.317"	
+#define SQLDATA_VERSION_NUMBER		"3.1.703"	
 
 #if defined(_WIN64)
 #define SQLDATA_VERSION				SQLDATA_NAME ## " " ## SQLDATA_VERSION_NUMBER ##" x64"	

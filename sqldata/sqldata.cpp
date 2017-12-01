@@ -2359,7 +2359,9 @@ void SqlData::GetIdentityMetaTask(SqlColMeta &col)
 	char start_str[11]; 
 	char inc_str[11]; 
 
-	sprintf(start_str, "%d", col.id_next);
+	int start = (col.id_next > 0) ? col.id_next : col.id_start;
+
+	sprintf(start_str, "%d", start);
 	sprintf(inc_str, "%d", col.id_inc);
 
 	// Create sequence

@@ -930,12 +930,11 @@ void SqlDataCmd::CallbackValidationRows(SqlDataReply *reply)
 
 		// Show differences
 		if(reply->_int1 != 0)
-		{
 			_log.Log("\n    Not Equal: %d row%s, %d of %d column%s (%s)", reply->_int1, SUFFIX(reply->_int1),
 						reply->_int2, reply->_int3, SUFFIX(reply->_int3), reply->data2);  
-			_log.Log("\n      Source query: %s", reply->s_sql_l.c_str()); 
-			_log.Log("\n      Target query: %s", reply->t_sql_l.c_str()); 
-		}
+
+		_log.Log("\n      Source query: %s", reply->s_sql_l.c_str()); 
+		_log.Log("\n      Target query: %s", reply->t_sql_l.c_str()); 
 	}
 	else
 	// All tables validated
@@ -1145,8 +1144,19 @@ int SqlDataCmd::ReadMetadata()
 
 		// Create queues to transfer schema metadata
 		std::string meta_filter = _t;
+
 		if(_t.empty())
-			meta_filter = "*";
+		{
+			int c = 0;
+			for(std::list<std::string>::iterator i = avail_tables.begin(); i != avail_tables.end(); i++)
+			{
+				if(c > 0)
+					meta_filter += ",";
+
+				meta_filter += (*i);
+				c++;
+			}
+		}
 			
 		_sqlData.CreateMetadataQueues(meta_filter, _texcl);
 
@@ -1790,13 +1800,13 @@ void SqlDataCmd::PrintHowToUse()
 	printf("\n\nExample:");
 	printf("\n\nTransfer table cities from Oracle to SQL Server");
 #if defined(WIN32) || defined(_WIN64)
-	printf("\n\n   sqldata.exe -sd=oracle,scott/tiger@orcl -td=sql,trusted@srv1.hr -t=cities");
+	printf("\n\n   sqldata.exe -sd=oracle,scott/tiger@orcl -td=sql,trusted@srv1,hr -t=cities");
 	printf("\n");
 	printf("\nRun sqldata_w.exe to launch a GUI version of SQLData.\n");
 	printf("\nPress any key to continue...\n");
 	_getch();
 #else
-	printf("\n\n   ./sqldata -sd=oracle,scott/tiger@orcl -td=sql,trusted@srv1.hr -t=cities");
+	printf("\n\n   ./sqldata -sd=oracle,scott/tiger@orcl -td=sql,trusted@srv1,hr -t=cities");
 	printf("\n\n");
 #endif
 }

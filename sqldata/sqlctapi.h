@@ -35,6 +35,9 @@
 #elif defined(WIN32)
 #define CTLIB_DLL				"libsybct.dll"
 #define CSLIB_DLL				"libsybcs.dll"
+#else
+#define CTLIB_DLL				"libsybct64.so"
+#define CSLIB_DLL				"libsybcs64.so"
 #endif
 
 // Sybase ASE 12.5 DLLs
@@ -79,6 +82,7 @@ class SqlCtApi : public SqlApiBase
 	std::string _user;
 	std::string _pwd;
 	std::string _server;
+	std::string _port;
 	std::string _db;
 
 	// Open cursor command
