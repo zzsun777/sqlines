@@ -199,6 +199,14 @@ int SqlDb::InitStaticApi(const char *conn, std::string &error)
 		mysqlApi.SetParameters(_parameters);
 		mysqlApi.SetAppLog(_log);
 
+		const char *conn = strchr(cur, ',');
+
+		if(conn != NULL)
+		{
+			conn = Str::SkipSpaces(conn + 1);
+			mysqlApi.SetConnectionString(conn);
+		}
+
 		if(_strnicmp(cur, "mariadb", 7) == 0)
 			mysqlApi.SetSubType(SQLDATA_SUBTYPE_MARIADB);
 
@@ -1798,7 +1806,9 @@ int SqlDb::GenerateCreateTable(SqlCol *s_cols, const char *s_table, const char *
 		if(((source_type == SQLDATA_SQL_SERVER || source_type == SQLDATA_DB2 || 
 			source_type == SQLDATA_INFORMIX || source_type == SQLDATA_ASA ||
 			source_type == SQLDATA_ODBC) && s_cols[i]._native_dt == SQL_TYPE_TIME) ||
-			(source_type == SQLDATA_SQL_SERVER && s_cols[i]._native_dt == SQL_SS_TIME2))
+			(source_type == SQLDATA_SQL_SERVER && s_cols[i]._native_dt == SQL_SS_TIME2) ||
+			// Sybase ASE TIME
+			(source_type == SQLDATA_SYBASE && s_cols[i]._native_dt == CS_TIME_TYPE))
 		{
 			char fraction[11]; 
 
@@ -2317,12 +2327,15 @@ void SqlDb::MapColumn(const char *s_table, const char *s_name, std::string &t_na
 		// Check for a reserved word in the target database
 		bool resword = _target_ca.db_api->IsReservedWord(s_name);
 
-		if(resword)
+		// Check for space (Sybase ASE, ASA i.e. return unqouted identifier when space inside)
+		bool space = strchr(s_name, ' ') != NULL ? true : false;
+
+		if(resword || space)
 			t_name += '"';
 
 		t_name += s_name;
 
-		if(resword)
+		if(resword || space)
 			t_name += '"';
 
 		// The length must not exceed 30 characters
@@ -3398,6 +3411,18 @@ int SqlDb::BuildQuery(std::string &s_query, std::string &t_query, const char *s_
 					}
 					else
 						t_query += c;
+
+					column_added = true;
+				}
+				else
+				// Sybase ASE stores columns without [] even if they are reserved words or contain spaces
+				if(source_type == SQLDATA_SYBASE)
+				{
+					s_query += '[';
+					s_query += c;
+					s_query += ']';
+				
+					t_query += c;
 
 					column_added = true;
 				}

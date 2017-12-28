@@ -1453,6 +1453,14 @@ int SqlDataCmd::SetParameters()
 	else
 		_smap.clear();
 
+	// Get -tmapf option
+	value = _parameters.Get(TMAPF_OPTION);
+
+	if(value != NULL)
+		_tmapf = value;
+	else
+		_tmapf = SQLDATA_TMAP_FILE;
+
 	// Get -cmapf option
 	value = _parameters.Get(CMAPF_OPTION);
 
@@ -1460,6 +1468,14 @@ int SqlDataCmd::SetParameters()
 		_cmapf = value;
 	else
 		_cmapf = SQLDATA_CMAP_FILE;
+
+	// Get -cnsmapf option
+	value = _parameters.Get(CNSMAPF_OPTION);
+
+	if(value != NULL)
+		_cnsmapf = value;
+	else
+		_cnsmapf = SQLDATA_CNSMAP_FILE;
 
     // Get -dtmapf option
 	value = _parameters.Get(DTMAPF_OPTION);
@@ -1564,7 +1580,9 @@ int SqlDataCmd::SetParameters()
 
 	// Set mappings
 	_sqlData.SetSchemaMapping(_smap);
+	_sqlData.SetTableMappingFromFile(_tmapf);
 	_sqlData.SetColumnMappingFromFile(_cmapf);
+	_sqlData.SetConstraintMappingFromFile(_cnsmapf);
     _sqlData.SetDataTypeMappingFromFile(_dtmapf);
 	_sqlData.SetTableSelectExpressionsFromFile(_tself);
 	_sqlData.SetTableSelectExpressionsAllFromFile(_tselallf);

@@ -33,7 +33,9 @@
 #define QF_OPTION					"-qf"		// A file with SQL SELECT queries
 #define CMD_OPTION					"-cmd"		// Command to perform
 #define SMAP_OPTION					"-smap"		// Schema name mapping
+#define TMAPF_OPTION				"-tmapf"	// Table name mapping
 #define CMAPF_OPTION				"-cmapf"	// Column name and data type mapping
+#define CNSMAPF_OPTION				"-cnsmapf"	// Table constraint name mapping
 #define DTMAPF_OPTION				"-dtmapf"	// Global data type mapping
 #define TSELF_OPTION				"-tself"	// Table select expressions
 #define TSELALLF_OPTION				"-tselallf"	// Table select expressions for all tables
@@ -50,8 +52,10 @@
 #define SUFFIX(int_value)				((int_value == 1) ? "" : "s")
 #define SUFFIX2(int_value, str1, str2)	((int_value == 1) ? str1 : str2)
 
-// Mapping files
+// Default mapping files
+#define SQLDATA_TMAP_FILE				"sqlines_tmap.txt"
 #define SQLDATA_CMAP_FILE				"sqlines_cmap.txt"
+#define SQLDATA_CNSMAP_FILE				"sqlines_cnsmap.txt"
 #define SQLDATA_DTMAP_FILE				"sqlines_dtmap.txt"
 #define SQLDATA_TSEL_FILE				"sqlines_tsel.txt"
 #define SQLDATA_TSEL_ALL_FILE			"sqlines_tsel_all.txt"
@@ -78,7 +82,9 @@ class SqlDataCmd
 	std::string _qf;
 	std::string _cmd;
 	std::string _smap;
+	std::string _tmapf;
 	std::string _cmapf;
+	std::string _cnsmapf;
     std::string _dtmapf;
     std::string _tself;
 	std::string _tselallf;

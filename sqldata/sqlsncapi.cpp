@@ -909,7 +909,15 @@ int SqlSncApi::InitBulkTransfer(const char *table, size_t col_count, size_t allo
 	// By default Windows locale defines input data codepage that can cause problems when Windows and table locale does not match
 	// For some reason specifying BCPFILECP_RAW (-1) still causes conversion and cannot be used as default
 	if(_bcp_codepage != -2)
+	{
 		rc = _bcp_control(_hdbc, BCPFILECP, (void*)_bcp_codepage);
+
+		if(rc == FAIL)
+		{	
+			SetError(SQL_HANDLE_DBC, _hdbc);
+			return -1;
+		}
+	}
 
 	_bcp_cols_count = col_count;
 	_bcp_cols = new SqlCol[col_count];
@@ -2143,7 +2151,9 @@ void SqlSncApi::DefineDriver(std::string &driver, std::string &dll)
 // Set version of the connected database
 void SqlSncApi::SetVersion()
 {
-	// Includes full product name - Microsoft SQL Server 2008 R2 (RTM) - 10.50.1617.0 (Intel X86) Apr 22 2011 11:57:00 Copyright (c) Microsoft Corporation Express Edition with Advanced Services on Windows NT 6.1 <X86> (Build 7600: )
+	// Includes full product name
+	// Microsoft SQL Server 2008 R2 (RTM) - 10.50.1617.0 (Intel X86) Apr 22 2011 11:57:00 Copyright (c) Microsoft Corporation Express Edition with Advanced Services on Windows NT 6.1 <X86> (Build 7600: )
+	// Microsoft SQL Server 2014 (SP2) (KB3171021) - 12.0.5000.0 (X64) Jun 17 2016 19:14:09 Copyright (c) Microsoft Corporation	Express Edition (64-bit) on Windows NT 6.3 <X64> (Build 10586: )
 	const char *query = "SELECT CAST(@@VERSION AS VARCHAR(300))";
 
 	size_t col_count = 0;

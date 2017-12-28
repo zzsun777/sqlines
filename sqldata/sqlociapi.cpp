@@ -2480,6 +2480,9 @@ int SqlOciApi::ReadReservedWords()
 // Initialize the bulk copy from one database into another
 int SqlOciApi::InitBulkTransfer(const char *table, size_t col_count, size_t allocated_array_rows, SqlCol *s_cols, SqlCol ** /*t_cols*/)
 {
+	TRACE("OCI InitBulkTransfer() Entered");
+	TRACE_P("Target table: %s", table);
+
 	// Allocate statement handle
 	int rc = _ociHandleAlloc((dvoid*)_envhp, (dvoid**)&_stmtp_insert, OCI_HTYPE_STMT, 0, NULL);
 
@@ -2509,6 +2512,7 @@ int SqlOciApi::InitBulkTransfer(const char *table, size_t col_count, size_t allo
 		_ociHandleFree(_stmtp_insert, OCI_HTYPE_STMT);
 
 		_stmtp_insert = NULL;
+		TRACE("OCI InitBulkTransfer() Left with Error");
 		return -1;
 	}
 
@@ -2692,10 +2696,12 @@ int SqlOciApi::InitBulkTransfer(const char *table, size_t col_count, size_t allo
 			_ins_cols[i]._len_ind2 = NULL;
 
 			_stmtp_insert = NULL;
+			TRACE("OCI InitBulkTransfer() Left with Error");
 			return -1;
 		}
 	}
 
+	TRACE("OCI InitBulkTransfer() Left");
 	return rc;
 }
 

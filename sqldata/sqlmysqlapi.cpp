@@ -225,6 +225,9 @@ int SqlMysqlApi::InitStatic()
 		if(mysql == NULL)
 			return -1;
 
+		// Initialize global options that take effect only for new connections
+		InitGlobalOptions();
+
 		// Did not work for MariaDB 
 		//_mysql_options(&_mysql, MYSQL_OPT_LOCAL_INFILE, 0);
 	}
@@ -341,6 +344,34 @@ int SqlMysqlApi::Connect(size_t *time_spent)
 	return 0;
 }
 
+// Initialize global options that take effect only for new connections
+int SqlMysqlApi::InitGlobalOptions()
+{
+	if(_parameters == NULL)
+		return -1;
+
+	int rc = 0;
+	const char *max_allowed_packet = NULL;
+
+	// MariaDB options
+	if(_subtype == SQLDATA_SUBTYPE_MARIADB)
+		max_allowed_packet = _parameters->Get("-mariadb_max_allowed_packet");
+
+	// Set options in dedicated connection before all other connections
+	if(max_allowed_packet != NULL)
+	{
+		rc = Connect(NULL);
+
+		if(rc != -1)
+		{
+			rc = ExecuteNonQuery(std::string("SET GLOBAL max_allowed_packet=").append(max_allowed_packet).c_str(), NULL);
+			Disconnect();
+		}
+	}
+
+	return rc; 
+}
+
 // Initialize session by setting options
 int SqlMysqlApi::InitSession()
 {
@@ -371,7 +402,7 @@ int SqlMysqlApi::InitSession()
 	if(IsVersionEqualOrHigher(5, 1, 17) == true)
 		rc = ExecuteNonQuery("SET GLOBAL INNODB_STATS_ON_METADATA=0", NULL);
 
-	// Binary logging for replication
+	// Binary logging for replication. This requires SUPER privilege!
 	if(_subtype == SQLDATA_SUBTYPE_MARIADB)
 	{
 		value = _parameters->Get("-mariadb_set_sql_log_bin");
@@ -382,9 +413,12 @@ int SqlMysqlApi::InitSession()
 	else
 		rc = ExecuteNonQuery("SET sql_log_bin=0", NULL);
 
-	// If AUTOCOMMIT is set to 0 in the database or client side, LOAD DATA INFILE require a COMMIT statement 
+	// If AUTOCOMMIT is set to 0 in the database or client side, LOAD DATA INFILE requires a COMMIT statement 
 	// to put data to the table, so we force AUTOCOMMIT to 1 for connection
 	rc = ExecuteNonQuery("SET autocommit=1", NULL);
+
+	// Reset initialization error text so it will not be later associated with the data transfer
+	*_native_error_text = '\x0';
 
 	return rc;
 }

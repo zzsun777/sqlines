@@ -98,7 +98,8 @@ int SqlDb2Api::Init()
 				break;
 		}		
 	}
-
+#else
+	_dll = Os::LoadLibrary(DB2_DLL);
 #endif
 
 	// Get functions

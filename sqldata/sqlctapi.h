@@ -54,6 +54,7 @@ typedef CS_RETCODE (CS_PUBLIC *cs_dt_infoFunc)(	CS_CONTEXT *context, CS_INT acti
 typedef CS_RETCODE (CS_PUBLIC *cs_loc_allocFunc)(CS_CONTEXT *context, CS_LOCALE **loc_pointer);
 typedef CS_RETCODE (CS_PUBLIC *cs_localeFunc)(CS_CONTEXT *context, CS_INT action, CS_LOCALE *locale, CS_INT type, CS_CHAR *buffer, CS_INT buflen, CS_INT *outlen);
 typedef CS_RETCODE (CS_PUBLIC *ct_bindFunc)(CS_COMMAND *cmd, CS_INT item, CS_DATAFMT *datafmt, CS_VOID *buf, CS_INT *outputlen, CS_SMALLINT *indicator);
+typedef CS_RETCODE (CS_PUBLIC *ct_cancelFunc)(CS_CONNECTION *connection, CS_COMMAND *cmd, CS_INT type);
 typedef CS_RETCODE (CS_PUBLIC *ct_commandFunc)(CS_COMMAND *cmd, CS_INT type, CS_CHAR *buf, CS_INT buflen, CS_INT option);
 typedef CS_RETCODE (CS_PUBLIC *ct_con_allocFunc)(CS_CONTEXT *context, CS_CONNECTION **connection);
 typedef CS_RETCODE (CS_PUBLIC *ct_con_dropFunc)(CS_CONNECTION *connection);
@@ -106,6 +107,7 @@ class SqlCtApi : public SqlApiBase
 	cs_loc_allocFunc _cs_loc_alloc;
 	cs_localeFunc _cs_locale;
 	ct_bindFunc _ct_bind;
+	ct_cancelFunc _ct_cancel;
 	ct_commandFunc _ct_command;
 	ct_con_allocFunc _ct_con_alloc;
 	ct_con_dropFunc _ct_con_drop;

@@ -41,6 +41,7 @@ SqlCtApi::SqlCtApi()
 	_cs_loc_alloc = NULL;
 	_cs_locale = NULL;
 	_ct_bind = NULL;
+	_ct_cancel = NULL;
 	_ct_command = NULL;
 	_ct_con_alloc = NULL;
 	_ct_con_drop = NULL;
@@ -164,6 +165,7 @@ int SqlCtApi::Init()
 		_cs_locale = (cs_localeFunc)Os::GetProcAddress(_cs_dll, "cs_locale");
 
 		_ct_bind = (ct_bindFunc)Os::GetProcAddress(_ct_dll, "ct_bind");
+		_ct_cancel = (ct_cancelFunc)Os::GetProcAddress(_ct_dll, "ct_cancel");
 		_ct_command = (ct_commandFunc)Os::GetProcAddress(_ct_dll, "ct_command");
 		_ct_con_alloc = (ct_con_allocFunc)Os::GetProcAddress(_ct_dll, "ct_con_alloc");
 		_ct_con_drop = (ct_con_dropFunc)Os::GetProcAddress(_ct_dll, "ct_con_drop");
@@ -182,7 +184,7 @@ int SqlCtApi::Init()
 		_ct_send = (ct_sendFunc)Os::GetProcAddress(_ct_dll, "ct_send");
 
 		if(_cs_ctx_alloc == NULL || _cs_config == NULL || _cs_ctx_drop == NULL || _cs_dt_info == NULL || _cs_locale == NULL || 
-			_cs_loc_alloc == NULL || _ct_bind == NULL || _ct_command == NULL || 
+			_cs_loc_alloc == NULL || _ct_bind == NULL || _ct_cancel == NULL || _ct_command == NULL || 
 			_ct_con_alloc == NULL || _ct_con_drop == NULL || _ct_con_props == NULL || _ct_connect == NULL || 
 			_ct_close == NULL || _ct_cmd_alloc == NULL || _ct_cmd_drop == NULL || _ct_describe == NULL || 
 			_ct_diag == NULL || _ct_exit == NULL || _ct_fetch == NULL || _ct_init == NULL || 
@@ -472,6 +474,10 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 
 	size_t start = Os::GetTickCount();
 
+	// Reset the previous errors
+	_ct_diag(_connection, CS_CLEAR, CS_CLIENTMSG_TYPE, CS_UNUSED, NULL);
+	_ct_diag(_connection, CS_CLEAR, CS_SERVERMSG_TYPE, CS_UNUSED, NULL);
+
 	// Allocate command 
 	int rc = _ct_cmd_alloc(_connection, &_cursor_cmd);
 
@@ -492,11 +498,15 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 	}
 
 	// Process the result set (execute ct_result only once)
+	// Even if SELECT is incorrect (syntax errors i.e.) ct_command, ct_send and ct_results return CS_SUCCEED, but
+	// ct_results returns CS_CMD_FAIL (4048) in type (second param)
 	if((rc = _ct_results(_cursor_cmd, &type)) != CS_SUCCEED || type != CS_ROW_RESULT)
 	{
 		SetError();
-		_ct_cmd_drop(_cursor_cmd);
 
+		// We must cancel of fetch all ct_results before dropping the command; otherwise this drop fails and all subsequent statements will fail as well
+		rc = _ct_cancel(NULL, _cursor_cmd, CS_CANCEL_ALL);
+		rc = _ct_cmd_drop(_cursor_cmd);
 		return -1;
 	}
 
@@ -740,7 +750,20 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		{
 			_cursor_cols[i]._native_fetch_dt = CS_CHAR_TYPE;
 
-			// All date/time data type are fetched in full length, since ANSI ISO format cannot be specified separately for each type
+			// All date/time data types are fetched in full length, since ANSI ISO format cannot be specified separately for each type
+			_cursor_cols[i]._fetch_len = 26;
+			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
+
+			fmt[i].datatype = CS_CHAR_TYPE;
+			fmt[i].maxlength = (CS_INT)_cursor_cols[i]._fetch_len;
+		}	
+		else
+		// TIME, length is 4
+		if(_cursor_cols[i]._native_dt == CS_TIME_TYPE)
+		{
+			_cursor_cols[i]._native_fetch_dt = CS_CHAR_TYPE;
+
+			// All date/time data types are fetched in full length, since ANSI ISO format cannot be specified separately for each type
 			_cursor_cols[i]._fetch_len = 26;
 			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
 
@@ -884,31 +907,8 @@ int SqlCtApi::Fetch(int *rows_fetched, size_t *time_spent)
 // Close the cursor and deallocate buffers
 int SqlCtApi::CloseCursor()
 {
-	CS_INT type;
-	int rc = 0;
-
-	int fetched = 0;
-
-	// We must call ct_fetch until it returns NO DATA
-	if(_cursor_last_fetch_rc == CS_SUCCEED)
-		rc = _ct_fetch(_cursor_cmd, CS_UNUSED, CS_UNUSED, CS_UNUSED, (CS_INT*)&fetched);
-
-	bool more = true;
-
-	// Consume all results
-	while(more)
-	{
-		rc = _ct_results(_cursor_cmd, &type);
-
-		if(rc == CS_FAIL)
-			SetError();
-		
-		if(rc != CS_SUCCEED)
-		{
-			more = false;
-			break;
-		}
-	}
+	// Close cursor can be called when not all rows are fetched (error creating table in the target database i.e.), so we need to cancel command
+	int	rc = _ct_cancel(NULL, _cursor_cmd, CS_CANCEL_ALL);
 	
 	rc = _ct_cmd_drop(_cursor_cmd);
 	
@@ -1178,7 +1178,7 @@ int SqlCtApi::ReadTableColumns(std::string &condition)
 
 			len = GetLen(&cols[2], i);
 
-			// Column
+			// Column (without [] even if the name contains blanks)
 			if(len != -1)
 			{
 				col_meta.column = new char[(size_t)len + 1];
@@ -1739,7 +1739,7 @@ void SqlCtApi::FindSybasePaths(std::list<std::string> &paths)
 void SqlCtApi::SetError()
 {
 	CS_CLIENTMSG msg;
-	CS_CLIENTMSG smsg;
+	CS_SERVERMSG smsg;
 
 	// Try to get client message (returned by ct_connect i.e.)
 	CS_RETCODE rc = _ct_diag(_connection, CS_GET, CS_CLIENTMSG_TYPE, 1, &msg);
@@ -1750,7 +1750,7 @@ void SqlCtApi::SetError()
 		rc = _ct_diag(_connection, CS_GET, CS_SERVERMSG_TYPE, 1, &smsg);
 
 		if(rc == CS_SUCCEED)
-			strcpy(_native_error_text, smsg.msgstring);
+			strcpy(_native_error_text, smsg.text);
 	}
 	else
 		strcpy(_native_error_text, msg.msgstring);
