@@ -29,6 +29,8 @@ Token::Token()
 	t_type = 0;
 	data_type = 0;
 	data_subtype = 0;
+	datatype_meta = NULL;
+	table = NULL;
 	nullable = true;
 
 	chr = 0;
@@ -49,6 +51,9 @@ Token::Token()
 	next_start = NULL;
 	line = 0;
 	source_allocated = false;
+
+	open = NULL;
+	close = NULL;
 
 	prev = NULL;
 	next = NULL;
@@ -129,7 +134,7 @@ bool Token::Compare(Token *token, const char *word, const wchar_t * /*w_word*/, 
 	if(token == NULL)
 		return false;
 
-	if(token->str != NULL && !_strnicmp(token->str + start, word, len))
+	if(token->str != NULL && token->len >= start + len && !_strnicmp(token->str + start, word, len))
 		return true;
 
 	return false;
@@ -765,11 +770,11 @@ void TokenStr::Set(TokenStr &src)
 // Append a string
 void TokenStr::Append(const char *s, const wchar_t *w, size_t l)
 {
-	if(s == NULL || w == NULL)
-		return;
+	if(s != NULL)
+		str += s;
 
-	str += s;
-	wstr += w;
+	if(w != NULL)
+		wstr += w;
 
 	len += l;
 }

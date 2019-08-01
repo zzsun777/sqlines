@@ -58,6 +58,7 @@ SqlParser::SqlParser()
 
     _stats = NULL;
     _report = NULL;
+	_java = NULL;
 	_cobol = NULL;
 }
 
@@ -72,7 +73,11 @@ void SqlParser::SetLang(const char *value, bool source)
 	short app = 0;
 
     if(_stricmp(value, "java") == 0)
+	{
         app = APP_JAVA;
+		_java = new Java();
+		_java->SetParser(this);
+	}
 	else
     if(_stricmp(value, "cobol") == 0)
         app = APP_COBOL;
@@ -82,7 +87,6 @@ void SqlParser::SetLang(const char *value, bool source)
 	else
 		_target_app = app;
 }
-
 
 // Set conversion option
 void SqlParser::SetOption(const char *option, const char *value)
@@ -112,6 +116,10 @@ void SqlParser::SetOption(const char *option, const char *value)
 	// Meta information about table columns
 	if(_stricmp(option, "-meta") == 0 && value != NULL)
 		SetMetaFromFile(value);
+	else
+	// Object mapping file
+	if(_stricmp(option, "-fspmapf") == 0 && value != NULL)
+		SetFuncToSpMappingFromFile(value);
     else
 	// Source programming language
 	if(_stricmp(option, "-sl") == 0 && value != NULL)
@@ -128,7 +136,12 @@ void SqlParser::SetOption(const char *option, const char *value)
 		_option_set_explicit_schema = value;
 	else
 	if(_stricmp(option, "__cur_file__") == 0 && value != NULL)
+	{
 		_option_cur_file = value;
+
+		if(_stats != NULL)
+			_stats->SetSourceFile(value);
+	}
 }
 
 // Perform conversion
@@ -169,9 +182,10 @@ int SqlParser::Convert(const char *input, int size, const char **output, int *ou
 
 	CreateOutputString(output, out_size);
 
-	// Delete global item since they point to deleted source code
+	// Delete global items since they point to deleted source code
 	_udt.DeleteAll();
 	_domain_rules.DeleteAll();
+	_spl_obj_type_table.DeleteAll();
 
 	_bookmarks.DeleteAll();
 	_tokens.DeleteAll();
@@ -859,6 +873,17 @@ Token* SqlParser::GetParameter(Token *name)
 	}
 
 	return token;
+}
+
+// Get variable or parameter
+Token* SqlParser::GetVariableOrParameter(Token *name)
+{
+	Token *var = GetVariable(name);
+
+	if(var == NULL)
+		return GetParameter(name);
+
+	return var;
 }
 
 bool SqlParser::GetQuotedIdentifier(Token *token, bool starts_as_unquoted)
@@ -1577,6 +1602,24 @@ bool SqlParser::GetWordToken(Token *token)
 		_tokens.Add(token);
 
 		_next_start = cur;
+
+		// Check for non-ASCII 7-bit characters
+		if(_stats)
+		{
+			bool non_ascii = false;
+
+			for(unsigned int i = 0; i < len; i++)
+			{
+				if(((unsigned char)token->str[i]) > 127)
+				{
+					non_ascii = true;
+					break;
+				}
+			}
+
+			if(non_ascii)
+				_stats->Non7BitAsciiIdents(token);
+		}
 	}
 
 	return (len > 0) ? true : false;
@@ -2047,6 +2090,28 @@ void SqlParser::Prepend(Token *token, Token *prepend)
 	_tokens.Prepend(token, prepend);
 }
 
+// Prepend the token without formatting immediately before the specified token
+void SqlParser::PrependFirstNoFormat(Token *token, const char *str, const wchar_t * /*wstr*/, size_t len)
+{
+	if(token == NULL)
+		return;
+
+	Token *prepend = new Token();
+
+	// Initalize source values in the token
+	*prepend = *token; 
+	prepend->prev = NULL;
+	prepend->next = NULL;
+
+	prepend->t_str = Str::GetCopy(str, len);
+	prepend->t_wstr = NULL;
+	prepend->t_len = len;
+
+	prepend->flags = TOKEN_INSERTED;
+
+	_tokens.Prepend(token, prepend);
+}	
+
 // Change the token and add spaces around it if they do not exist
 void SqlParser::ChangeWithSpacesAround(Token *token, const char *new_str, const wchar_t *new_wstr, size_t len, Token *format)
 {
@@ -2098,6 +2163,7 @@ bool SqlParser::IsValidAlias(Token *token)
 	{
 		// Words not allowed as alias in Oracle
 		if(Token::Compare(token, "END", L"END", 3) == true || 
+			Token::Compare(token, "GROUP", L"GROUP", 5) == true || 
 			Token::Compare(token, "MINUS", L"MINUS", 5) == true || 
 			Token::Compare(token, "ORDER", L"ORDER", 5) == true || 
 			Token::Compare(token, "RETURN", L"RETURN", 6) == true || 
@@ -2113,20 +2179,22 @@ bool SqlParser::IsValidAlias(Token *token)
 	if(_source == SQL_SQL_SERVER || _source == SQL_SYBASE)
 	{
 		// Words not allowed as alias in SQL Server
-		if(Token::Compare(token, "DECLARE", L"DECLARE", 7) == true ||
-			Token::Compare(token, "ELSE", L"ELSE", 4) == true || 
-			Token::Compare(token, "END", L"END", 3) == true || 
-			Token::Compare(token, "EXEC", L"EXEC", 4) == true || 
-			Token::Compare(token, "FETCH", L"FETCH", 5) == true ||
-			Token::Compare(token, "IF", L"IF", 2) == true ||
-			Token::Compare(token, "GO", L"GO", 2) == true ||
-			Token::Compare(token, "GROUP", L"GROUP", 5) == true ||
-			Token::Compare(token, "ORDER", L"ORDER", 5) == true || 
-			Token::Compare(token, "RETURN", L"RETURN", 6) == true || 
-			Token::Compare(token, "SELECT", L"SELECT", 6) == true || 
-			Token::Compare(token, "UNION", L"UNION", 5) == true ||
-			Token::Compare(token, "UPDATE", L"UPDATE", 6) == true ||
-			Token::Compare(token, "WHERE", L"WHERE", 5) == true)
+		if(TOKEN_CMP(token, "CLOSE") || TOKEN_CMP(token, "DECLARE") ||
+			TOKEN_CMP(token, "ELSE") || 
+			TOKEN_CMP(token, "END") || 
+			TOKEN_CMP(token, "EXEC") || 
+			TOKEN_CMP(token, "FETCH") ||
+			TOKEN_CMP(token, "IF") ||
+			TOKEN_CMP(token, "INSERT") ||
+			TOKEN_CMP(token, "GO") ||
+			TOKEN_CMP(token, "GROUP") ||
+			TOKEN_CMP(token, "ORDER") || 
+			TOKEN_CMP(token, "RETURN") || 
+			TOKEN_CMP(token, "SELECT") || 
+			TOKEN_CMP(token, "SET") ||
+			TOKEN_CMP(token, "UNION") ||
+			TOKEN_CMP(token, "UPDATE") ||
+			TOKEN_CMP(token, "WHERE"))
 			alias = false;
 	}
 	else
@@ -2256,7 +2324,7 @@ void SqlParser::Comment(const char *word, const wchar_t *w_word, size_t len, Tok
 {
 	PrependNoFormat(first, "/* ", L"/* ", 3);
 	PrependNoFormat(first, word, w_word, len);
-	AppendNoFormat(last, " */", L" */", 3);
+	AppendNoFormat(Nvl(last, first), " */", L" */", 3);
 }
 
 // Parse Unicode byte order mark
@@ -2290,7 +2358,7 @@ int SqlParser::CreateReport(const char *summary)
 {
     if(_report != NULL)
     {
-        _report->CreateReport(_stats, summary);
+        _report->CreateReport(_stats, _source, _target, summary);
         return 0;
     }
 

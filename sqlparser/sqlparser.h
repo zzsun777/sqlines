@@ -27,6 +27,8 @@
 #include "listt.h"
 #include "listw.h"
 #include "listwm.h"
+#include "doc.h"
+#include "java.h"
 
 // Conversion level
 #define LEVEL_APP			1
@@ -50,6 +52,7 @@
 #define SQL_REDSHIFT            14
 #define SQL_ESGYNDB             15
 #define SQL_SYBASE_ADS          16
+#define SQL_MARIADB_ORA         17
 
 // Application types
 #define APP_JAVA				1
@@ -79,6 +82,8 @@
 #define SQL_BLOCK_REPEAT		9
 #define SQL_BLOCK_BEGIN			10
 #define SQL_BLOCK_EXCEPTION		11
+#define SQL_BLOCK_TRY           12
+#define SQL_BLOCK_CATCH         13
 
 // Boolean expression scope
 #define SQL_BOOL_IF					1
@@ -93,8 +98,9 @@
 #define SQL_BOOL_UNTIL				10
 #define SQL_BOOL_HAVING				11
 #define SQL_BOOL_CREATE_RULE		12
+#define SQL_BOOL_ASSIGN             13
 
-// SQL scope
+// SQL clause scope
 #define SQL_SCOPE_ASSIGNMENT_RIGHT_SIDE		1
 #define SQL_SCOPE_CASE_FUNC					2
 #define SQL_SCOPE_CURSOR_PARAMS				3
@@ -109,6 +115,7 @@
 #define SQL_SCOPE_SP_ADDTYPE				12
 #define SQL_SCOPE_CONVERT_FUNC				13
 #define SQL_SCOPE_CAST_FUNC					14
+#define SQL_SCOPE_OBJ_TYPE_DECL             15
 
 // SQL SELECT statement scope
 #define SQL_SEL_INSERT					1	
@@ -172,36 +179,17 @@
 #define COPY_EXIT_HANDLER_FOR_SQLSTATE			8
 #define COPY_CONTINUE_HANDLER_FOR_SQLSTATE		9
 
-// Statistics
-#define DTYPE_STATS(value)    { if(_stats != NULL) _stats->DataTypes(value); }
-#define UDTYPE_STATS(value)   { if(_stats != NULL) _stats->UdtDataTypes(value); }
-#define FUNC_STATS(name)      { if(_stats != NULL) _stats->Functions(name); }
-#define UDF_FUNC_STATS(value) { if(_stats != NULL) _stats->UdfFunctions(value); }
-#define PROC_STATS(value)     { if(_stats != NULL) _stats->Procedures(value); }
-
-#define STMS_STATS(value)            { if(_stats != NULL) _stats->Statements(value); }
-#define CREATE_TAB_STMS_STATS(value) { if(_stats != NULL) _stats->CreateTabStatements(value); }
-#define ALTER_TAB_STMS_STATS(value)  { if(_stats != NULL) _stats->AlterTabStatements(value); }
-#define PL_STMS_STATS(value)         { if(_stats != NULL) _stats->ProceduralStatements(value); }
-
-#define DTYPE_DTL_STATS_0(start)  { if(_stats != NULL) _stats->DataTypesDetail(start); }
-#define DTYPE_DTL_STATS_L(start)  { if(_stats != NULL) _stats->DataTypesDetail(start, GetLastToken()); }
-#define UDTYPE_DTL_STATS_L(start) { if(_stats != NULL) _stats->UdtDataTypesDetail(start, GetLastToken()); }
-
-#define FUNC_DTL_STATS(token) { if(_stats != NULL) _stats->FunctionsDetail(token); }
-#define PROC_DTL_STATS(token) { if(_stats != NULL) _stats->ProceduresDetail(token); }
-
 #define TOKEN_GETNEXT(chr)           GetNext(chr, L##chr)
+#define TOKEN_GETNEXTP(prev, chr)    GetNext(prev, chr, L##chr)
 #define TOKEN_GETNEXTW(string)       GetNext(string, L##string, sizeof(string) - 1)
 #define TOKEN_GETNEXTWP(prev, string) GetNext(prev, string, L##string, sizeof(string) - 1)
 #define TOKEN_CMPC(token, chr)		 Token::Compare(token, chr, L##chr)
 #define TOKEN_CMPCP(token, chr, pos) Token::Compare(token, chr, L##chr, pos)
 #define TOKEN_CMP(token, string)     Token::Compare(token, string, L##string, sizeof(string) - 1)
+#define TOKEN_CMP_PART0(token, string) Token::Compare(token, string, L##string, 0, sizeof(string) - 1)
 #define TOKEN_CHANGE(token, string)  Token::Change(token, string, L##string, sizeof(string) - 1)
 #define TOKEN_CHANGE_FMT(token, string, format)  Token::Change(token, string, L##string, sizeof(string) - 1, format)
 #define TOKEN_CHANGE_NOFMT(token, string)  Token::ChangeNoFormat(token, string, L##string, sizeof(string) - 1)
-#define TOKEN_WARN(token, string) { token->flags |= TOKEN_WARNING; token->notes_str = string; }
-#define TOKEN_NO_CONV_REQ(token) { token->flags |= TOKEN_CONV_NOT_REQUIRED; }
 
 #define APPEND(token, string) Append(token, string, L##string, sizeof(string) - 1)
 #define APPEND_FMT(token, string, format) Append(token, string, L##string, sizeof(string) - 1, format)
@@ -219,6 +207,7 @@
 #define LOOKNEXT(string) LookNext(string, L##string, sizeof(string) - 1)
 
 #define COMMENT(string, start, end) Comment(string, L##string, sizeof(string) - 1, start, end) 
+#define COMMENT_WARN(start, end) COMMENT("Warning: ", start, end) 
 
 typedef std::map<std::string, std::string> StringMap;
 typedef std::pair<std::string, std::string> StringMapPair;
@@ -380,14 +369,21 @@ class SqlParser
 	ListWM _spl_cursor_params;
 	// Variables generated for Oracle PL/SQL parameters
 	ListWM _spl_cursor_vars;
-	// The names of declared cursors
+	// The names and definitions of declared cursors
 	ListW _spl_declared_cursors;
+	ListW _spl_declared_cursors_using_vars;
+	ListWM _spl_declared_cursors_stmts;
 	// Current declaring cursor
 	Token *_spl_current_declaring_cursor;
+	// Current declaring cursor uses procedural variables
+	bool _spl_current_declaring_cursor_uses_vars;
 	// Cursor for which updates WHERE CURRENT OF is performed
 	ListW _spl_updatable_current_of_cursors;
 	// Declared cursors and their SELECT statements
 	ListWM _spl_declared_cursors_select;
+	// Declared cursors and their select list expressions
+	ListWM _spl_declared_cursors_select_first_exp;
+	ListWM _spl_declared_cursors_select_exp;
 
 	// The current PL/SQL package
 	Token *_spl_package;
@@ -397,6 +393,15 @@ class SqlParser
 	ListWM _spl_rowtype_fields;
 	// Fetch into record referenced
 	ListW _spl_rowtype_fetches;
+	// TYPE name OF TABLE datatype
+	ListWM _spl_obj_type_table;
+
+	// Implicit rowtype created by for cursor loops
+	ListWM _spl_implicit_rowtype_vars;
+	// Implicit rowtype fields
+	ListWM _spl_implicit_rowtype_fields;
+	// Generated FETCH statements to emulate cursor loops
+	ListWM _spl_implicit_rowtype_fetches;
 
 	// Declared local temporary tables, table variables
 	ListW _spl_declared_local_tables;
@@ -416,6 +421,8 @@ class SqlParser
 	Token *_spl_returning_end;
 	// Generated OUT variable names for Informix RETURNING clause
 	ListWM _spl_returning_out_names;
+	// Function returns integer data type
+	bool _spl_return_int;
 
 	// Number of FOREACH statements in the current procedure (function, trigger)
 	int _spl_foreach_num;
@@ -431,7 +438,7 @@ class SqlParser
 	// Cursor name from last FETCH statement
 	Token *_spl_last_fetch_cursor_name;
 	// List of OPEN cursor statemenents 
-	ListW _spl_open_cursors;
+	ListWM _spl_open_cursors;
 
 	// Prepared statements id
 	ListWM _spl_prepared_stmts;
@@ -441,7 +448,7 @@ class SqlParser
 
 	// Fields of implicit records created by FOR loops
 	ListWM _spl_implicit_record_fields;
-
+	
 	// Declared result set locators in DB2
 	ListW _spl_declared_rs_locators;
 	// Result set locators associated with procedures
@@ -462,6 +469,8 @@ class SqlParser
 
 	// Procedure converted to function
 	bool _spl_proc_to_func;
+	// Function converted to procedure
+	bool _spl_func_to_proc;
     // Handler for NOT FOUND condition
     bool _spl_not_found_handler;
 	bool _spl_need_not_found_handler;
@@ -495,12 +504,14 @@ class SqlParser
 	// Mappings
 	StringMap _object_map;
 	StringMap _schema_map;
+	StringMap _func_to_sp_map;
 
     // Statistics and report
     Stats *_stats;
     Report *_report;
 
 	// Application scope
+	Java *_java;
 	Cobol *_cobol;
 
 public:
@@ -544,6 +555,7 @@ public:
 	Token* GetLastToken(Token *last);
 	Token* GetVariable(Token *name);
 	Token* GetParameter(Token *name);
+	Token* GetVariableOrParameter(Token *name);
 	Token* GetBomToken();
 
 	Token* GetNext() { return GetNextToken(); }
@@ -585,9 +597,10 @@ public:
 	Token* Prepend(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
 	Token* PrependNoFormat(Token *token, const char *str, const wchar_t *wstr, size_t len);
 	Token* PrependNoFormat(Token *token, TokenStr *str);
+	void PrependFirstNoFormat(Token *token, const char *str, const wchar_t *wstr, size_t len);
 	Token* PrependCopy(Token *token, Token *prepend);
 	Token* PrependCopy(Token *token, Token *first, Token *last, bool prepend_removed = true);
-	void PrependSpaceCopy(Token *token, Token *first, Token *last, bool prepend_removed = true);
+	void PrependSpaceCopy(Token *token, Token *first, Token *last = NULL, bool prepend_removed = true);
 	void Prepend(Token *token, Token *prepend);
 
 	void ChangeWithSpacesAround(Token *token, const char *new_str, const wchar_t *new_wstr, size_t len, Token *format = NULL);
@@ -637,12 +650,15 @@ public:
 	bool ParseVarDataTypeAttribute();
     Token* ParseExpression();
 	bool ParseExpression(Token *token, int prev_operator = 0);
-	bool ParseBooleanExpression(int scope, Token *stmt_start = NULL, int *conditions_count = NULL, int *rowlimit = NULL, Token *prev_open = NULL);
+	bool ParseBooleanExpression(int scope, Token *stmt_start = NULL, int *conditions_count = NULL, int *rowlimit = NULL, Token *prev_open = NULL, 
+		bool *bool_operator_not_exists = NULL);
 	bool ParseBooleanAndOr(int scope, Token *stmt_start, int *conditions_count, int *rowlimit);
 	bool ParseInPredicate(Token *in);
+	bool ParseOraclePackage(Token *token);
 	bool ParseFunction(Token *token);
 	bool ParseFunctionWithoutParameters(Token *token);
 	bool ParseDatetimeLiteral(Token *token);
+	bool ParseBooleanLiteral(Token *token);
     bool ParseNamedVarExpression(Token *token);
 	bool ParseBlock(int type, bool frontier, int scope, int *result_sets);
 	bool ParseComment();
@@ -742,6 +758,7 @@ public:
 	bool ParseSmallintType(Token *name, int clause_scope);
 	bool ParseSmallmoneyType(Token *name);
 	bool ParseSmallserialType(Token *name);
+	bool ParseStringType(Token *name);
 	bool ParseTextType(Token *name);
 	bool ParseTimeType(Token *name);
 	bool ParseTimetzType(Token *name);
@@ -773,6 +790,7 @@ public:
 	bool ParseAlterStatement(Token *token, int *result_sets, bool *proc);
 	bool ParseAlterTableStatement(Token *alter, Token *table);
 	bool ParseAlterIndexStatement(Token *alter, Token *index);
+	bool ParseAlterSequenceStatement(Token *alter, Token *sequence);
 	bool ParseAssignmentStatement(Token *variable);
 	bool ParseAllocateStatement(Token *allocate);
 	bool ParseAssociateStatement(Token *associate);
@@ -801,8 +819,9 @@ public:
 	bool ParseCreateRule(Token *create, Token *rule);
 	bool ParseCreateSchema(Token *create, Token *schema);
 	bool ParseCreateSequence(Token *create, Token *sequence);
+	bool ParseSequenceOptions(Token **start_with, Token **increment_by, StatsSummaryItem &sti);
 	bool ParseCreateStogroup(Token *create, Token *stogroup);
-	bool ParseCreateView(Token *create, Token *view);
+	bool ParseCreateView(Token *create, Token *materialized, Token *view);
 	bool ParseDeclareStatement(Token *declare);
 	bool ParseDefineStatement(Token *define);
 	bool ParseDeleteStatement(Token *delete_);
@@ -833,6 +852,7 @@ public:
 	bool ParseGrantStatement(Token *grant);
 	bool ParseLockStatement(Token *lock_);
 	bool ParseLoopStatement(Token *loop, int scope);
+	bool ParseNullStatement(Token *null_);
 	bool ParseOnStatement(Token *on);
 	bool ParseOnExceptionStatement(Token *on, Token *exception);
 	bool ParseOpenStatement(Token *open);
@@ -878,6 +898,7 @@ public:
 	bool ParseFunctionAtan2(Token *name, Token *open);
 	bool ParseFunctionAtanh(Token *name, Token *open);
 	bool ParseFunctionAtn2(Token *name, Token *open);
+	bool ParseFunctionAvg(Token *name, Token *open);
 	bool ParseFunctionBase64Decode(Token *name, Token *open);
 	bool ParseFunctionBase64Encode(Token *name, Token *open);
 	bool ParseFunctionBigint(Token *name, Token *open);
@@ -939,6 +960,7 @@ public:
 	bool ParseFunctionDatetimeInformix(Token *name, Token *open);
 	bool ParseFunctionDay(Token *name, Token *open);
 	bool ParseFunctionDayname(Token *name, Token *open);
+	bool ParseFunctionDayofmonth(Token *name, Token *open);
 	bool ParseFunctionDayofweek(Token *name, Token *open);
 	bool ParseFunctionDayofweekIso(Token *name, Token *open);
 	bool ParseFunctionDayofyear(Token *name, Token *open);
@@ -948,7 +970,7 @@ public:
 	bool ParseFunctionDbId(Token *name, Token *open);
 	bool ParseFunctionDbinfo(Token *name, Token *open);
 	bool ParseFunctionDbInstanceid(Token *name, Token *open);
-	bool ParseFunctionDbmsOutput(Token *name, Token *open);
+	bool ParseFunctionDbmsOutput(Token *name, Token *open, StatsDetailItem &sdi);
 	bool ParseFunctionDbName(Token *name, Token *open);
 	bool ParseFunctionDecfloat(Token *name, Token *open);
 	bool ParseFunctionDecfloatFormat(Token *name, Token *open);
@@ -988,7 +1010,9 @@ public:
 	bool ParseFunctionHttpDecode(Token *name, Token *open);
 	bool ParseFunctionHttpEncode(Token *name, Token *open);
 	bool ParseFunctionIdentity(Token *name, Token *open);
+	bool ParseFunctionIdentity(Token *name);
 	bool ParseFunctionIfnull(Token *name, Token *open);
+	bool ParseFunctionIif(Token *name, Token *open);
 	bool ParseFunctionIndexCol(Token *name, Token *open);
 	bool ParseFunctionIndexColorder(Token *name, Token *open);
 	bool ParseFunctionIndexName(Token *name, Token *open);
@@ -1040,6 +1064,7 @@ public:
 	bool ParseFunctionNchar(Token *name, Token *open);
 	bool ParseFunctionNclob(Token *name, Token *open);
 	bool ParseFunctionNewid(Token *name, Token *open);
+	bool ParseFunctionNewidstring(Token *name, Token *open);
 	bool ParseFunctionNextDay(Token *name, Token *open);
 	bool ParseFunctionNextIdentity(Token *name, Token *open);
 	bool ParseFunctionNow(Token *name, Token *open);
@@ -1105,6 +1130,7 @@ public:
 	bool ParseFunctionSubstr2(Token *name, Token *open);
 	bool ParseFunctionSubstrb(Token *name, Token *open);
 	bool ParseFunctionSubstring(Token *name, Token *open);
+	bool ParseFunctionSum(Token *name, Token *open);
 	bool ParseFunctionSuserId(Token *name, Token *open);
 	bool ParseFunctionSuserName(Token *name, Token *open);
 	bool ParseFunctionSwitchoffset(Token *name, Token *open);
@@ -1116,6 +1142,7 @@ public:
 	bool ParseFunctionTextvalid(Token *name, Token *open);
 	bool ParseFunctionTime(Token *name, Token *open);
 	bool ParseFunctionTimestamp(Token *name, Token *open);
+	bool ParseFunctionTimestampadd(Token *name, Token *open);
 	bool ParseFunctionTimestampdiff(Token *name, Token *open);
 	bool ParseFunctionTimestampFormat(Token *name, Token *open);
 	bool ParseFunctionTimestampIso(Token *name, Token *open);
@@ -1202,6 +1229,7 @@ public:
 	bool ParseFunctionInterval(Token *name);
 	bool ParseFunctionLocaltimestamp(Token *name);
 	bool ParseFunctionNextval(Token *name);
+	bool ParseFunctionNull(Token *name);
 	bool ParseFunctionRowcount(Token *name);
 	bool ParseFunctionSqlcode(Token *name);
 	bool ParseFunctionSqlstate(Token *name);
@@ -1220,7 +1248,7 @@ public:
 	bool ParseProcedureSpBindRule(Token *execute, Token *sp_bindrule);
 
     // Read the data type from available meta information
-    const char *GetMetaType(Token *object);
+    const char *GetMetaType(Token *object, Token *column = NULL);
 
 	// Guess functions
 	char GuessType(Token *name);
@@ -1252,6 +1280,10 @@ public:
 	bool ParseSplEndName(Token *name, Token *end);
 	bool ParseOracleVariableDeclarationBlock(Token *declare);
 	bool ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors);
+	bool ParseOracleObjectType(Token *type);
+	bool ParseOracleObjectTypeAssignment(Token *name);
+	bool ParseOraclePragma(Token *pragma);
+	bool ParseOracleException(Token *name);
 	bool ParseFunctionParameters(Token *function_name);
 	bool ParseFunctionReturns(Token *function);
 	bool ParseFunctionOptions();
@@ -1261,8 +1293,8 @@ public:
 	bool ParseSelectCteClause(Token *with);
 	bool ParseSelectList(Token *select, int select_scope, bool *into, bool *dummy_not_required, bool *agg_func, bool *agg_list_func, ListW *exp_starts, ListW *out_cols, ListW *into_cols, Token **rowlimit_slist, bool *rowlimit_percent);
 	bool ParseSelectListPredicate(Token **rowlimit_slist, bool *rowlimit_percent);
-	bool ParseSelectFromClause(Token *select, bool nested_from, Token **from, Token **from_end, int *appended_subquery_aliases, bool dummy_not_required, ListW *from_table_end);
-	bool ParseJoinClause(Token *first, Token *second, bool first_is_subquery, ListW *from_table_end);
+	bool ParseSelectFromClause(Token *select, bool nested_from, Token **from, Token **from_end, int *appended_subquery_aliases, bool dummy_not_required, ListWM *from_table_end);
+	bool ParseJoinClause(Token *first, Token *second, bool first_is_subquery, ListWM *from_table_end);
 	bool GetJoinKeywords(Token *token, Token **left_right_full, Token **outer_inner, Token **join);
 	bool ParseWhereClause(int stmt_scope, Token **where_, Token **where_end, int *rowlimit = NULL);
 	bool ParseWhereCurrentOfCursor(int stmt_scope);
@@ -1272,6 +1304,7 @@ public:
 	bool ParseSelectOrderBy(Token **order);
 	bool ParseSelectSetOperator(int block_scope, int select_scope);
 	bool ParseSelectOptions(Token *select, Token *from_end, Token *where_, Token *order, Token **rowlimit_soptions, int *rowlimit);
+	void SelectSetOutColsDataTypes(ListW *out_cols, ListWM *from_table_end);
 	void SelectConvertRowlimit(Token *select, Token *from, Token *from_end, Token *where_, Token *where_end, Token *pre_order, Token *order, Token *rowlimit_slist, Token *rowlimit_soptions, int rowlimit, bool rowlimit_percent);
 	
 	bool ParseTempTableOptions(Token *table_name, Token **start, Token **end, bool *no_data);
@@ -1290,6 +1323,8 @@ public:
 	bool ParseSqlServerStorageClause();
 	void ParseSqlServerExecProcedure(Token *execute, Token *name);
 	bool ParseSqlServerUpdateStatement(Token *update);
+	void SqlServerConvertUdfIdentifier(Token *name);
+	void SqlServerMoveCursorDeclarations();
 
 	bool ParseOracleStorageClause();
 	bool ParseOracleStorageClause(Token *storage);
@@ -1297,6 +1332,7 @@ public:
 	bool ParseOraclePartitions(Token *token);
 	bool ParseOraclePartitionsBy(Token *token);
 	bool ParseOraclePartition(Token *partition, Token *subpartition);
+	bool ParseOracleOuterJoin(Token *exp_start, Token *column);
 	bool ParseOracleRownumCondition(Token *first, Token *op, Token *second, int *rowlimit);
 	bool RecognizeOracleDateFormat(Token *str, TokenStr &format);
 	void OracleEmulateIdentity(Token *create, Token *table, Token *column, Token *last, Token *id_start, Token *id_inc, bool id_default);
@@ -1325,7 +1361,7 @@ public:
 	bool MysqlCreateDatabase(Token *create, Token *database, Token *name);
     void MySQLAddNotFoundHandler();
 	void MySQLInitNotFoundBeforeOpen();
-	void MySQLMoveCursorDeclarations(Token *declare, Token *cursor_end);
+	bool MySQLMoveCursorDeclarations(Token *declare, Token *cursor_end);
 
 	bool ParseDb2StorageClause();
 	bool ParseDb2PartitioningClause(Token *partition, Token *by);
@@ -1376,6 +1412,8 @@ public:
 	bool ParseSybaseAdsStorageClause();
 	bool ParseSybaseExecuteProcedureStatement(Token *execute);
 	bool ParseSybaseWhileFetchStatement(Token *while_, Token *fetch, int scope);
+	void SybaseAdsSelectNestedUdfCall(Token *select, ListW *select_cols);
+	void SybaseMapDatetimeStyle(Token *style);
 
 	// Add variable declarations generated in the procedural block
 	void AddGeneratedVariables();
@@ -1400,6 +1438,8 @@ public:
 	void ConvertObjectName(Token *token, TokenStr &ident, size_t *len);
 	bool ConvertCursorParameter(Token *token);
 	bool ConvertRecordVariable(Token *token);
+	bool ConvertImplicitRecordVariable(Token *token);
+	bool ConvertImplicitRecordVariable(Token *token, Token *rec);
 	bool ConvertImplicitForRecordVariable(Token *token);
 	bool ConvertTriggerNewOldColumn(Token *token);
 	bool ConvertTableVariable(Token *token);
@@ -1416,6 +1456,8 @@ public:
 	void ConvertIdentRemoveLeadingPart(Token *token);
 	void PrefixPackageName(TokenStr &ident);
 	void DiscloseRecordVariables(Token *format);
+	void DiscloseImplicitRecordVariables(Token *format);
+	bool IsFuncToProc(Token *name);
 
 	// Get position to append new generated declarations
 	Token* GetDeclarationAppend(); 
@@ -1450,6 +1492,7 @@ public:
 	void SetObjectMappingFromFile(const char *file);
 	void SetSchemaMapping(const char *mapping);
     void SetMetaFromFile(const char *file);
+	void SetFuncToSpMappingFromFile(const char *file);
 
 	// Map object name for identifier
 	bool MapObjectName(Token *token);

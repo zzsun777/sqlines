@@ -29,10 +29,12 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	if(select == NULL)
 		return false;
 
+	STATS_DECL
+
 	Token *from = NULL;
 	Token *from_end = NULL;
 
-	ListW from_table_end;
+	ListWM from_table_end;
 
 	Token *where_ = NULL;
 	Token *where_end = NULL;
@@ -67,6 +69,12 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 			GetNextWordToken("SELECT", L"SELECT", 6);
 	}
 
+	ListW out_cols_internal;
+
+	// Fill list of columns for further use even if it is not requested by caller
+	if(out_cols == NULL)
+		out_cols = &out_cols_internal;
+
 	ParseSelectList(select, select_scope, &into, &dummy_not_required, &agg_func, &agg_list_func, 
 		exp_starts, out_cols, into_cols, &rowlimit_slist, &rowlimit_percent);
 
@@ -77,6 +85,9 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 
 	// FROM
 	ParseSelectFromClause(select, false, &from, &from_end, &app_subq_aliases, dummy_not_required, &from_table_end);
+
+	// Resolve data types for columns in select list
+	SelectSetOutColsDataTypes(out_cols, &from_table_end);
 
 	// WHERE
 	ParseWhereClause(SQL_STMT_SELECT, &where_, &where_end, &rowlimit);
@@ -161,6 +172,11 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	if(_target == SQL_ORACLE && into == true && agg_func == false)
 		OracleContinueHandlerForSelectInto(select);
 
+	// Sybase ADS nested UDF call without variable assinment SELECT udf(params) FROM System.iota (standalone SELECT)
+	if(_source == SQL_SYBASE_ADS && _spl_scope == SQL_SCOPE_FUNC && select_scope == 0 && !into &&
+		from != NULL && from->IsRemoved() && out_cols != NULL && out_cols->GetCount() == 1)
+		SybaseAdsSelectNestedUdfCall(select, out_cols);
+
 	// Add statement delimiter if not set when source is SQL Server
 	if(select_scope == 0)
 	{
@@ -169,6 +185,12 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 		// If there are no non-declare statements above, set last declare
 		if(_spl_first_non_declare == NULL)
 			_spl_first_non_declare = select;
+	}
+
+	if(select_scope == 0)
+	{
+		STATS_SET_DESC(SQL_STMT_SELECT_DESC)
+		STMS_STATS(select);
 	}
 
 	Leave(SQL_SCOPE_SELECT_STMT);
@@ -347,6 +369,12 @@ bool SqlParser::ParseSelectList(Token *select, int select_scope, bool *select_in
 
 		ParseExpression(first);
 
+		Token *first_end = GetLastToken();
+
+		// Standalone column name 
+		if(first == first_end && first->type == TOKEN_IDENT)
+			first->subtype = TOKEN_SUB_COLUMN_NAME;
+
 		// Check for an aggregate function
 		if(IsAggregateFunction(first) == true)
 			agg_func_exists = true;
@@ -465,8 +493,19 @@ bool SqlParser::ParseSelectList(Token *select, int select_scope, bool *select_in
 
 	Token *into = GetNextWordToken("INTO", L"INTO", 4);
 
+	bool into_temp_table = false;
+
+	// SELECT ... INTO temp_table WHERE ... syntax in SQL Server, Sybase ASE, Sybase ADS
+	if(into != NULL && Source(SQL_SQL_SERVER, SQL_SYBASE, SQL_SYBASE_ADS))
+	{
+		Token *name = GetNextToken();
+
+		if(Token::Compare(name, "#", L"#", 0, 1))
+			into_temp_table = true;
+	}
+
 	// Parse into clause
-	if(into != NULL)
+	if(into != NULL && !into_temp_table)
 	{
 		ListwItem *cur_select = cols.GetFirst();
 
@@ -729,7 +768,7 @@ bool SqlParser::ParseSelectListPredicate(Token **rowlimit_slist, bool *rowlimit_
 
 // FROM clause
 bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **from_out, Token **from_end, 
-									int *appended_subquery_aliases, bool dummy_not_required, ListW *from_table_end)
+									int *appended_subquery_aliases, bool dummy_not_required, ListWM *from_table_end)
 {
 	Token *from = NULL;
 
@@ -882,6 +921,10 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 
 			count++;
 
+			// Table name without alias
+			if(from_table_end != NULL)
+				from_table_end->Add(first, first);
+
 			PushBack(second);
 			break;
 		}
@@ -919,7 +962,7 @@ bool SqlParser::ParseSelectFromClause(Token *select, bool nested_from, Token **f
 }
 
 // Join clause in FROM clause of SELECT statement 
-bool SqlParser::ParseJoinClause(Token * /*first*/, Token *second, bool first_is_subquery, ListW *from_table_end)
+bool SqlParser::ParseJoinClause(Token *first, Token *second, bool first_is_subquery, ListWM *from_table_end)
 {
 	if(second == NULL)
 		return false;
@@ -937,7 +980,7 @@ bool SqlParser::ParseJoinClause(Token * /*first*/, Token *second, bool first_is_
 	if(exists == false)
 	{
 		if(!first_is_subquery && from_table_end != NULL)
-			from_table_end->Add(second);
+			from_table_end->Add(second, first);
 
 		Token *token = GetNext();
 
@@ -1530,6 +1573,54 @@ bool SqlParser::ParseValuesStatement(Token *values, int *result_sets)
 	}
 
 	return true;
+}
+
+// Resolve data types for columns in select list
+void SqlParser::SelectSetOutColsDataTypes(ListW *out_cols, ListWM *from_table_end)
+{
+	if(out_cols == NULL || from_table_end == NULL)
+		return;
+
+	ListwItem *col_item = out_cols->GetFirst();
+
+	while(col_item != NULL)
+	{
+		Token *col = (Token*)col_item->value;
+
+		if(col == NULL)
+			break;
+
+		// Standalone column name
+		if(col->subtype == TOKEN_SUB_COLUMN_NAME)
+		{
+			ListwmItem *from_item = from_table_end->GetFirst();
+
+			// Find a table containing this column, and define its data type
+			while(from_item != NULL)
+			{
+				Token *table = (Token*)from_item->value2;
+
+				col->datatype_meta = GetMetaType(table, col);
+
+				if(col->datatype_meta != NULL)
+				{
+					col->table = table;
+					break;
+				}
+
+				from_item = from_item->next;
+			}
+		}
+		else
+		// All columns selected from single table
+		if(TOKEN_CMPC(col, '*') && from_table_end->GetCount() == 1)
+		{
+			// Save the table name
+			col->table = (Token*)from_table_end->GetFirst()->value2;
+		}
+
+		col_item = col_item->next;
+	}
 }
 
 // Convert row limits specified in SELECT

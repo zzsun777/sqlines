@@ -63,7 +63,11 @@ void SqlParser::ConvertIdentifier(Token *token, int type, int scope)
 	if(ConvertRecordVariable(token) == true)
 		return;
 
-	// Check for implicit FOR loop record field reference 
+	// Check for implicit record variable reference
+	if(ConvertImplicitRecordVariable(token))
+		return;
+
+	// Check for implicit field reference (without record name)
 	if(ConvertImplicitForRecordVariable(token) == true)
 		return;
 
@@ -396,7 +400,81 @@ bool SqlParser::ConvertRecordVariable(Token *token)
 	return exists;
 }
 
-// Check for implicit FOR loop record field reference 
+// Implicit record (cursor name) variable reference rec.field 
+bool SqlParser::ConvertImplicitRecordVariable(Token *token)
+{
+	if(token == NULL)
+		return false;
+
+	bool exists = false;
+
+	ListwmItem *item = _spl_implicit_rowtype_vars.GetFirst();
+
+	// Compare identifier prefix with existing record name
+	while(item != NULL)
+	{
+		exists = ConvertImplicitRecordVariable(token, (Token*)item->value);
+
+		if(exists)
+			break;
+
+		item = item->next;
+	}
+
+	// Sybase ADS allows referencing field of previously declared cursor in declaration of another cursor
+	if(!exists && Source(SQL_SYBASE_ADS) && _spl_current_declaring_cursor != NULL)
+	{
+		ListwItem *item = _spl_declared_cursors.GetFirst();
+
+		while(item != NULL)
+		{
+			exists = ConvertImplicitRecordVariable(token, (Token*)item->value);
+
+			if(exists)
+			{
+				_spl_current_declaring_cursor_uses_vars = true;
+				break;
+			}
+
+			item = item->next;
+		}
+	}
+
+	return exists;
+}
+
+bool SqlParser::ConvertImplicitRecordVariable(Token *token, Token *rec)
+{
+	// Check for rec. prefix
+	if(rec != NULL && Token::Compare(rec, token, rec->len) && token->Compare(".", L".", rec->len, 1))
+	{
+		// Change to @rec_field in SQL Server, rec_field in MySQL
+		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL))
+		{
+			TokenStr ident;
+
+			if(_target == SQL_SQL_SERVER)
+				ident.Append("@", L"@", 1);
+
+			// Append record name _ and field name 
+			ident.Append(token, 0, rec->len);
+			ident.Append("_", L"_", 1);
+			ident.Append(token, rec->len + 1, token->len - rec->len - 1);
+
+			Token::ChangeNoFormat(token, ident);
+		}
+
+		// Save referenced record fields (once only)
+		if(Find(_spl_implicit_rowtype_fields, rec, token) == NULL)
+			_spl_implicit_rowtype_fields.Add(rec, token);
+
+		return true;
+	}
+
+	return false;
+}
+
+// Check for implicit field reference (without record name)
 bool SqlParser::ConvertImplicitForRecordVariable(Token *token)
 {
 	// DB2 allows referencing implicit record fields without qualified name
@@ -805,20 +883,58 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 	if(token == NULL)
 		return false;
 
+	CONV_STATS
 	size_t len = token->len;
 
 	// .nextval reference
 	if(len > 8 && token->Compare(".nextval", L".nextval", len - 8, 8) == true)
 	{
-		// NextVal() user-defined function in MySQL
-		if(Target(SQL_MARIADB, SQL_MYSQL))
+		if(Target(SQL_MARIADB))
+		{
+			PREPEND(token, "NEXTVAL(");
+			Token::Change(token, token->str, token->wstr, len - 8);
+			APPEND_NOFMT(token, ")");
+			CONV(true, STATS_CONV_OK, "NEXTVAL(seqname)", NULL);
+		}
+		else
+		// NextVal('seqname') user-defined function in MySQL
+		if(Target(SQL_MYSQL))
 		{
 			Prepend(token, "NextVal('", L"NextVal('", 9); 
 			Token::Change(token, token->str, token->wstr, len - 8);
 			Append(token, "')", L"')", 2);
 		}
-
+		
 		token->subtype = TOKEN_SUB_IDENT_SEQNEXTVAL;
+
+		CONV_DESC(SEQUENCE_NEXTVAL_DESC);
+		SEQ_REF_STATS("seqname.NEXTVAL");
+		SEQ_REF_DTL_STATS(token);
+		return true;
+	}
+	else
+	// .currval reference
+	if(len > 8 && token->Compare(".currval", L".currval", len - 8, 8) == true)
+	{
+		if(Target(SQL_MARIADB))
+		{
+			PREPEND(token, "LASTVAL(");
+			Token::Change(token, token->str, token->wstr, len - 8);
+			APPEND_NOFMT(token, ")");
+			CONV(true, STATS_CONV_OK, "LASTVAL(seqname)", NULL);
+		}
+		else
+		// LastVal('seqname') user-defined function in MySQL
+		if(Target(SQL_MYSQL))
+		{
+			Prepend(token, "LastVal('", L"LastVal('", 9); 
+			Token::Change(token, token->str, token->wstr, len - 8);
+			Append(token, "')", L"')", 2);
+		}
+
+		CONV_DESC(SEQUENCE_CURRVAL_DESC);
+		SEQ_REF_STATS("seqname.CURRVAL");
+		SEQ_REF_DTL_STATS(token);
 		return true;
 	}
 
@@ -2122,6 +2238,22 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 
 	bool exists = false;
 
+	Token *_not = NULL;
+
+	// Some databases (Sybase ADS i.e.) support boolean values in expressions and their negation like SELECT NOT True
+	if(Source(SQL_SYBASE_ADS) && TOKEN_CMP(first, "NOT"))
+	{
+		_not = first;
+		first = GetNextToken();
+
+		if(first == NULL)
+			return false;
+
+		// Logical expressions (without operand) converted to BIT in SQL Server, but NOT 1 is not allowed
+		if(Target(SQL_SQL_SERVER))
+			TOKEN_CHANGE(_not, "CASE WHEN");
+	}
+
 	// If expression starts with open (, parse recursively except a subquery
 	if(first->Compare('(', L'(') == true)
 	{
@@ -2167,12 +2299,20 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 	if(ParseIfExpression(first) == true)
 		exists = true;
 	else
+	// Oracle built-in package
+	if(ParseOraclePackage(first) == true)
+		exists = true;
+	else
 	// Function with ()
 	if(ParseFunction(first) == true)
 		exists = true;
 	else
 	// Function without parentheses
 	if(ParseFunctionWithoutParameters(first) == true)
+		exists = true;
+	else
+	// Boolean literal True/False
+	if(ParseBooleanLiteral(first))
 		exists = true;
 	else
 	// This can be an identifier 
@@ -2261,6 +2401,13 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 	if(op_exists == false && ParseUnitsOperator(first) == true)
 		op_exists = true;
 
+	// End of expression with negation of boolean value (without operator i.e. NOT TRUE, not NOT 1=2)
+	if(_not != NULL)
+	{
+		if(Target(SQL_SQL_SERVER))
+			APPEND_FMT(GetLastToken(), " = 1 THEN 0 ELSE 1 END", _not);
+	}
+
 	return true;
 }
 
@@ -2279,6 +2426,33 @@ bool SqlParser::ParseDatetimeLiteral(Token *token)
 
 		if(string != NULL)
 			exists = true;
+	}
+
+	return exists;
+}
+
+// Boolean literal True/False in Sybase ADS
+bool SqlParser::ParseBooleanLiteral(Token *token)
+{
+	if(!Source(SQL_SYBASE_ADS))
+		return false;
+
+	bool exists = false;
+
+	if(TOKEN_CMP(token, "TRUE"))
+	{
+		if(Target(SQL_SQL_SERVER))
+			TOKEN_CHANGE(token, "1");
+
+		exists = true;
+	}
+	else
+	if(TOKEN_CMP(token, "FALSE"))
+	{
+		if(Target(SQL_SQL_SERVER))
+			TOKEN_CHANGE(token, "0");
+
+		exists = true;
 	}
 
 	return exists;
@@ -2307,7 +2481,7 @@ bool SqlParser::ParseNamedVarExpression(Token *token)
 
 // Parse a boolean expression
 bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *conditions_count, int *rowlimit,
-										Token *prev_open)
+										Token *prev_open, bool *bool_operator_no_exists)
 {
 	int count = 0;
 
@@ -2323,6 +2497,7 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 	Token *open = GetNextCharToken('(', L'(');
 
 	bool spec_and = false;
+	bool bool_op_not_exists = false;
 
 	if(open != NULL)
 	{
@@ -2344,7 +2519,7 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 
 			// Use recursion as multiple open ( can be specified
 			if(spec_and == false)
-				ParseBooleanExpression(scope, stmt_start, conditions_count, rowlimit, open);
+				ParseBooleanExpression(scope, stmt_start, conditions_count, rowlimit, open, &bool_op_not_exists);
 
 			// Possible AND or OR between nested () conditions
 			ParseBooleanAndOr(scope, stmt_start, &count, rowlimit);
@@ -2395,6 +2570,9 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 			// Expression ended
 			Token::Compare(op, ';', L';') == true) 
 		{
+			if(bool_operator_no_exists != NULL)
+				*bool_operator_no_exists = true;
+
 			PushBack(op);
 			return true;
 		}
@@ -2447,6 +2625,14 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 				/*Token *close*/ (void) GetNextCharToken(')', L')');
 				op = GetNextToken();
 			}
+			else
+			{
+				if(!TOKEN_CMP(op, "LIKE") && !TOKEN_CMP(op, "IN") && !TOKEN_CMP(op, "BETWEEN") && !TOKEN_CMP(op, "EXISTS") && !TOKEN_CMP(op, "MATCHES"))
+				{
+					ParseExpression(op);
+					op = GetNextToken();
+				}
+			}
 		}
 
 		if(op == NULL)
@@ -2473,6 +2659,17 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 
 		if(not_ != NULL || null != NULL)
 		{
+			if(_target_app == APP_JAVA)
+			{
+				if(not_ != NULL)
+					TOKEN_CHANGE_NOFMT(op, "!=");
+				else
+					TOKEN_CHANGE_NOFMT(op, "==");
+
+				TOKEN_CHANGE_NOFMT(null, "null");
+				Token::Remove(not_);
+			}
+
 			unary = true;
 			count++;
 		}
@@ -2569,11 +2766,19 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 		if(_source == SQL_TERADATA && ParseTeradataComparisonOperator(op) == true)
 		{
 		}
-		// Unknown operator
+		// Unknown or no operator
 		else
 		{
 			PushBack(op);
 			unary = true;
+
+			// Sybase ADS supports boolean (true/false) data type, so boolean expression can be without operator (i.e. it can be just AND TRUE)
+			if((open == NULL || bool_op_not_exists) && Source(SQL_SYBASE_ADS))
+			{
+				// Boolean is converted to 1/0 in SQL Server that cannot go without boolean operator, so we create a boolean expression by adding = 1
+				if(Target(SQL_SQL_SERVER))
+					APPEND(GetPrevToken(op), " = 1");
+			}
 		}
 	}
 	
@@ -2585,7 +2790,14 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 		if(second == NULL)
 			return false;
 
-		ParseExpression(second);
+		bool ora_join = false;
+
+		// Check for (+) join condition
+		if(_source == SQL_ORACLE && scope == SQL_BOOL_WHERE)
+			ora_join = ParseOracleOuterJoin(first, second);
+
+		if(!ora_join)
+			ParseExpression(second);
 
 		count++;
 
@@ -2697,6 +2909,7 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 			// Make sure it is not BEGIN WORK, BEGIN TRANSACTION or BEGIN;
 			if(Token::Compare(next, "WORK", L"WORK", 4 )== true ||
 				Token::Compare(next, "TRANSACTION", L"TRANSACTION", 11) == true || 
+				Token::Compare(next, "TRAN", L"TRAN", 4) == true || 
 				Token::Compare(next, ';', L';') == true)
 				block = false;
 
@@ -2728,6 +2941,36 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 
 				continue;
 			}
+		}
+		else
+		// Entered a TRY ... CATCH block in Sybase ADS
+		if(_source == SQL_SYBASE_ADS && TOKEN_CMP(token, "TRY"))
+		{
+			ParseBlock(SQL_BLOCK_TRY, true, scope, result_sets);
+
+			if(_target == SQL_SQL_SERVER)
+				TOKEN_CHANGE(token, "BEGIN TRY");
+
+			Token *catch_ = TOKEN_GETNEXTW("CATCH");
+
+			if(catch_ != NULL)
+			{
+				Token *all = TOKEN_GETNEXTW("ALL");
+
+				ParseBlock(SQL_BLOCK_CATCH, true, scope, result_sets);
+
+				Token *end = TOKEN_GETNEXTW("END");
+
+				if(_target == SQL_SQL_SERVER)
+				{
+					PREPEND(catch_, "END TRY\n");
+					TOKEN_CHANGE(catch_, "BEGIN CATCH");
+					TOKEN_CHANGE(end, "END CATCH");
+					Token::Remove(all);
+				}
+			}
+
+			continue;			
 		}
 
 		// If frontier was set, check the closing sequence for the block
@@ -2791,6 +3034,13 @@ bool SqlParser::ParseBlock(int type, bool frontier, int scope, int *result_sets)
 				PushBack(token);
 				break;
 			}
+			else 
+			// Sybase ADS TRY ... CATCH
+			if((type == SQL_BLOCK_TRY  && TOKEN_CMP(token, "CATCH")) || (type == SQL_BLOCK_CATCH  && TOKEN_CMP(token, "END")))
+			{
+				PushBack(token);
+				break;
+			}
 
 			// Parse high-level token
 			Parse(token, scope, result_sets);
@@ -2838,12 +3088,19 @@ bool SqlParser::ParseAssignmentStatement(Token *variable)
 		if(prev == NULL)
 			return false;
 
-		// Previous word must be ; BEGIN, THEN, ELSE
+		// Previous word must be ; or keyword that starts a block
 		if(prev->Compare(';', L';') == false && prev->Compare("BEGIN", L"BEGIN", 5) == false && 
-			prev->Compare("THEN", L"THEN", 4) == false && prev->Compare("ELSE", L"ELSE", 4) == false)
+			prev->Compare("THEN", L"THEN", 4) == false && prev->Compare("ELSE", L"ELSE", 4) == false &&
+			!TOKEN_CMP(prev, "DO"))
 			return false;
 	}
 
+	// Try to find variable declaration
+	Token *decl_var = GetVariableOrParameter(variable);
+
+	if(_target_app == APP_JAVA)
+		Token::Remove(colon);
+	else
 	// SET @var = value in SQL Server, SET var = value in MySQL
 	if(Target(SQL_SQL_SERVER, SQL_MYSQL, SQL_SYBASE) == true)
 	{
@@ -2859,6 +3116,23 @@ bool SqlParser::ParseAssignmentStatement(Token *variable)
 	// For Oracle add : if not set
 	if(_target == SQL_ORACLE && colon == NULL)
 		Prepend(equal, ":", L":", 1);
+
+	// Sybase ADS supports assignment of boolean expression to logical value i.e a = 1=2;
+	if(Source(SQL_SYBASE_ADS) && decl_var != NULL && decl_var->data_subtype == TOKEN_DT2_BOOL)
+	{
+		bool bool_op_not_exists = false;
+
+		ParseBooleanExpression(SQL_BOOL_ASSIGN, NULL, NULL, NULL, NULL, &bool_op_not_exists);
+
+		// SQL Server does not allow boolean expression if assignment (= <> etc.) but simple assignment a = true is fine (converted to a = 1 using BIT data type)
+		if(!bool_op_not_exists && Target(SQL_SQL_SERVER))
+		{
+			APPEND(equal, " CASE WHEN ");
+			APPEND(GetLastToken(), " THEN 1 ELSE 0 END");
+		}
+
+		return true;
+	}
 
 	Token *next = GetNextToken();
 
@@ -3120,6 +3394,13 @@ bool SqlParser::ParseAdditionOperator(Token *first, int prev_operator)
 		// Check for a +/- chain of interval expressions: for example, + expr MONTH - expr DAYS + ...
 		ParseAddSubIntervalChain(first, SQL_OPERATOR_PLUS);
 	}
+	else
+	// Sybase ADS adding number of days to date
+	if(_source == SQL_SYBASE_ADS && first->data_type == TOKEN_DT_DATETIME)
+	{
+		if(_target == SQL_SQL_SERVER)
+			SqlServerToDateAdd(plus, first, first_end, second, second_end);
+	}
 
 	return true;
 }
@@ -3196,6 +3477,13 @@ bool SqlParser::ParsePercentOperator(Token *first)
 	// cursor%NOTFOUND in Oracle
 	if(TOKEN_CMP(second, "NOTFOUND") == true)
 	{
+		if(_target_app == APP_JAVA)
+		{
+			PREPEND_NOFMT(first, "!");
+			APPEND_NOFMT(first, "_found");
+			Token::Remove(cent, second);
+		}
+		else
 		// NOT_FOUND = 1 in MariaDB and MySQL
 		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{
@@ -3214,6 +3502,12 @@ bool SqlParser::ParsePercentOperator(Token *first)
     // cursor%FOUND in Oracle
 	if(TOKEN_CMP(second, "FOUND") == true)
 	{
+		if(_target_app == APP_JAVA)
+		{
+			APPEND_NOFMT(first, "_found");
+			Token::Remove(cent, second);
+		}
+		else
 		// NOT_FOUND = 0 in MariaDB and MySQL
 		if(Target(SQL_MARIADB, SQL_MYSQL))
 		{

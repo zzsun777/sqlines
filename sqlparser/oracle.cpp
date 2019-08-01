@@ -20,6 +20,61 @@
 #include <string.h>
 #include "sqlparser.h"
 #include "listw.h"
+#include "str.h"
+
+// Oracle built-in package reference
+bool SqlParser::ParseOraclePackage(Token *token)
+{
+	if(token == NULL || _source != SQL_ORACLE)
+		return false;
+
+	STATS_DECL
+	STATS_DTL_DECL
+
+	bool exists = false;
+	std::string package_name;
+
+	if(TOKEN_CMP_PART0(token, "DBMS_OUTPUT."))
+	{
+		STATS_SET_DESC(SQL_PKG_DBMS_OUTPUT_DESC)
+		package_name = "DBMS_OUTPUT";
+		
+		exists = true;
+	}
+	else
+	if(TOKEN_CMP_PART0(token, "APEX_") || TOKEN_CMP_PART0(token, "DBMS_") || TOKEN_CMP_PART0(token, "DEBUG_") ||
+		TOKEN_CMP_PART0(token, "CTX_") || TOKEN_CMP_PART0(token, "HTF_") || TOKEN_CMP_PART0(token, "HTP_") ||
+		TOKEN_CMP_PART0(token, "ORD_") || TOKEN_CMP_PART0(token, "OWA_") || TOKEN_CMP_PART0(token, "SDO_") || 
+		TOKEN_CMP_PART0(token, "SEM_") || TOKEN_CMP_PART0(token, "UTL_") || TOKEN_CMP_PART0(token, "WPG_"))
+	{
+		// Define the package name
+		Str::GetSubtringUntil(token->str, '.', (int)token->len, package_name);
+
+		STATS_SET_DESC("Oracle built-in PL/SQL package")
+		exists = true;
+	}
+
+	if(!exists)
+		return exists;
+
+	Token *open = TOKEN_GETNEXT('(');
+
+	// Parse function
+	if(open != NULL)
+	{
+		bool f_exists = false;
+
+		if(TOKEN_CMP_PART0(token, "DBMS_OUTPUT."))
+			f_exists = ParseFunctionDbmsOutput(token, open, sdi);
+
+		PKG_DTL_STATS(token)
+	}
+
+	STATS_UPDATE_STATUS
+	PKG_STATS_V(package_name.c_str(), token);
+	
+	return exists;
+}
 
 // Oracle STORAGE clause in CREATE TABLE 
 bool SqlParser::ParseOracleStorageClause(Token *storage)
@@ -572,7 +627,7 @@ bool SqlParser::ParseOraclePartition(Token *partition, Token *subpartition)
 }
 
 // DBMS_OUTPUT package
-bool SqlParser::ParseFunctionDbmsOutput(Token *name, Token *open)
+bool SqlParser::ParseFunctionDbmsOutput(Token *name, Token *open, StatsDetailItem &sdi)
 {
 	if(name == NULL)
 		return false;
@@ -614,6 +669,9 @@ bool SqlParser::ParseFunctionDbmsOutput(Token *name, Token *open)
 
 			name->t_type = TOKEN_STATEMENT;
 		}
+
+		STATS_DTL_DESC(SQL_PKG_DBMS_OUTPUT_PUT_LINE_DESC) 
+		STATS_DTL_CONV_ERROR(Target(SQL_MARIADB_ORA), STATS_CONV_MEDIUM, "", "")
 	}
     else
     // DBMS_OUTPUT.ENABLE(buffer => NULL)
@@ -684,20 +742,21 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		if(name == NULL)
 			break;
 
-		// Exit if BEGIN matched
-		if(name->Compare("BEGIN", L"BEGIN", 5) == true)
+		// Exit if BEGIN matched, or PROCEDURE/FUNCTION in package body
+		if(TOKEN_CMP(name, "BEGIN") || (_spl_package != NULL && (TOKEN_CMP(name, "PROCEDURE") || TOKEN_CMP(name, "FUNCTION"))))
 		{
 			PushBack(name);
 			break;
 		}
 
-		// CURSOR cur IS SELECT definition
-		if(ParseOracleCursorDeclaration(name, &cursors) == true)
+		// CURSOR cur IS SELECT definition, PRAGMA or forward declaration for exception
+		if(ParseOracleCursorDeclaration(name, &cursors) || ParseOracleObjectType(name) ||
+			ParseOraclePragma(name) || ParseOracleException(name))
 		{
 			exists = true;
 			continue;
 		}
-		
+				
 		// Add @ for parameter names for SQL Server and Sybase
 		if(Target(SQL_SQL_SERVER, SQL_SYBASE) == true)
 			ConvertToTsqlVariable(name);
@@ -709,6 +768,9 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL, SQL_SYBASE) == true)
 			Prepend(name, "DECLARE ", L"DECLARE ", 8, declare);
 
+		// Optional CONSTANT
+		Token *constant = TOKEN_GETNEXTW("CONSTANT");
+
 		Token *data_type = GetNextToken();
 
 		// Check and resolve Oracle %TYPE and %ROWTYPE variable
@@ -717,6 +779,29 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 		// Get the parameter data type
 		if(typed == false)
 			ParseDataType(data_type, SQL_SCOPE_VAR_DECL);
+
+		// Propagate data type to variable
+		name->data_type = data_type->data_type;
+		name->data_subtype = data_type->data_subtype;
+
+		Token *data_type_end = GetLastToken();
+
+		// Java syntax requires data type before variable name
+		if(_target_app == APP_JAVA)
+		{
+			if(constant != NULL)
+				PREPEND_NOFMT(name, "final ");
+
+			if(data_type->data_subtype == TOKEN_DT2_UDT_TAB_SCALAR)
+			{
+				APPEND_NOFMT(data_type_end, " = new ");
+				AppendCopy(data_type_end, data_type);
+			}
+
+			PrependSpaceCopy(name, data_type);
+			Token::Remove(data_type, data_type_end);
+			Token::Remove(constant);
+		}
 
 		// Optional initialization value := value in Oracle and = value in PostgreSQL
 		Token *colon = GetNextCharToken(':', L':');
@@ -735,7 +820,7 @@ bool SqlParser::ParseOracleVariableDeclarationBlock(Token *declare)
 			ParseExpression(exp);
 
 			// For SQL Server and PostgreSQL, delete colon
-			if(colon != NULL && Target(SQL_SQL_SERVER, SQL_POSTGRESQL) == true)
+			if(colon != NULL && (Target(SQL_SQL_SERVER, SQL_POSTGRESQL) || _target_app == APP_JAVA))
 				Token::Remove(colon);
 			else
 			// For Oracle add :
@@ -834,9 +919,11 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 
 	_spl_declared_cursors.Add(name);
 	_spl_current_declaring_cursor = name;
+	_spl_current_declaring_cursor_uses_vars = false;
 
 	// Optional cursor parameters
 	Token *open = GetNextCharToken('(', L'(');
+	Token *close = NULL;
 
 	bool params_exist = false;
 
@@ -860,7 +947,12 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 
 			Token *data_type = GetNextToken();
 
-			ParseDataType(data_type, SQL_SCOPE_CURSOR_PARAMS);
+			// Check and resolve Oracle %TYPE variable
+			bool typed = ParseTypedVariable(param, data_type);
+
+			// Get the parameter data type
+			if(!typed)
+				ParseDataType(data_type, SQL_SCOPE_CURSOR_PARAMS);
 
 			// SQL Server does support parameters, and cursor get all variable values during declaration,
 			// not during OPEN cursor, so DECLARE is moved before OPEN 
@@ -902,7 +994,7 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 				Token::Remove(comma);
 		}
 
-		Token *close = GetNextCharToken(')', L')');
+		close = GetNextCharToken(')', L')');
 
 		if(Target(SQL_SQL_SERVER, SQL_MARIADB, SQL_MYSQL) == true)
 		{
@@ -928,7 +1020,9 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 			Append(name, " LOCAL", L" LOCAL", 6, cursor);
 	}
 
-	Token *select = GetNextWordToken("SELECT", L"SELECT", 6);
+	// SELECT can be optionally enclosed with ()
+	Token *open_sel = TOKEN_GETNEXT('(');
+	Token *select = GetNextSelectStartKeyword();
 
 	if(select != NULL)
 	{
@@ -937,12 +1031,25 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 		_spl_declared_cursors_select.Add(name, select, GetLastToken());
 	}
 
+	/*Token *close_sel */ TOKEN_GETNEXTP(open_sel, ')');
+
 	// ; after each declaration
 	Token *semi = GetNextCharToken(';', L';');
 
     // Save cursor definitions for the current declaration block
     if(cursors != NULL)
         cursors->Add(cursor, GetLastToken(semi));
+
+	if(_target_app == APP_JAVA)
+	{
+		TOKEN_CHANGE_NOFMT(cursor, "String");
+		TOKEN_CHANGE_NOFMT(is, "=");
+		
+		_java->MakeStringLiteral(select, semi);
+
+		// Remove parameters
+		Token::Remove(open, close);
+	}
 
 	// Netezza does not support cursors, they are converted to records and loops
 	if(_target == SQL_NETEZZA)
@@ -958,6 +1065,126 @@ bool SqlParser::ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors)
 		LeaveLocalVariablesBlock();
 
 	_spl_current_declaring_cursor = NULL;
+
+	return true;
+}
+
+// Oracle object type declaration
+bool SqlParser::ParseOracleObjectType(Token *type)
+{
+	if(type == NULL)
+		return false;
+
+	if(!TOKEN_CMP(type, "TYPE"))
+		return false;
+
+	Token *name = GetNextToken();
+
+	if(name == NULL)
+		return false;
+
+	Token *is = TOKEN_GETNEXTW("IS");
+	Token *table = TOKEN_GETNEXTWP(is, "TABLE");
+	Token *of = TOKEN_GETNEXTWP(table, "OF");
+
+	// TYPE typeTab IS TABLE OF data_type INDEX BY BINARY_INTEGER;
+	if(table != NULL && of != NULL)
+	{
+		Token *data_type = GetNextToken();
+		ParseDataType(data_type, SQL_SCOPE_OBJ_TYPE_DECL);
+
+		_spl_obj_type_table.Add(name, data_type);
+
+		Token *index = TOKEN_GETNEXTW("INDEX");
+		Token *by = TOKEN_GETNEXTWP(index, "BY");
+		Token *binary_integer = TOKEN_GETNEXTWP(by, "BINARY_INTEGER");
+
+		Token *semi = TOKEN_GETNEXT(';');
+
+		if(_target_app == APP_JAVA)
+			Token::Remove(type, Nvl(semi, binary_integer));
+	}
+
+	return true;
+}
+
+// Oracle object type assignment statement - tab_type_var(index) := expression
+bool SqlParser::ParseOracleObjectTypeAssignment(Token *name)
+{
+	if(name == NULL)
+		return false;
+
+	Token *var = GetVariableOrParameter(name);
+
+	if(var == NULL || var->data_subtype != TOKEN_DT2_UDT_TAB_SCALAR)
+		return false;
+
+	Token *open = TOKEN_GETNEXT('(');
+	Token *index = GetNextToken(open);
+
+	if(index == NULL)
+		return false;
+
+	Token *close = TOKEN_GETNEXT(')');
+	Token *colon = TOKEN_GETNEXTP(close, ':');
+	Token *equal = TOKEN_GETNEXTP(colon, '=');
+
+	if(equal == NULL)
+		return false;
+
+	Token *exp = GetNext();
+	ParseExpression(exp);
+	Token *exp_end = GetLastToken();
+
+	// tab_type_var.put(index, expression) in Java
+	if(_target_app == APP_JAVA)
+	{
+		APPEND_NOFMT(name, ".put");
+		TOKEN_CHANGE(close, ",");
+		Token::Remove(colon, equal);
+		APPEND_NOFMT(exp_end, ")");
+	}
+
+	return true;
+}
+
+// Oracle PRAGMA clause
+bool SqlParser::ParseOraclePragma(Token *pragma)
+{
+	if(pragma == NULL)
+		return false;
+
+	if(!TOKEN_CMP(pragma, "PRAGMA"))
+		return false;
+
+	Token *name = GetNextToken();
+
+	if(name == NULL)
+		return false;
+
+	Token *semi = TOKEN_GETNEXT(';');
+
+	if(_target != SQL_ORACLE || _target_app == APP_JAVA)
+		Token::Remove(pragma, semi);
+
+	return true;
+}
+
+// Forward declaration for exception
+bool SqlParser::ParseOracleException(Token *name)
+{
+	if(name == NULL)
+		return false;
+
+	Token *exception = TOKEN_GETNEXTW("EXCEPTION");
+
+	if(exception == NULL)
+		return false;
+
+	Token *semi = TOKEN_GETNEXT(';');
+
+	if(_target != SQL_ORACLE || _target_app == APP_JAVA)
+		Token::Remove(name, semi);
 
 	return true;
 }
@@ -1014,6 +1241,34 @@ void SqlParser::OracleRemoveDataTypeSize(Token *data_type)
 
 		cur = cur->next;
 	}
+}
+
+// Check for (+) join condition
+bool SqlParser::ParseOracleOuterJoin(Token *exp_start, Token * /*column*/)
+{
+	bool exists = false;
+	Token *open = TOKEN_GETNEXT('(');
+
+	if(open != NULL)
+	{
+		Token *plus = TOKEN_GETNEXT('+');
+
+		if(plus != NULL)
+		{
+			/*Token *close */ TOKEN_GETNEXT(')');
+
+			STATS_DTL_DECL
+			STATS_DTL_DESC(SQL_STMT_SELECT_ORAJOIN)
+			STATS_DTL_CONV_ERROR(Target(SQL_MARIADB_ORA), STATS_CONV_MEDIUM, "", "")
+			SELECT_DTL_STATS_V("Outer join (+)", exp_start)
+
+			exists = true;
+		}
+		else
+			PushBack(open);
+	}
+
+	return exists;
 }
 
 // Oracle 'rownum = <= < num' condition in WHERE clause 
