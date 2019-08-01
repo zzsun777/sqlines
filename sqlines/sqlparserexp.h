@@ -36,6 +36,7 @@
 #define SQL_REDSHIFT			14
 #define SQL_ESGYNDB             15
 #define SQL_SYBASE_ADS          16
+#define SQL_MARIADB_ORA         17
 
 extern void* CreateParserObject();
 extern void SetParserTypes(void *parser, short source, short target);

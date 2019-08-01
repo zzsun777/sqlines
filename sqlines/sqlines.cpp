@@ -434,6 +434,9 @@ short Sqlines::DefineType(const char *name)
 	if(_stricmp(name, "mariadb") == 0)
 		type = SQL_MARIADB;
     else
+	if(_stricmp(name, "mariadb_ora") == 0)
+		type = SQL_MARIADB_ORA;
+    else
 	if(_stricmp(name, "hive") == 0)
 		type = SQL_HIVE;
     else
