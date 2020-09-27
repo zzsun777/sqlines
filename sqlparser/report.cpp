@@ -76,7 +76,7 @@ void Report::CreateReport(Stats *stats, int source, int target, const char *summ
 	const char *cur = tpl_input;
 
     FILE *file = fopen(_report_path, "w+");
-	FILE *snippets_file = fopen(_report_snippets_path, "w+");
+	FILE *snippets_file = fopen(_report_snippets_path, "wb+");
     
     if(file == NULL)
     {
@@ -226,9 +226,9 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Table of all data types
 	if(_stricmp(macro.c_str(), "datatypes_table") == 0 && stats->_data_types.size() > 0)
     {
-        data += "<table><tr><th></th><th>" + _source_name + " Data Type</th><th>Occurrences</th></tr>";
+		data += "<table><tr><th></th><th>" + _source_name + " Data Type</th><th>Description</th><th>" + _target_name + " Conversion</th><th>Complexity</th><th>Count</th></tr>";
 
-        GetReportSectionRows(stats->_data_types, data, &distinct, &occurrences);
+        GetReportSectionRows(macro, stats->_data_types, data, snippets, &distinct, &occurrences);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -243,9 +243,9 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Table of all user-defined and derived data types
     if(_stricmp(macro.c_str(), "udt_datatypes_table") == 0 && stats->_udt_data_types.size() > 0)
     {
-        data += "<table><tr><th></th><th>" + _source_name + " Type</th><th>Occurrences</th></tr>";
+		data += "<table><tr><th></th><th>" + _source_name + " Data Type</th><th>Description</th><th>" + _target_name + " Conversion</th><th>Complexity</th><th>Count</th></tr>";
 
-        GetReportSectionRows(stats->_udt_data_types, data, &distinct, &occurrences);
+        GetReportSectionRows(macro, stats->_udt_data_types, data, snippets, &distinct, &occurrences);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -260,9 +260,9 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Table of all user-defined and derived data type details
     if(_stricmp(macro.c_str(), "udt_datatype_dtl_table") == 0 && stats->_udt_data_types_dtl.size() > 0)
     {
-        data += "<table><tr><th></th><th>" + _source_name + " Type</th><th>Occurrences</th></tr>";
+        data += "<table><tr><th></th><th>" + _source_name + " Type</th><th>Count</th></tr>";
 
-        GetReportSectionRows(stats->_udt_data_types_dtl, data, &distinct, &occurrences);
+        GetReportSectionRows(macro, stats->_udt_data_types_dtl, data, snippets, &distinct, &occurrences, false, false, false);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -313,7 +313,7 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     {
         data += "<table><tr><th></th><th>" + _source_name + " Function</th><th>Occurrences</th></tr>";
 
-        GetReportSectionRows(stats->_builtin_func_dtl, data, &distinct, &occurrences);
+        GetReportSectionRows(macro, stats->_builtin_func_dtl, data, snippets, &distinct, &occurrences, false, false, false);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -330,7 +330,7 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     {
         data += "<table><tr><th></th><th>Function</th><th>Occurrences</th></tr>";
 
-        GetReportSectionRows(stats->_udf_func, data, &distinct, &occurrences);
+		GetReportSectionRows(macro, stats->_udf_func, data, snippets, &distinct, &occurrences, false, false, false);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -408,7 +408,7 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Sequence references
     if(_stricmp(macro.c_str(), "seq_ref_table") == 0 && stats->_sequences_ref.size() > 0)
     {
-        data += "<table><tr><th></th><th>Reference</th><th>Description</th><th>Conversion</th><th>Count</th></tr>";
+        data += "<table><tr><th></th><th>Reference</th><th>Description</th><th>" + _target_name + " Conversion</th><th>Complexity</th><th>Count</th></tr>";
 
         GetReportSectionRows(macro, stats->_sequences_ref, data, snippets, &distinct, &occurrences);
 
@@ -426,7 +426,7 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     {
         data += "<table><tr><th></th><th>Reference</th><th>Count</th></tr>";
 
-        GetReportSectionRows(macro, stats->_sequences_ref_dtl, data, snippets, &distinct, &occurrences, false, false);
+        GetReportSectionRows(macro, stats->_sequences_ref_dtl, data, snippets, &distinct, &occurrences, false, false, false);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -445,9 +445,9 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Table of all system procedures
     if(_stricmp(macro.c_str(), "system_proc_table") == 0 && stats->_system_proc.size() > 0)
     {
-        data += "<table><tr><th></th><th>Procedure</th><th>Occurrences</th></tr>";
+		data += "<table><tr><th></th><th>" + _source_name + " Procedure</th><th>Description</th><th>" + _target_name + " Conversion</th><th>Complexity</th><th>Count</th></tr>";
 
-        GetReportSectionRows(stats->_system_proc, data, &distinct, &occurrences);
+        GetReportSectionRows(macro, stats->_system_proc, data, snippets, &distinct, &occurrences);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -462,9 +462,9 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
     // Table of all system procedures details
     if(_stricmp(macro.c_str(), "system_proc_dtl_table") == 0 && stats->_system_proc_dtl.size() > 0)
     {
-        data += "<table><tr><th></th><th>Procedure</th><th>Occurrences</th></tr>";
+		data += "<table><tr><th></th><th>" + _source_name + " Procedure</th><th>Occurrences</th></tr>";
 
-        GetReportSectionRows(stats->_system_proc_dtl, data, &distinct, &occurrences);
+        GetReportSectionRows(macro, stats->_system_proc_dtl, data, snippets, &distinct, &occurrences, false, false, false);
 
         data += "</table>";
         data += "<p><b>Total:</b> ";
@@ -724,7 +724,8 @@ void Report::GetReportSection(Stats *stats, std::string &macro, std::string &dat
 
 // Get report section
 void Report::GetReportSectionRows(std::string section, std::map<std::string, StatsSummaryItem> &values, std::string &data, 
-									std::string &snippets, int *distinct, int *occurrences)
+									std::string &snippets, int *distinct, int *occurrences,
+									bool desc, bool note, bool complexity)
 {
     char num[12];
 
@@ -750,127 +751,138 @@ void Report::GetReportSectionRows(std::string section, std::map<std::string, Sta
 		StatsSummaryItem &item = (*i).second;
 		int cnt = 0;
 
-		data += item.desc;
-		data += "</td><td>";
-
-		// It is undefined whether conversion is required or not
-		if(item.conv_undef > 0)
+		if(desc)
 		{
-			data += "<span class=\"td_warn1\">Requires Evaluation: ";
-			sprintf(num, "%d", item.conv_undef);
-			data += num;
-            data += "</span> ";
-			data += SQLINES_REPORT_WARN_MARK;
-			cnt++;
+			data += item.desc;
+			data += "</td><td>";
 		}
 
-		// Conversion with warnings
-		if(item.conv_warn > 0)
+		// Conversion note
+		if(note)
 		{
-			if(cnt > 0)
+			// It is undefined whether conversion is required or not
+			if(item.conv_undef > 0)
+			{
+				data += "<span class=\"td_warn1\">Requires Evaluation: ";
+				sprintf(num, "%d", item.conv_undef);
+				data += num;
+				data += "</span> ";
+				data += SQLINES_REPORT_WARN_MARK;
+				cnt++;
+			}
+
+			// Conversion with warnings
+			if(item.conv_warn > 0)
+			{
+				if(cnt > 0)
+					data += " ";
+
+				data += "Warnings: ";
+				sprintf(num, "%d", item.conv_warn);
+				data += num;
 				data += " ";
+				data += SQLINES_REPORT_WARN_MARK;
+				cnt++;
+			}
 
-			data += "Warnings: ";
-			sprintf(num, "%d", item.conv_warn);
-			data += num;
-			data += " ";
-			data += SQLINES_REPORT_WARN_MARK;
-			cnt++;
-		}
+			// Successful conversion
+			if(item.conv_ok > 0)
+			{
+				if(cnt > 0)
+					data += " ";
 
-		// Successful conversion
-		if(item.conv_ok > 0)
-		{
-			if(cnt > 0)
+				data += "SQLines Can Convert: ";
+				sprintf(num, "%d", item.conv_ok);
+				data += num;
 				data += " ";
+				data += SQLINES_REPORT_OK_MARK;
+				cnt++;
+			}
 
-			data += "SQLines Can Convert: ";
-			sprintf(num, "%d", item.conv_ok);
-			data += num;
-			data += " ";
-			data += SQLINES_REPORT_OK_MARK;
-			cnt++;
-		}
+			// Conversion is not required
+			if(item.conv_no_need > 0)
+			{
+				if(cnt > 0)
+					data += " ";
 
-		// Conversion is not required
-		if(item.conv_no_need > 0)
-		{
-			if(cnt > 0)
+				data += "No Conversion Required: ";
+				sprintf(num, "%d", item.conv_no_need);
+				data += num;
 				data += " ";
-
-			data += "No Conversion Required: ";
-			sprintf(num, "%d", item.conv_no_need);
-			data += num;
-			data += " ";
-			data += SQLINES_REPORT_OK_MARK;
-			cnt++;
-		}
+				data += SQLINES_REPORT_OK_MARK;
+				cnt++;
+			}
 				
-		// Manual conversion is required
-		if(item.conv_error > 0)
-		{
-			if(item.conv_undef > 0 || item.conv_no_need > 0 || item.conv_ok > 0)
+			// Manual conversion is required
+			if(item.conv_error > 0)
+			{
+				if(item.conv_undef > 0 || item.conv_no_need > 0 || item.conv_ok > 0)
+					data += " ";
+
+				data += "Cannot Migrate As Is: ";
+				sprintf(num, "%d", item.conv_error);
+				data += num;
 				data += " ";
+				data += SQLINES_REPORT_ERROR_MARK;
+			}
 
-			data += "Cannot Migrate As Is: ";
-			sprintf(num, "%d", item.conv_error);
-			data += num;
-			data += " ";
-			data += SQLINES_REPORT_ERROR_MARK;
+			data += "</td><td>";
 		}
 
-		data += "</td><td>";
-
-		// Complexity
-		if(item.complexity_very_low > 0)
-		{
-			data += "Very low: ";
-			sprintf(num, "%d", item.complexity_very_low);
-			data += num;
-		}
-
-		if(item.complexity_low > 0)
+		// Complexity note
+		if(complexity)
 		{
 			if(item.complexity_very_low > 0)
-				data += ", ";
+			{
+				data += "Very low: ";
+				sprintf(num, "%d", item.complexity_very_low);
+				data += num;
+			}
 
-			data += "Low: ";
-			sprintf(num, "%d", item.complexity_low);
-			data += num;
-		}
+			if(item.complexity_low > 0)
+			{
+				if(item.complexity_very_low > 0)
+					data += ", ";
 
-		if(item.complexity_medium > 0)
-		{
-			if(item.complexity_very_low > 0 || item.complexity_low > 0)
-				data += ", ";
+				data += "Low: ";
+				sprintf(num, "%d", item.complexity_low);
+				data += num;
+			}
 
-			data += "Medium: ";
-			sprintf(num, "%d", item.complexity_medium);
-			data += num;
-		}
+			if(item.complexity_medium > 0)
+			{
+				if(item.complexity_very_low > 0 || item.complexity_low > 0)
+					data += ", ";
 
-		if(item.complexity_high > 0)
-		{
-			if(item.complexity_very_low > 0 || item.complexity_low > 0 || item.complexity_medium > 0)
-				data += ", ";
+				data += "Medium: ";
+				sprintf(num, "%d", item.complexity_medium);
+				data += num;
+			}
 
-			data += "High: ";
-			sprintf(num, "%d", item.complexity_high);
-			data += num;
-		}
+			if(item.complexity_high > 0)
+			{
+				if(item.complexity_very_low > 0 || item.complexity_low > 0 || item.complexity_medium > 0)
+					data += ", ";
+
+				data += "High: ";
+				sprintf(num, "%d", item.complexity_high);
+				data += num;
+			}
 	
-		if(item.complexity_very_high > 0)
-		{
-			if(item.complexity_very_low > 0 || item.complexity_low > 0 || item.complexity_medium > 0 ||
-				item.complexity_high > 0)
-				data += ", ";
+			if(item.complexity_very_high > 0)
+			{
+				if(item.complexity_very_low > 0 || item.complexity_low > 0 || item.complexity_medium > 0 ||
+					item.complexity_high > 0)
+					data += ", ";
 
-			data += "Very high: ";
-			sprintf(num, "%d", item.complexity_very_high);
-			data += num;
+				data += "Very high: ";
+				sprintf(num, "%d", item.complexity_very_high);
+				data += num;
+			}
+
+			data += "</td><td>";
 		}
 
-		data += "</td><td>";
         sprintf(num, "%d", item.occurrences);
         data += num;
         data += "</td></tr>\n";
@@ -888,8 +900,13 @@ void Report::GetReportSectionRows(std::string section, std::map<std::string, Sta
 
 		snippets += "<p>";
 		snippets += (*i).first;
-		snippets += " - ";
-		snippets += item.desc;
+
+		if(desc && !item.desc.empty())
+		{
+			snippets += " - ";
+			snippets += item.desc;
+		}
+
 		snippets += "</p>";
 
 		snippets += "<table><th></th><th>Filename:line</th><th>Source Code Snippet</th>";
@@ -1114,16 +1131,22 @@ void Report::GetReportSectionRows(std::map<std::string, StatsItem> &values, std:
             data += (*i).first;
 			data += "</td><td>";
 
-			if(!((*i).second.conv_status == STATS_CONV_NO_NEED))
+			if((*i).second.conv_status == STATS_CONV_NO_NEED)
             {
-                data += "Requires Evaluation ";
-				data += SQLINES_REPORT_WARN_MARK;
-            }
-            else
-            {
-                data += "No Conversion Required ";
+				data += "No Conversion Required ";
 				data += SQLINES_REPORT_OK_MARK;
             }
+			else
+			if((*i).second.conv_status == STATS_CONV_OK)
+            {
+				data += "SQLines Can Convert ";
+				data += SQLINES_REPORT_OK_MARK;
+            }
+            else
+            {                
+                data += "Requires Evaluation ";
+				data += SQLINES_REPORT_WARN_MARK;
+            }			
         }
 
         data += "</td><td>";

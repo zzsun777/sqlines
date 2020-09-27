@@ -64,7 +64,7 @@ private:
     void GetReportSection(Stats *stats, std::string &macro, std::string &data, std::string &snippets); 
     void GetReportSectionRows(std::map<std::string, int> &values, std::string &data, int *distinct, int *occurrences);
     void GetReportSectionRows(std::map<std::string, StatsItem> &values, std::string &data, int *distinct, int *occurrences);
-	void GetReportSectionRows(std::string section, std::map<std::string, StatsSummaryItem> &values, std::string &data, std::string &snippets, int *distinct, int *occurrences);
+	void GetReportSectionRows(std::string section, std::map<std::string, StatsSummaryItem> &values, std::string &data, std::string &snippets, int *distinct, int *occurrences, bool desc = true, bool note = true, bool complexity = true);
 	void GetReportSectionRows(std::string section, std::map<std::string, StatsDetailItem> &values, std::string &data, std::string &snippets, int *distinct, int *occurrences, bool desc = true, bool note = true, bool complexity = true);
 
 	// Check if there is data in section by name

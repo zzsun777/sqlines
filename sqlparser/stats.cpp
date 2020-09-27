@@ -91,6 +91,15 @@ void StatsSummaryItem::UpdateSingleOccurrenceStatus(StatsDetailItem *sid)
 	// No conversion is required
 	if (sid->conv_status == STATS_CONV_NO_NEED && conv_undef == 0 && conv_ok == 0 && conv_warn == 0 && conv_error == 0)
 		conv_no_need = 1;
+	else
+	// No status specified, treat it as undefined conversion, and overwite all other statuses except error
+	if(sid->conv_status == 0 && conv_error == 0)
+	{
+		conv_undef = 1;
+		conv_no_need = 0;
+		conv_ok = 0;
+		conv_warn = 0;
+	}
 
 	occurrences = 1;
 }
@@ -98,11 +107,14 @@ void StatsSummaryItem::UpdateSingleOccurrenceStatus(StatsDetailItem *sid)
 // Update summary complexity for single occurrence from detail
 void StatsSummaryItem::UpdateSingleOccurrenceComplexity(StatsDetailItem *sid)
 {
-	if(sid == NULL)
-		return;
+	if(sid != NULL)
+		UpdateSingleOccurrenceComplexity(sid->complexity);
+}
 
+void StatsSummaryItem::UpdateSingleOccurrenceComplexity(int complexity)
+{
 	// Very high overrides other levels
-	if(sid->complexity == STATS_CONV_VERY_HIGH)
+	if(complexity == STATS_CONV_VERY_HIGH)
 	{
 		complexity_very_low = 0;
 	    complexity_low = 0;
@@ -110,26 +122,26 @@ void StatsSummaryItem::UpdateSingleOccurrenceComplexity(StatsDetailItem *sid)
 	    complexity_high = 0;
 	    complexity_very_high = 1;
 	}
-	else if(sid->complexity == STATS_CONV_HIGH && complexity_very_high == 0)
+	else if(complexity == STATS_CONV_HIGH && complexity_very_high == 0)
 	{
 		complexity_very_low = 0;
 	    complexity_low = 0;
 	    complexity_medium = 0;
 	    complexity_high = 1;
 	}
-	else if(sid->complexity == STATS_CONV_MEDIUM && complexity_very_high == 0 && complexity_high == 0)
+	else if(complexity == STATS_CONV_MEDIUM && complexity_very_high == 0 && complexity_high == 0)
 	{
 		complexity_very_low = 0;
 	    complexity_low = 0;
 	    complexity_medium = 1;
 	}
-	else if(sid->complexity == STATS_CONV_LOW && complexity_very_high == 0 && complexity_high == 0 &&
+	else if(complexity == STATS_CONV_LOW && complexity_very_high == 0 && complexity_high == 0 &&
 			complexity_medium == 0)
 	{
 		complexity_very_low = 0;
 	    complexity_low = 1;
 	}
-	else if(sid->complexity == STATS_CONV_VERY_LOW && complexity_very_high == 0 && complexity_high == 0 &&
+	else if(complexity == STATS_CONV_VERY_LOW && complexity_very_high == 0 && complexity_high == 0 &&
 			complexity_medium == 0 && complexity_low == 0)
 		complexity_very_low = 1;
 }
@@ -324,15 +336,25 @@ void Stats::Add(std::map<std::string, StatsItem> &map, std::string value, const 
 		si->occurrences = 1;
 		
 		if(target != NULL)
-			si->t_value.assign(target);
+		{
+			std::string tgt(target);
+
+			if(case_insense)
+				std::transform(tgt.begin(), tgt.end(), tgt.begin(), ::toupper);
+
+			si->t_value.assign(tgt);
+		}
 
 	    map[value] = *si;
 	}
 }
 
 // Collect statistics for summary items
-void Stats::Add(std::map<std::string, StatsSummaryItem> &map, std::string value, int conv_status)
+void Stats::Add(std::map<std::string, StatsSummaryItem> &map, std::string value, int conv_status, bool case_insense)
 {
+	 if(case_insense)
+        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
 	// Check if this value already used
 	std::map<std::string, StatsSummaryItem>::iterator i = map.find(value);
 
@@ -354,7 +376,7 @@ void Stats::Add(std::map<std::string, StatsSummaryItem> &map, Token *token, int 
 
 // Collect statistics for summary items
 void Stats::Add(std::map<std::string, StatsSummaryItem> &map, std::string value, StatsSummaryItem *item, 
-	            Token *start, Token *end)
+	            Token *start, Token *end, bool case_insense)
 {
 	if(item == NULL)
 		return;
@@ -367,6 +389,9 @@ void Stats::Add(std::map<std::string, StatsSummaryItem> &map, std::string value,
 
 	item->snippets.push_back(StatsSnippetItem(_source_current_file, start, end));
 
+	if(case_insense)
+        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
+
 	// Check if this value already used
 	std::map<std::string, StatsSummaryItem>::iterator i = map.find(value);
 
@@ -378,19 +403,24 @@ void Stats::Add(std::map<std::string, StatsSummaryItem> &map, std::string value,
 }
 
 // Collect statistics for summary items
-void Stats::Add(std::map<std::string, StatsSummaryItem> &map, Token *token, StatsSummaryItem *item, Token *end)
+void Stats::Add(std::map<std::string, StatsSummaryItem> &map, Token *token, StatsSummaryItem *item, Token *end,
+				bool case_insense)
 {
 	if(token == NULL || token->str == NULL || token->len == 0)
         return;
 
-    Add(map, std::string(token->str, token->len), item, token, end);
+    Add(map, std::string(token->str, token->len), item, token, end, case_insense);
 }
 
 // Collect statistics for detail items
-void Stats::Add(std::map<std::string, StatsDetailItem> &map, std::string value, StatsDetailItem *item, Token *start, Token *end)
+void Stats::Add(std::map<std::string, StatsDetailItem> &map, std::string value, StatsDetailItem *item, Token *start, Token *end,
+				bool case_insense)
 {
 	if(item == NULL)
 		return;
+
+	if(case_insense)
+        std::transform(value.begin(), value.end(), value.begin(), ::toupper);
 
 	// Check if this value already used
 	std::map<std::string, StatsDetailItem>::iterator i = map.find(value);
@@ -508,3 +538,21 @@ void Stats::Add(std::map<std::string, int> &map, std::string value, bool case_in
     else 
 	    map[value] = 1;    
 }
+
+// Constructor
+StatsSnippetItem::StatsSnippetItem(std::string &f, Token *start, Token *end) 
+{
+	if(start == NULL || end == NULL)
+		return;
+
+	filename = f; 
+	line = start->line; 
+
+	// Start token is a word
+	if(start->str != NULL)
+		snippet.assign(start->str, start->len + start->remain_size - end->remain_size);
+	// Start token is a char
+	else
+		snippet.assign(start->next_start - 1, (unsigned int)(1 + start->remain_size - end->remain_size));
+}
+

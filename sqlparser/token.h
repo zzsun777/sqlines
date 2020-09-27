@@ -212,11 +212,13 @@ public:
 	
 	void Set(const char *str, const wchar_t *wstr, size_t len);
 	void Set(TokenStr &src);
+
+	const char *GetCStr() { return str.c_str(); }
 	
 	// Append a string
 	void Append(const char *str, const wchar_t *wstr, size_t len);
 	void Append(Token *token, size_t start, size_t len);
-	void Append(Token *token);
+	void Append(Token *token, bool appendSource = false);
 	void Append(TokenStr &str);
 	void Append(TokenStr &str, size_t start, size_t len);
 	void Append(int num);

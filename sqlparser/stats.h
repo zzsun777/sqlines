@@ -39,11 +39,14 @@
 #define STATS_CONV_VERY_HIGH        5
 
 // Statistics
-#define DTYPE_STATS(value)    { if(_stats != NULL) _stats->DataTypes(value); }
-#define UDTYPE_STATS(value)   { if(_stats != NULL) _stats->UdtDataTypes(value); }
-#define FUNC_STATS(name)      { if(_stats != NULL) _stats->Functions(name, &ssi, GetLastToken()); }
-#define UDF_FUNC_STATS(value) { if(_stats != NULL) _stats->UdfFunctions(value); }
-#define PROC_STATS(value)     { if(_stats != NULL) _stats->Procedures(value); }
+#define DTYPE_STATS(value)           { if(_stats != NULL) _stats->DataTypes(value, &ssi, GetLastToken()); }
+#define DTYPE_STATS_V(value, start)  { if(_stats != NULL) _stats->DataTypes(value, &ssi, start, GetLastToken()); }
+#define UDTYPE_STATS_V(value, start) { if(_stats != NULL) _stats->UdtDataTypes(value, &ssi, start, GetLastToken()); }
+#define FUNC_STATS(name)             { if(_stats != NULL) _stats->Functions(name, &ssi, GetLastToken()); }
+#define FUNC_STATS_V(value, start)   { if(_stats != NULL) _stats->Functions(value, &ssi, start, GetLastToken()); }
+#define UDF_FUNC_STATS(name)         { if(_stats != NULL) _stats->UdfFunctions(name, &ssi, GetLastToken()); }
+#define PROC_STATS(name)             { if(_stats != NULL) _stats->Procedures(name, &ssi, GetLastToken()); }
+#define PROC_STATS_V(value, start)   { if(_stats != NULL) _stats->Procedures(value, &ssi, start, GetLastToken()); }
 
 #define STMS_STATS(start)            { if(_stats != NULL) _stats->Statements(start, &ssi, GetLastToken()); }
 #define STMS_STATS_V(value, start)   { if(_stats != NULL) _stats->Statements(value, &ssi, start, GetLastToken()); }
@@ -61,16 +64,18 @@
 
 #define DTYPE_DTL_STATS_0(start)  { if(_stats != NULL) _stats->DataTypesDetail(start, &si); }
 #define DTYPE_DTL_STATS_L(start)  { if(_stats != NULL) _stats->DataTypesDetail(start, &si, GetLastToken()); }
-#define UDTYPE_DTL_STATS_L(start) { if(_stats != NULL) _stats->UdtDataTypesDetail(start, GetLastToken()); }
+#define DTYPE_DTL_STATS_ST(value, target)  { if(_stats != NULL) _stats->DataTypesDetail(value, &si, target); }
 
-#define FUNC_DTL_STATS(token) { if(_stats != NULL) _stats->FunctionsDetail(token); }
-#define PROC_DTL_STATS(token) { if(_stats != NULL) _stats->ProceduresDetail(token); }
+#define UDTYPE_DTL_STATS_L(start) { if(_stats != NULL) _stats->UdtDataTypesDetail(start, GetLastToken(), &sdi); }
+
+#define FUNC_DTL_STATS_V(value, start) { if(_stats != NULL) _stats->FunctionsDetail(value, &sdi, start, GetLastToken()); }
+#define PROC_DTL_STATS(value, start) { if(_stats != NULL) _stats->ProceduresDetail(value, &sdi, start, GetLastToken()); }
 
 #define SEQ_STATS_V(value, start)        { if(_stats != NULL) _stats->Sequences(value, &ssi, start, GetLastToken()); }
 #define SEQ_DTL_STATS_V(value, start)    { if(_stats != NULL) _stats->SequencesDetail(value, &sdi, start, GetLastToken()); }
 #define SEQ_OPT_DTL_STATS(start, end)    { if(_stats != NULL) _stats->SequencesOptionsDetail(start, end, &sdi); }
-#define SEQ_REF_STATS(value)             { if(_stats != NULL) _stats->SequencesReference(value, conv_desc, conv_conv, conv_url, conv_stats); }
-#define SEQ_REF_DTL_STATS(start)         { if(_stats != NULL) _stats->SequencesReferenceDetail(start, start, conv_desc, conv_conv, conv_url, conv_stats); }
+#define SEQ_REF_STATS(value, start)      { if(_stats != NULL) _stats->SequencesReference(value, &sdi, start, GetLastToken()); }
+#define SEQ_REF_DTL_STATS(start)         { if(_stats != NULL) _stats->SequencesReferenceDetail(start, GetLastToken(), &sdi); }
 
 #define PKG_STATS_V(value, start)        { if(_stats != NULL) _stats->Packages(value, &ssi, start, GetLastToken()); }
 #define PKG_DTL_STATS(value)             { if(_stats != NULL) _stats->PackagesDetail(value, &sdi, GetLastToken()); }
@@ -85,6 +90,8 @@
 #define STATS_SET_DESC(p_desc)                        ssi.desc = p_desc; 
 #define STATS_SET_CONV(cond, status)                  { if(cond) { ssi.Inc(status); } }
 #define STATS_SET_CONV_NO_NEED(cond)                  STATS_SET_CONV(cond, STATS_CONV_NO_NEED)
+#define STATS_SET_CONV_OK(cond)                       STATS_SET_CONV(cond, STATS_CONV_OK)
+#define STATS_SET_COMPLEXITY(cond, value)             { if(cond) { ssi.UpdateSingleOccurrenceComplexity(value); } }
 #define STATS_UPDATE_STATUS                           ssi.UpdateSingleOccurrenceStatus(&sdi); ssi.UpdateSingleOccurrenceComplexity(&sdi);
 
 #define STATS_DTL_DECL                                StatsDetailItem sdi;
@@ -97,6 +104,7 @@
 #define STATS_ITM_DECL                                StatsItem si;
 #define STATS_ITM_CONV(status)                        si.conv_status = status; 
 #define STATS_ITM_CONV_NO_NEED                        STATS_ITM_CONV(STATS_CONV_NO_NEED)
+#define STATS_ITM_CONV_OK                             STATS_ITM_CONV(STATS_CONV_OK)
 #define STATS_ITM_CONV_ERROR                          STATS_ITM_CONV(STATS_CONV_ERROR)
 
 #define SQLEXEC_STAT_FILE                             "sqlines_func_calls.txt"
@@ -148,6 +156,7 @@ struct StatsSummaryItem
 	void UpdateSingleOccurrenceStatus(StatsDetailItem *sid);
 	// Update summary complexity for single occurrence from detail
 	void UpdateSingleOccurrenceComplexity(StatsDetailItem *sid);
+	void UpdateSingleOccurrenceComplexity(int complexity);
 
 	// Get most critical status
 	int GetMostCritical();
@@ -185,9 +194,7 @@ struct StatsSnippetItem
 	// Source code snippet
 	std::string snippet;
 
-	StatsSnippetItem(std::string &f, Token *start, Token *end) { 
-		filename = f; line = start->line; snippet.assign(start->str, start->len + start->remain_size - end->remain_size);
-	}
+	StatsSnippetItem(std::string &f, Token *start, Token *end);
 };
 
 struct StatsItem
@@ -221,13 +228,13 @@ struct StatsItem
 class Stats
 {
 public:
-    std::map<std::string, int> _data_types;
-    std::map<std::string, int> _udt_data_types;
+    std::map<std::string, StatsSummaryItem> _data_types;
+    std::map<std::string, StatsSummaryItem> _udt_data_types;
     std::map<std::string, StatsItem> _data_types_dtl;
-    std::map<std::string, int> _udt_data_types_dtl;
+    std::map<std::string, StatsDetailItem> _udt_data_types_dtl;
     std::map<std::string, StatsSummaryItem> _builtin_func;
-    std::map<std::string, int> _builtin_func_dtl;
-    std::map<std::string, int> _udf_func;
+    std::map<std::string, StatsDetailItem> _builtin_func_dtl;
+    std::map<std::string, StatsSummaryItem> _udf_func;
 
 	std::map<std::string, StatsSummaryItem> _sequences;
 	std::map<std::string, StatsDetailItem> _sequences_dtl;
@@ -235,8 +242,8 @@ public:
 	std::map<std::string, StatsDetailItem> _sequences_ref;
     std::map<std::string, StatsDetailItem> _sequences_ref_dtl;
 
-	std::map<std::string, int> _system_proc;
-    std::map<std::string, int> _system_proc_dtl;
+	std::map<std::string, StatsSummaryItem> _system_proc;
+    std::map<std::string, StatsDetailItem> _system_proc_dtl;
     std::map<std::string, StatsSummaryItem> _statements;
     std::map<std::string, int> _crtab_statements;
     std::map<std::string, int> _alttab_statements;
@@ -264,13 +271,14 @@ public:
     ~Stats();
 
     // Collect statistics 
-    void DataTypes(const char* value)  { Add(_data_types, value); }
-    void DataTypes(Token *token)       { Add(_data_types, token); }
+    void DataTypes(const char* value, StatsSummaryItem *ssi, Token *start, Token *end)  { Add(_data_types, value, ssi, start, end); }
+    void DataTypes(Token *token, StatsSummaryItem *ssi, Token *end) { Add(_data_types, token, ssi, end); }
     void DataTypesDetail(Token *start, StatsItem *si)  { Add(_data_types_dtl, start, si); }
     void DataTypesDetail(Token *start, StatsItem *si, Token *end)  { Add(_data_types_dtl, start, si, end); }
+	void DataTypesDetail(std::string value, StatsItem *si, const char* target)  { Add(_data_types_dtl, value, target, si); }
 
-    void UdtDataTypes(const char* value)  { Add(_udt_data_types, value); }
-    void UdtDataTypesDetail(Token *start, Token *end)  { Add(_udt_data_types_dtl, start, end); }
+    void UdtDataTypes(const char* value, StatsSummaryItem *ssi, Token *start, Token *end)  { Add(_udt_data_types, value, ssi, start, end); }
+    void UdtDataTypesDetail(Token *start, Token *end, StatsDetailItem *sdi)  { Add(_udt_data_types_dtl, start, end, sdi, start, end); }
     
     void Statements(const char* value, StatsSummaryItem *ssi, Token *start, Token *end) { Add(_statements, value, ssi, start, end); }
     void Statements(Token *token, StatsSummaryItem *ssi, Token *end) { Add(_statements, token, ssi, end); }
@@ -287,22 +295,24 @@ public:
 
 	void ExceptionsDetail(Token *token, StatsDetailItem *sdi, Token *end) { Add(_pl_statements_exceptions, token, sdi, end); }
 
+	void Functions(const char* value, StatsSummaryItem *ssi, Token *start, Token *end) { Add(_builtin_func, value, ssi, start, end); }
     void Functions(Token *token, StatsSummaryItem *ssi, Token *end) { Add(_builtin_func, token, ssi, end); }
-    void FunctionsDetail(TokenStr *token) { Add(_builtin_func_dtl, token); }
-    void UdfFunctions(Token *token)       { Add(_udf_func, token); }
+    void FunctionsDetail(const char *value, StatsDetailItem *sdi, Token *start, Token *end) { Add(_builtin_func_dtl, value, sdi, start, end); }
+    void UdfFunctions(Token *token, StatsSummaryItem *ssi, Token *end) { Add(_udf_func, token, ssi, end); }
 
 	void Sequences(const char* value, StatsSummaryItem *ssi, Token *start, Token *end)  { Add(_sequences, value, ssi, start, end); }
 	void SequencesDetail(const char* value, StatsDetailItem *sdi, Token *start, Token *end)  
 		{ Add(_sequences_dtl, value, sdi, start, end); }
 	void SequencesOptionsDetail(Token *start, Token *end, StatsDetailItem *sdi)  
 		{ Add(_sequences_opt_dtl, start, end, sdi, start, end); }
-	void SequencesReference(const char* value, const char* desc, const char* note, const char* link, int conv_status)  
-		{ Add(_sequences_ref, value, desc, note, link, conv_status); }
-	void SequencesReferenceDetail(Token *start, Token *end, const char* desc, const char* note, const char* link, int conv_status)  
-		{ Add(_sequences_ref_dtl, start, end, desc, note, link, conv_status); }
+	void SequencesReference(const char* value, StatsDetailItem *sdi, Token *start, Token *end)  
+		{ Add(_sequences_ref, value, sdi, start, end); }
+	void SequencesReferenceDetail(Token *start, Token *end, StatsDetailItem *sdi)  
+		{ Add(_sequences_ref_dtl, start, end, sdi, start, end); }
 
-    void Procedures(Token *token)           { Add(_system_proc, token); }
-    void ProceduresDetail(TokenStr *token)  { Add(_system_proc_dtl, token); }
+    void Procedures(const char* value, StatsSummaryItem *ssi, Token *start, Token *end) { Add(_system_proc, value, ssi, start, end); }
+    void Procedures(Token *token, StatsSummaryItem *ssi, Token *end) { Add(_system_proc, token, ssi, end); }
+    void ProceduresDetail(const char *value, StatsDetailItem *sdi, Token *start, Token *end)  { Add(_system_proc_dtl, value, sdi, start, end); }
 
 	void Packages(const char *value, StatsSummaryItem *ssi, Token *start, Token *end) { Add(_packages, value, ssi, start, end); }
 	void PackagesDetail(Token *token, StatsDetailItem *sdi, Token *end) { Add(_pkg_statements_items, token, sdi, end); }
@@ -326,12 +336,12 @@ public:
     void Add(std::map<std::string, StatsItem> &map, std::string value, const char* target, StatsItem *si, 
 		bool case_insense = true);
     
-	void Add(std::map<std::string, StatsSummaryItem> &map, std::string value, int conv_status);
-	void Add(std::map<std::string, StatsSummaryItem> &map, std::string value, StatsSummaryItem *item, Token *start, Token *end);
+	void Add(std::map<std::string, StatsSummaryItem> &map, std::string value, int conv_status, bool case_insense = true);
+	void Add(std::map<std::string, StatsSummaryItem> &map, std::string value, StatsSummaryItem *item, Token *start, Token *end, bool case_insense = true);
 	void Add(std::map<std::string, StatsSummaryItem> &map, Token *token, int conv_status);
-	void Add(std::map<std::string, StatsSummaryItem> &map, Token *token, StatsSummaryItem *item, Token *end);
+	void Add(std::map<std::string, StatsSummaryItem> &map, Token *token, StatsSummaryItem *item, Token *end, bool case_insense = true);
 	
-	void Add(std::map<std::string, StatsDetailItem> &map, std::string value, StatsDetailItem *item, Token *start, Token *end);
+	void Add(std::map<std::string, StatsDetailItem> &map, std::string value, StatsDetailItem *item, Token *start, Token *end, bool case_insense = true);
 	void Add(std::map<std::string, StatsDetailItem> &map, Token *token, StatsDetailItem *item, Token *end);
 	void Add(std::map<std::string, StatsDetailItem> &map, Token *start_val, Token *end_val, StatsDetailItem *item, Token *start, Token *end);
 	void Add(std::map<std::string, StatsDetailItem> &map, const char* value, const char* desc, const char* note, const char* link, int conv_status);

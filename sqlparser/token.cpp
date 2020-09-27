@@ -797,13 +797,13 @@ void TokenStr::Append(Token *token, size_t start, size_t l)
 	len += l;
 }
 
-void TokenStr::Append(Token *token)
+void TokenStr::Append(Token *token, bool appendSource)
 {
 	if(token == NULL)
 		return;
 
 	// Append the target value if set
-	if(token->t_str != NULL)
+	if(token->t_str != NULL && !appendSource)
 	{
 		str.append(token->t_str, token->t_len); 
 		len += token->t_len;

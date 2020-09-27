@@ -84,6 +84,7 @@
 #define SQL_BLOCK_EXCEPTION		11
 #define SQL_BLOCK_TRY           12
 #define SQL_BLOCK_CATCH         13
+#define SQL_BLOCK_AUTONOMOUS    14
 
 // Boolean expression scope
 #define SQL_BOOL_IF					1
@@ -99,6 +100,9 @@
 #define SQL_BOOL_HAVING				11
 #define SQL_BOOL_CREATE_RULE		12
 #define SQL_BOOL_ASSIGN             13
+#define SQL_BOOL_CONNECT_BY         14
+#define SQL_BOOL_START_WITH         15
+#define SQL_BOOL_MERGE              16
 
 // SQL clause scope
 #define SQL_SCOPE_ASSIGNMENT_RIGHT_SIDE		1
@@ -116,6 +120,7 @@
 #define SQL_SCOPE_CONVERT_FUNC				13
 #define SQL_SCOPE_CAST_FUNC					14
 #define SQL_SCOPE_OBJ_TYPE_DECL             15
+#define SQL_SCOPE_FUNC_RETURN_DECL          16
 
 // SQL SELECT statement scope
 #define SQL_SEL_INSERT					1	
@@ -135,7 +140,8 @@
 #define SQL_SEL_CREATE_TEMP_TABLE_AS	15
 #define SQL_SEL_EXPORT					16
 #define SQL_SEL_WITH_CTE				17
-#define SQL_SEL_VIEW					17
+#define SQL_SEL_VIEW					18
+#define SQL_SEL_MERGE					19
 
 // SQL Statement scope
 #define SQL_STMT_ALTER_TABLE            1
@@ -337,6 +343,8 @@ class SqlParser
     // First non-declare statement in procedure or function
 	Token *_spl_first_non_declare;
 
+	// Current statement in procedure or function
+	Token *_spl_current_stmt;
 	// Last statement in procedure or function
 	Token *_spl_last_stmt;
 
@@ -350,6 +358,11 @@ class SqlParser
 	ListW _spl_result_set_cursors;
 	// Result set generated cursor names (for standalone SELECT returning a result set)
 	ListT<TokenStr> _spl_result_set_generated_cursors;
+
+	// Number of REFCURSOR parameters in procedure (Oracle, PostgreSQL)
+	int _spl_refcursor_params_num;
+	// REFCURSOR parameter names
+	ListW _spl_refcursor_params;
 	
 	// Delimiter is set at the end of procedure
 	bool _spl_delimiter_set;
@@ -386,6 +399,7 @@ class SqlParser
 	ListWM _spl_declared_cursors_select_exp;
 
 	// The current PL/SQL package
+	Token *_spl_package_spec;
 	Token *_spl_package;
 	// Declared record variables %ROWTYPE
 	ListW _spl_rowtype_vars;
@@ -475,6 +489,9 @@ class SqlParser
     bool _spl_not_found_handler;
 	bool _spl_need_not_found_handler;
 
+	// Variable is added to hold row count value
+	bool _spl_need_rowcount_var;
+
 	// Variable is added to hold dynamic SQL (in SQL Server, it is @sql for sp_executesql that does not allow expressions)
 	bool _spl_dyn_sql_var;
 
@@ -500,6 +517,7 @@ class SqlParser
 	std::string _option_oracle_plsql_number_mapping;
 	std::string _option_set_explicit_schema;
 	std::string _option_cur_file;
+	bool _option_eval_mode;
 
 	// Mappings
 	StringMap _object_map;
@@ -595,6 +613,7 @@ public:
 	
 	// Prepend the token with the specified value
 	Token* Prepend(Token *token, const char *str, const wchar_t *wstr, size_t len, Token *format = NULL);
+	Token* Prepend(Token *token, TokenStr *str, Token *format = NULL);
 	Token* PrependNoFormat(Token *token, const char *str, const wchar_t *wstr, size_t len);
 	Token* PrependNoFormat(Token *token, TokenStr *str);
 	void PrependFirstNoFormat(Token *token, const char *str, const wchar_t *wstr, size_t len);
@@ -656,6 +675,7 @@ public:
 	bool ParseInPredicate(Token *in);
 	bool ParseOraclePackage(Token *token);
 	bool ParseFunction(Token *token);
+	bool ParseFunctionConstant(Token *token);
 	bool ParseFunctionWithoutParameters(Token *token);
 	bool ParseDatetimeLiteral(Token *token);
 	bool ParseBooleanLiteral(Token *token);
@@ -810,6 +830,7 @@ public:
 	bool ParseCreateTablespace(Token *create, Token *tablespace);
 	bool ParseCreateIndex(Token *create, Token *unique, Token *index);
 	bool ParseCreatePackage(Token *create, Token *or_, Token *replace, Token *package);
+	bool ParseCreatePackageSpec(Token *create, Token *or_, Token *replace, Token *package);
 	bool ParseCreatePackageBody(Token *create, Token *or_, Token *replace, Token *package, Token *body);
 	bool ParseCreateProcedure(Token *create, Token *or_, Token *replace, Token *procedure, int *result_sets);
 	bool ParseCreateTrigger(Token *create, Token *or_, Token *trigger);
@@ -852,6 +873,7 @@ public:
 	bool ParseGrantStatement(Token *grant);
 	bool ParseLockStatement(Token *lock_);
 	bool ParseLoopStatement(Token *loop, int scope);
+	bool ParseMergeStatement(Token *merge);
 	bool ParseNullStatement(Token *null_);
 	bool ParseOnStatement(Token *on);
 	bool ParseOnExceptionStatement(Token *on, Token *exception);
@@ -868,6 +890,7 @@ public:
 	bool ParseReturnStatement(Token *return_);
 	bool ParseRevokeStatement(Token *revoke);
 	bool ParseRollbackStatement(Token *rollback);
+	bool ParseSavepointStatement(Token *savepoint);
 	bool ParseSelectStatement(Token *token, int block_scope, int select_scope, int *result_sets, Token **list_end, ListW *exp_starts, ListW *out_cols, ListW *into_cols, int *appended_subquery_aliases, Token **from_end, Token **where_end);
 	bool ParseSelectExpressionPattern(Token *open, Token *select); 
 	bool ParseSetStatement(Token *set);
@@ -1095,6 +1118,7 @@ public:
 	bool ParseFunctionRand(Token *name, Token *open);
 	bool ParseFunctionRand2(Token *name, Token *open);
 	bool ParseFunctionReal(Token *name, Token *open);
+	bool ParseFunctionRegexpLike(Token *name, Token *open);
 	bool ParseFunctionRegexpSubstr(Token *name, Token *open);
 	bool ParseFunctionRemainder(Token *name, Token *open);
 	bool ParseFunctionRepeat(Token *name, Token *open);
@@ -1117,6 +1141,7 @@ public:
 	bool ParseFunctionSoundex(Token *name, Token *open);
 	bool ParseFunctionSpace(Token *name, Token *open);
 	bool ParseFunctionSpidInstanceId(Token *name, Token *open);
+	bool ParseFunctionSqlerrm(Token *name, Token *open);
 	bool ParseFunctionSqrt(Token *name, Token *open);
 	bool ParseFunctionSquare(Token *name, Token *open);
 	bool ParseFunctionStr(Token *name, Token *open);
@@ -1135,6 +1160,7 @@ public:
 	bool ParseFunctionSuserName(Token *name, Token *open);
 	bool ParseFunctionSwitchoffset(Token *name, Token *open);
 	bool ParseFunctionSysdatetimeoffset(Token *name, Token *open);
+	bool ParseFunctionSysContext(Token *name, Token *open);
 	bool ParseFunctionSysGuid(Token *name, Token *open);
 	bool ParseFunctionTan(Token *name, Token *open);
 	bool ParseFunctionTanh(Token *name, Token *open);
@@ -1157,6 +1183,7 @@ public:
 	bool ParseFunctionToNumber(Token *name, Token *open);
 	bool ParseFunctionToSingleByte(Token *name, Token *open);
 	bool ParseFunctionToTimestamp(Token *name, Token *open);
+	bool ParseFunctionToTimestampTz(Token *name, Token *open);
 	bool ParseFunctionToUnichar(Token *name, Token *open);
 	bool ParseFunctionTranslate(Token *name, Token *open);
 	bool ParseFunctionTrim(Token *name, Token *open);
@@ -1212,6 +1239,7 @@ public:
 	bool ParseFunctionXmlvalidate(Token *name, Token *open);
 	bool ParseFunctionXmlxsrobjectid(Token *name, Token *open);
 	bool ParseFunctionXsltransform(Token *name, Token *open);
+	bool ParseFunctionXmlChainedMethods();
 	bool ParseFunctionYear(Token *name, Token *open);
 	bool ParseFunctionZeroifnull(Token *name, Token *open);
 	bool ParseUnknownFunction(Token *name, Token *open);
@@ -1246,6 +1274,8 @@ public:
     bool ParseProcedureRaiseApplicationError(Token *name);
 	bool ParseProcedureSpAddType(Token *execute, Token *sp_addtype);
 	bool ParseProcedureSpBindRule(Token *execute, Token *sp_bindrule);
+	bool ParseProcedureSpAddExtendedProperty(Token *execute, Token *sp_extendedproperty);
+	bool ParseUnknownSystemProcedure(Token *name);
 
     // Read the data type from available meta information
     const char *GetMetaType(Token *object, Token *column = NULL);
@@ -1281,9 +1311,14 @@ public:
 	bool ParseOracleVariableDeclarationBlock(Token *declare);
 	bool ParseOracleCursorDeclaration(Token *cursor, ListWM *cursors);
 	bool ParseOracleObjectType(Token *type);
+	bool ParseOracleObjectSubtype(Token *subtype);
 	bool ParseOracleObjectTypeAssignment(Token *name);
 	bool ParseOraclePragma(Token *pragma);
 	bool ParseOracleException(Token *name);
+	bool ParseOracleProcSpec(Token *procedure);
+	bool ParseOracleFuncSpec(Token *function);
+	bool ParseOracleNestedProcBody(Token *procedure);
+	bool ParseOracleNestedFuncBody(Token *function);
 	bool ParseFunctionParameters(Token *function_name);
 	bool ParseFunctionReturns(Token *function);
 	bool ParseFunctionOptions();
@@ -1298,6 +1333,7 @@ public:
 	bool GetJoinKeywords(Token *token, Token **left_right_full, Token **outer_inner, Token **join);
 	bool ParseWhereClause(int stmt_scope, Token **where_, Token **where_end, int *rowlimit = NULL);
 	bool ParseWhereCurrentOfCursor(int stmt_scope);
+	bool ParseConnectBy();
 	bool ParseSelectGroupBy();
 	bool ParseSelectHaving();
     bool ParseSelectQualify(Token *select, Token *select_list_end);
@@ -1351,6 +1387,9 @@ public:
 	void OracleIfSelectDeclarations();
 	void OracleChangeEqualToDefault(Token *equal);
 	bool ParseOracleSetOptions(Token *set);
+	bool ParseOracleAlterTable(Token *next);
+	bool ParseOracleAlterProcedure();
+	bool OracleCreateDatabase(Token *create, Token *database);
 
 	bool ParseMysqlStorageClause(Token *table_name, Token **id_start, Token **comment);
 	bool ParseMySQLDelimiter(Token *create);
@@ -1415,6 +1454,8 @@ public:
 	void SybaseAdsSelectNestedUdfCall(Token *select, ListW *select_cols);
 	void SybaseMapDatetimeStyle(Token *style);
 
+	// Add RETURN statements for REFCURSORs
+	void AddReturnRefcursors(Token *end);
 	// Add variable declarations generated in the procedural block
 	void AddGeneratedVariables();
 
@@ -1510,6 +1551,9 @@ public:
 
     // Create report file
     int CreateReport(const char *summary); 
+
+	// Check if the conversion running in evaluation mode and add comment
+	void AddEvalModeComment(Token *token);
 };
 
 #endif // sqlines_sqlparser_h

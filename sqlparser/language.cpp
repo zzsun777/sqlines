@@ -883,18 +883,28 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 	if(token == NULL)
 		return false;
 
-	CONV_STATS
+	STATS_DTL_DECL
+
 	size_t len = token->len;
 
 	// .nextval reference
 	if(len > 8 && token->Compare(".nextval", L".nextval", len - 8, 8) == true)
 	{
+		STATS_DTL_DESC(SEQUENCE_NEXTVAL_DESC)
+
 		if(Target(SQL_MARIADB))
 		{
 			PREPEND(token, "NEXTVAL(");
 			Token::Change(token, token->str, token->wstr, len - 8);
 			APPEND_NOFMT(token, ")");
-			CONV(true, STATS_CONV_OK, "NEXTVAL(seqname)", NULL);
+			
+			STATS_DTL_CONV_OK(true, STATS_CONV_LOW, "", "")
+		}
+		else
+		// Supported in Oracle compatibility mode for MariaDB
+		if(Target(SQL_MARIADB_ORA))
+		{
+			STATS_DTL_CONV_NO_NEED(Target(SQL_MARIADB_ORA))
 		}
 		else
 		// NextVal('seqname') user-defined function in MySQL
@@ -906,22 +916,31 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 		}
 		
 		token->subtype = TOKEN_SUB_IDENT_SEQNEXTVAL;
-
-		CONV_DESC(SEQUENCE_NEXTVAL_DESC);
-		SEQ_REF_STATS("seqname.NEXTVAL");
+		
+		SEQ_REF_STATS(".NEXTVAL", token);
 		SEQ_REF_DTL_STATS(token);
+		
 		return true;
 	}
 	else
 	// .currval reference
 	if(len > 8 && token->Compare(".currval", L".currval", len - 8, 8) == true)
 	{
+		STATS_DTL_DESC(SEQUENCE_CURRVAL_DESC)
+
 		if(Target(SQL_MARIADB))
 		{
 			PREPEND(token, "LASTVAL(");
 			Token::Change(token, token->str, token->wstr, len - 8);
 			APPEND_NOFMT(token, ")");
-			CONV(true, STATS_CONV_OK, "LASTVAL(seqname)", NULL);
+
+			STATS_DTL_CONV_OK(true, STATS_CONV_LOW, "", "")
+		}
+		else
+		// Supported in Oracle compatibility mode for MariaDB
+		if(Target(SQL_MARIADB_ORA))
+		{
+			STATS_DTL_CONV_NO_NEED(Target(SQL_MARIADB_ORA)) 
 		}
 		else
 		// LastVal('seqname') user-defined function in MySQL
@@ -932,8 +951,7 @@ bool SqlParser::ConvertOraclePseudoColumn(Token *token)
 			Append(token, "')", L"')", 2);
 		}
 
-		CONV_DESC(SEQUENCE_CURRVAL_DESC);
-		SEQ_REF_STATS("seqname.CURRVAL");
+		SEQ_REF_STATS(".CURRVAL", token);
 		SEQ_REF_DTL_STATS(token);
 		return true;
 	}
@@ -2307,6 +2325,10 @@ bool SqlParser::ParseExpression(Token *first, int prev_operator)
 	if(ParseFunction(first) == true)
 		exists = true;
 	else
+	// Functional constant
+	if(ParseFunctionConstant(first) == true)
+		exists = true;
+	else
 	// Function without parentheses
 	if(ParseFunctionWithoutParameters(first) == true)
 		exists = true;
@@ -2458,14 +2480,13 @@ bool SqlParser::ParseBooleanLiteral(Token *token)
 	return exists;
 }
 
-// Named variable and expression: param => expr (Oracle)
+// Named variable and expression: param => expr (Oracle), param := expr (PostgreSQL)
 bool SqlParser::ParseNamedVarExpression(Token *token)
 {
 	if(token == NULL)
 		return false;
 
     Token *equal = GetNext('=', L'=');
-
     Token *arrow = GetNext(equal, '>', L'>');
 
     if(arrow == NULL)
@@ -2473,6 +2494,15 @@ bool SqlParser::ParseNamedVarExpression(Token *token)
         PushBack(equal);
         return false;
     }
+	else
+	{
+		// := in PostgreSQL
+		if(Target(SQL_POSTGRESQL))
+		{
+			TOKEN_CHANGE(equal, ":");
+			TOKEN_CHANGE(arrow, "=");
+		}
+	}
 
     ParseExpression();
 
@@ -2552,7 +2582,16 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 			first = NULL;
 		}
 		else
-			ParseExpression(first);
+		{
+			bool ora_join = false;
+
+			// Check for (+) rigth join condition
+			if(_source == SQL_ORACLE && scope == SQL_BOOL_WHERE)
+				ora_join = ParseOracleOuterJoin(first, NULL);
+
+			if(!ora_join)
+				ParseExpression(first);
+		}
 	}
 
 	Token *op = NULL;
@@ -2732,7 +2771,8 @@ bool SqlParser::ParseBooleanExpression(int scope, Token *stmt_start, int *condit
 		// Optionally enclosed in parentheses () 
 		Token *open = GetNextCharToken('(', L'(');
 
-		/*Token *pattern */ (void) GetNextToken();
+		Token *pattern = GetNextToken();
+		ParseExpression(pattern);
 
 		/*Token *close*/ (void) GetNextCharToken(open, ')', L')');
 
@@ -2833,6 +2873,10 @@ bool SqlParser::ParseBooleanAndOr(int scope, Token *stmt_start, int *conditions_
 			PushBack(next);
 			break;
 		}
+
+		// Option PRIOR before next condition in CONNECT BY
+		if(scope == SQL_BOOL_CONNECT_BY)
+			TOKEN_GETNEXTW("PRIOR");
 		
 		int count = 0;
 
@@ -2854,7 +2898,10 @@ bool SqlParser::ParseInPredicate(Token *in)
 	if(in == NULL)
 		return false;
 
-	/*Token *open */ (void) GetNextCharToken('(', '(');
+	Token *open = TOKEN_GETNEXT('(');
+
+	if(open == NULL)
+		return false;
 
 	// SELECT statement or list of expressions can be specified
 	Token *select = GetNextSelectStartKeyword();
@@ -2880,11 +2927,10 @@ bool SqlParser::ParseInPredicate(Token *in)
 		}
 	}
 
-	Token *close = GetNextCharToken(')', ')');
+	/*Token *close */ TOKEN_GETNEXT(')');
 
-	if(close == NULL)
-		return false;
-
+    // Return true if at least IN ( parsed. Other inside can be complex select and ) can be missed
+	// so returning false if ) not found will mean double parsing
 	return true;
 }
 

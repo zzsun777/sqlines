@@ -433,8 +433,8 @@ bool SqlParser::ParseOracleStorageClause()
 		if(next == NULL)
 			break;
 
-		// SEGMENT CREATION IMMEDIATE | DEFERRED
-		if(next->Compare("SEGMENT", L"SEGMENT", 7) == true)
+		// SEGMENT CREATION IMMEDIATE | DEFERRED (or undocumented DB CREATION IMMEDIATE found in one customer)
+		if(next->Compare("SEGMENT", L"SEGMENT", 7) == true || TOKEN_CMP(next, "DB"))
 		{
 			Token *creation = GetNextWordToken("CREATION", L"CREATION", 8);
 			Token *value = GetNextToken();
@@ -874,6 +874,18 @@ bool SqlParser::ParseDb2StorageClause()
 				exists = true;
 				continue;
 			}
+		}
+		else
+		// ORGANIZE BY COLUMN | ROW
+		if(TOKEN_CMP(next, "ORGANIZE"))
+		{
+			Token *by = TOKEN_GETNEXTW("BY");
+
+			Token *column = TOKEN_GETNEXTWP(by, "COLUMN");
+			/*Token *row */ (column == NULL) ? TOKEN_GETNEXTWP(by, "ROW") : NULL;
+
+			exists = true;
+			continue;
 		}
 
 		// Not a DB2 storage clause

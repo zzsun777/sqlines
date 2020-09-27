@@ -29,6 +29,15 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	if(select == NULL)
 		return false;
 
+	Token *select_open = NULL;
+
+	// Any SELECT can be optionally enclosed with () and in this case select points to open
+	if(TOKEN_CMPC(select, '('))
+	{
+		select_open = select;
+		select = GetNextSelectStartKeyword();
+	}
+
 	STATS_DECL
 
 	Token *from = NULL;
@@ -92,6 +101,9 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 	// WHERE
 	ParseWhereClause(SQL_STMT_SELECT, &where_, &where_end, &rowlimit);
 
+	if(_source == SQL_ORACLE)
+		ParseConnectBy();
+
 	// GROUP BY
 	ParseSelectGroupBy();
 
@@ -100,6 +112,13 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 
     // QUALIFY clause in Teradata
     ParseSelectQualify(select, select_list_end);
+
+	Token *select_close = NULL;
+
+	// Check for closing (SELECT ...) before checking for set (UNION i.e.)
+	// Standalone (SELECT ... ) UNION (SELECT ...) is allowed but (SELECT ... UNION SELECT ...) not (standalone, not subquery)
+	if(select_open != NULL)
+		select_close = TOKEN_GETNEXT(')');
 
 	// UNION ALL i.e. must go before ORDER BY and options that belong to the entire SELECT
 	ParseSelectSetOperator(block_scope, select_scope);
@@ -187,6 +206,9 @@ bool SqlParser::ParseSelectStatement(Token *select, int block_scope, int select_
 			_spl_first_non_declare = select;
 	}
 
+	if(select_open != NULL && select_close == NULL)
+		select_close = TOKEN_GETNEXT(')');
+
 	if(select_scope == 0)
 	{
 		STATS_SET_DESC(SQL_STMT_SELECT_DESC)
@@ -252,10 +274,10 @@ bool SqlParser::ParseSubSelect(Token *open, int select_scope)
 // Returns SELECT or WITH if it is the next input token
 Token* SqlParser::GetNextSelectStartKeyword()
 {
-	Token *select = GetNext("SELECT", L"SELECT", 6);
+	// Any SELECT can be optionally enclosed with ()
+	Token *open = TOKEN_GETNEXT('(');
 
-	if(select != NULL)
-		return select;
+	Token *select = GetNext("SELECT", L"SELECT", 6);
 
 	Token *sel = NULL;
 
@@ -269,12 +291,28 @@ Token* SqlParser::GetNextSelectStartKeyword()
 			// Use SELECT in other databases
 			if(_target != SQL_TERADATA)
 				Token::Change(sel, "SELECT", L"SELECT", 6);
-
-			return sel;
 		}
 	}
 
-	return GetNext("WITH", L"WITH", 4);
+	Token *with = NULL;
+
+	if(select == NULL && sel == NULL)
+		with = GetNext("WITH", L"WITH", 4);
+
+	Token *select_keyword = Nvl(select, sel, with);
+
+	if(open != NULL)
+	{
+		if(select_keyword != NULL)
+		{
+			PushBack(select_keyword);
+			return open;
+		}
+		else
+			PushBack(open);
+	}
+
+	return select_keyword;
 }
 
 // Common table expression
@@ -1142,6 +1180,58 @@ bool SqlParser::ParseWhereCurrentOfCursor(int stmt_scope)
 	return true;
 }
 
+// CONNECT BY in Oracle
+bool SqlParser::ParseConnectBy()
+{
+	bool exists = false;
+
+	// CONNECT BY and START WITH can go in any order
+	while(true)
+	{
+		Token *next = GetNextToken();
+
+		if(next == NULL)
+			break;
+
+		// CONNECT BY
+		if(TOKEN_CMP(next, "CONNECT"))
+		{
+			Token *by = TOKEN_GETNEXTW("BY");
+
+			// [PRIOR] condition [AND [PRIOR] condition ...] clauses
+			if(by != NULL)
+			{
+				// Optional PIOR
+				/*Token *prior */ TOKEN_GETNEXTW("PRIOR");
+				ParseBooleanExpression(SQL_BOOL_CONNECT_BY);
+				exists = true;
+			}
+
+			continue;
+		}
+		else
+		// START WITH
+		if(TOKEN_CMP(next, "START"))
+		{
+			Token *with = TOKEN_GETNEXTW("WITH");
+
+			// condition [AND condition ...] clauses
+			if(with != NULL)
+			{
+				ParseBooleanExpression(SQL_BOOL_START_WITH);
+				exists = true;
+			}
+
+			continue;
+		}
+
+		PushBack(next);
+		break;
+	}
+
+	return exists;
+}
+
 // GROUP BY clause in SELECT statement
 bool SqlParser::ParseSelectGroupBy()
 {
@@ -1384,6 +1474,12 @@ bool SqlParser::ParseSelectOptions(Token * /*select*/, Token * /*from_end*/, Tok
 
 				if(skip != NULL)
 					locked = GetNextWordToken("LOCKED", L"LOCKED", 6);
+
+				Token *nowait = NULL;
+
+				// Oracle NOWAIT
+				if(skip == NULL)
+					nowait = TOKEN_GETNEXTW("NOWAIT");
 
 				// MySQL does not support SKIP LOCKED, comment it
 				if(Target(SQL_MARIADB, SQL_MYSQL) && skip != NULL && locked != NULL)

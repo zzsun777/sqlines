@@ -269,6 +269,50 @@ bool SqlParser::ParseSequenceOptions(Token **start_with_out, Token **increment_b
 			exists = true;
 		}
 		else
+		// NOKEEP
+		if(TOKEN_CMP(option, "NOKEEP"))
+		{
+			if(Target(SQL_MYSQL, SQL_MARIADB))
+				Token::Remove(option);
+
+			STATS_DTL_DESC(SEQUENCE_NOKEEP_DESC)
+			STATS_DTL_CONV_OK(Target(SQL_ORACLE, SQL_MARIADB_ORA), STATS_CONV_VERY_LOW, SEQUENCE_NOKEEP_CONV, "")
+
+			SEQ_DTL_STATS_V("NOKEEP", option);
+
+			exists = true;
+		}
+		else
+		// KEEP
+		if(TOKEN_CMP(option, "KEEP"))
+		{
+			if(Target(SQL_MYSQL))
+				Token::Remove(option);
+			else
+			if(Target(SQL_MARIADB))
+				COMMENT_WARN(option, NULL);
+
+			STATS_DTL_DESC(SEQUENCE_KEEP_DESC)
+			STATS_DTL_CONV_ERROR(Target(SQL_MARIADB_ORA), STATS_CONV_HIGH, SEQUENCE_KEEP_CONV, "")
+			SEQ_DTL_STATS_V("KEEP", option);
+			
+			exists = true;
+		}
+		else
+		// GLOBAL
+		if(TOKEN_CMP(option, "GLOBAL"))
+		{
+			if(Target(SQL_MYSQL, SQL_MARIADB))
+				Token::Remove(option);
+
+			STATS_DTL_DESC(SEQUENCE_GLOBAL_DESC)
+			STATS_DTL_CONV_OK(Target(SQL_ORACLE, SQL_MARIADB_ORA), STATS_CONV_VERY_LOW, SEQUENCE_GLOBAL_CONV, "")
+
+			SEQ_DTL_STATS_V("GLOBAL", option);
+
+			exists = true;
+		}
+		else
 		{
 			PushBack(option);
 			break;

@@ -1397,6 +1397,27 @@ Token* SqlParser::GetDeclarationAppend()
 	return append;
 }
 
+// Add RETURN statements for REFCURSORs
+void SqlParser::AddReturnRefcursors(Token *end)
+{
+	if(!Source(SQL_ORACLE) || !Target(SQL_POSTGRESQL) || _spl_refcursor_params_num == 0 || end == NULL)
+		return;
+
+	// Iterate REFCURSORS parameters and add RETURN statement
+	for(ListwItem *i = _spl_refcursor_params.GetFirst(); i != NULL; i = i->next)
+	{
+		Token *cursor = (Token*)i->value;
+
+		PREPEND(end, "RETURN ");
+
+		if(_spl_refcursor_params_num > 1)
+			PREPEND(end, "NEXT ");
+
+		PrependCopy(end, cursor);
+		PREPEND(end, ";\n");
+	}
+}
+
 // Add variable declarations generated in the procedural block
 void SqlParser::AddGeneratedVariables()
 {
@@ -1407,16 +1428,16 @@ void SqlParser::AddGeneratedVariables()
 		MySQLInitNotFoundBeforeOpen();
 	}
 
-	Token *format_indent = _declare_format;
+	Token *format_ident = _declare_format;
 
 	// Oracle uses DECLARE block with the keyword at the beginning so use the variable name to define the indention
 	if(_source == SQL_ORACLE)
 	{
-		format_indent = _spl_last_outer_declare_varname;
+		format_ident = _spl_last_outer_declare_varname;
 
 		// DECLARE is already added before the variable, so use prev token
 		if(_spl_last_outer_declare_varname != NULL && Target(SQL_SQL_SERVER))
-			format_indent = _spl_last_outer_declare_varname->prev;
+			format_ident = _spl_last_outer_declare_varname->prev;
 	}
 
 	Token *format = Nvl(_declare_format, _spl_outer_begin, _spl_outer_as);
@@ -1430,10 +1451,23 @@ void SqlParser::AddGeneratedVariables()
 			Token *append_var = _spl_last_outer_declare_var;
 
 			// sp_executesql requires unicode string
-			APPEND_FMT(append_var, "\n", format_indent);
+			APPEND_FMT(append_var, "\n", format_ident);
 			APPEND_FMT(append_var, "DECLARE ", format);
 			APPEND_NOFMT(append_var, "@sql ");
 			APPEND_FMT(append_var, "NVARCHAR(max);", format);
+		}
+	}
+
+	// Row count variable needs to be added
+	if(_spl_need_rowcount_var)
+	{
+		if(_target == SQL_POSTGRESQL)
+		{
+			Token *append_var = GetDeclarationAppend();
+
+			APPEND_FMT(append_var, "\n", format_ident);
+			APPEND_NOFMT(append_var, "v_sqlrowcount ");
+			APPEND_FMT(append_var, "INT;", format);
 		}
 	}
 }
@@ -1462,6 +1496,7 @@ void SqlParser::ClearSplScope()
 	_spl_first_non_declare = NULL;
     _spl_last_outer_declare_var = NULL;
 	_spl_last_outer_declare_varname = NULL;
+	_spl_current_stmt = NULL;
 	_spl_last_stmt = NULL;
 
 	_spl_new_correlation_name = NULL;
@@ -1470,6 +1505,9 @@ void SqlParser::ClearSplScope()
 	_spl_result_sets = 0;
 	_spl_result_set_cursors.DeleteAll();
 	_spl_result_set_generated_cursors.DeleteAll();
+
+	_spl_refcursor_params_num = 0;
+	_spl_refcursor_params.DeleteAll();
 	
 	_spl_delimiter_set = false;
 	_spl_user_exceptions.DeleteAll();
@@ -1538,6 +1576,7 @@ void SqlParser::ClearSplScope()
 	_spl_func_to_proc = false;
     _spl_not_found_handler = false;
 	_spl_need_not_found_handler = false;
+	_spl_need_rowcount_var = false;
 	_spl_dyn_sql_var = false;
 
 	_spl_monday_1 = false;   // means unknown from context
@@ -1689,4 +1728,13 @@ bool SqlParser::IsFuncToProc(Token *name)
      return true;
 
 	return false;
+}
+
+// Check if the conversion running in evaluation mode and add comment
+void SqlParser::AddEvalModeComment(Token *token)
+{
+	if(token == NULL || !_option_eval_mode)
+		return;
+
+	PREPEND_NOFMT(token, "-- SQLINES LICENSE FOR EVALUATION USE ONLY\n\n");
 }

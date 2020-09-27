@@ -50,6 +50,7 @@ SqlParser::SqlParser()
 
 	ClearSplScope();
 
+	_spl_package_spec = NULL;
 	_spl_package = NULL;
 	_declare_format = NULL;
 	_push_back_token = NULL;
@@ -60,6 +61,8 @@ SqlParser::SqlParser()
     _report = NULL;
 	_java = NULL;
 	_cobol = NULL;
+
+	_option_eval_mode = false;
 }
 
 SqlParser::~SqlParser() {}
@@ -142,6 +145,9 @@ void SqlParser::SetOption(const char *option, const char *value)
 		if(_stats != NULL)
 			_stats->SetSourceFile(value);
 	}
+	else
+	if(_stricmp(option, "__eval_mode__") == 0 && value != NULL)
+		_option_eval_mode = true;
 }
 
 // Perform conversion
@@ -337,15 +343,17 @@ void SqlParser::Parse(Token *token, int scope, int *result_sets)
 
 	exists = ParseExpression(token);
 
-	// Standalone function call
-	if(exists == true && token->type == TOKEN_FUNCTION && token->t_type != TOKEN_STATEMENT && 
-		scope == SQL_SCOPE_PROC)
+	// Standalone function call in Oracle
+	if(exists == true && _source == SQL_ORACLE && token->type == TOKEN_FUNCTION && token->t_type != TOKEN_STATEMENT && 
+		_spl_scope == SQL_SCOPE_PROC)
 	{
+		// PostgreSQL requires PERFORM proc() from within PL/pgSQL or SELECT proc() for standalone execution;
+		if(_target == SQL_POSTGRESQL)
+			PREPEND(token, "PERFORM ");
+		else
 		// Netezza requires explicit CALL keyword
 		if(_target == SQL_NETEZZA)
-		{
-			Prepend(token, "CALL ", L"CALL ", 5);
-		}
+			PREPEND(token, "CALL ");
 	}
 }
 
@@ -982,7 +990,9 @@ bool SqlParser::GetQuotedIdentifier(Token *token, bool starts_as_unquoted)
 		token->type = TOKEN_IDENT;
 		token->str = start;
 		token->len = len;
+		token->line = _line;
 		token->remain_size = _remain_size;
+		token->next_start = _next_start + len;
 
 		_tokens.Add(token);
 
@@ -1508,6 +1518,18 @@ bool SqlParser::GetWordToken(Token *token)
 				continue;
 			}
 
+			// .. in numeric range 1..10 (FOR loop i.e)
+			if(!Source(SQL_SQL_SERVER, SQL_SYBASE) && *cur == '.')
+			{
+				// first . followed by second
+				if(_remain_size > 1 && cur[1] == '.')
+					break;
+				else
+				// second . 
+				if(cur > _start && cur[-1] == '.')
+					break;
+			}
+
 			// * must be after . to not confuse with multiplication operator
 			if(*cur == '*' && (len == 0 || (len > 0 && cur > _start && cur[-1] != '.')))
 				break;
@@ -1980,6 +2002,14 @@ Token* SqlParser::Prepend(Token *token, const char *str, const wchar_t *wstr, si
 	return prepend;
 }
 
+Token* SqlParser::Prepend(Token *token, TokenStr *str, Token *format)
+{
+	if(token == NULL || str == NULL)
+		return NULL;
+
+	return Prepend(token, str->str.c_str(), str->wstr.c_str(), str->len, format);
+}
+
 // Prepend the token without formatting
 Token* SqlParser::PrependNoFormat(Token *token, const char *str, const wchar_t * /*wstr*/, size_t len)
 {
@@ -2162,12 +2192,14 @@ bool SqlParser::IsValidAlias(Token *token)
 	if(_source == SQL_ORACLE)
 	{
 		// Words not allowed as alias in Oracle
-		if(Token::Compare(token, "END", L"END", 3) == true || 
+		if(Token::Compare(token, "CONNECT", L"CONNECT", 7) == true || 
+			Token::Compare(token, "END", L"END", 3) == true || 
 			Token::Compare(token, "GROUP", L"GROUP", 5) == true || 
 			Token::Compare(token, "MINUS", L"MINUS", 5) == true || 
 			Token::Compare(token, "ORDER", L"ORDER", 5) == true || 
 			Token::Compare(token, "RETURN", L"RETURN", 6) == true || 
 			Token::Compare(token, "SELECT", L"SELECT", 6) == true || 
+			Token::Compare(token, "START", L"START", 5) == true /* START WITH after FROM */ ||  
 			Token::Compare(token, "UNION", L"UNION", 5) == true ||
 			Token::Compare(token, "UPDATE", L"UPDATE", 6) == true ||
 			Token::Compare(token, "WHERE", L"WHERE", 5) == true ||
@@ -2179,7 +2211,7 @@ bool SqlParser::IsValidAlias(Token *token)
 	if(_source == SQL_SQL_SERVER || _source == SQL_SYBASE)
 	{
 		// Words not allowed as alias in SQL Server
-		if(TOKEN_CMP(token, "CLOSE") || TOKEN_CMP(token, "DECLARE") ||
+		if(TOKEN_CMP(token, "ALTER") || TOKEN_CMP(token, "CLOSE") || TOKEN_CMP(token, "DECLARE") ||
 			TOKEN_CMP(token, "ELSE") || 
 			TOKEN_CMP(token, "END") || 
 			TOKEN_CMP(token, "EXEC") || 
