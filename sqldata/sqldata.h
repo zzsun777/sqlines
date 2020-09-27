@@ -34,7 +34,7 @@
 #include "applog.h"
 
 #define SQLDATA_NAME  		        "SQLines Data"	
-#define SQLDATA_VERSION_NUMBER		"3.1.737"	
+#define SQLDATA_VERSION_NUMBER		"3.3.31"	
 
 #if defined(_WIN64)
 #define SQLDATA_VERSION				SQLDATA_NAME ## " " ## SQLDATA_VERSION_NUMBER ##" x64"	
@@ -47,7 +47,7 @@
 #endif
 
 #define SQLDATA_DESC				"Database Migration Tool"
-#define SQLDATA_COPYRIGHT			"Copyright (c) 2017 SQLines. All Rights Reserved."
+#define SQLDATA_COPYRIGHT			"Copyright (c) 2020 SQLines. All Rights Reserved."
 
 #define SQLDATA_DEFAULT_SESSIONS	4
 
@@ -72,6 +72,13 @@ struct SqlMetaTask
 	std::string statement;
 
 	SqlMetaTask() {	type = 0; }
+};
+
+struct SqlObjMetaTask
+{
+	SqlObjMeta *source;
+
+	SqlObjMetaTask() {	source = NULL; }
 };
 
 class SqlData
@@ -99,6 +106,7 @@ class SqlData
 	std::map<std::string, std::string> *_queries;
 	// Metadata transfer queue
 	std::list<SqlMetaTask> _meta_tasks;
+	std::list<SqlObjMetaTask> _obj_meta_tasks;
 
 	// Tables that are being processed now (data transfer)
 	std::list<std::string> _tables_in_progress;
@@ -210,6 +218,9 @@ public:
 	int CreateMetadataQueues(std::string &select, std::string &exclude);
 	void CreateMetadataTaskForColumnDefault(SqlColMeta &col);
 
+	// Create tasks queue to transfer non-table objects
+	int CreateObjectQueue(std::string &select, std::string &exclude, int *total_obj, int *total_lines, int *total_bytes);
+
 	// Set schema name mapping
 	void SetSchemaMapping(std::string &map) { _schema_map_str = map; }
 	void SetSchemaMapping();
@@ -315,6 +326,8 @@ private:
 	bool IsDdlRunning(std::string &table);
 	// For trigger task, check that all sequences already created
 	bool IsSequencesCreated();
+	// Check if identity column defined for the table
+	bool IsIdentityDefined(std::string &schema, std::string &table);
 
 	// Get the target name
 	void MapObjectName(std::string &source, std::string &target);

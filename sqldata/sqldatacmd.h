@@ -24,12 +24,13 @@
 #include "sqldata.h"
 #include "applog.h"
 #include "parameters.h"
+#include "license.h"
 
 #define SD_OPTION					"-sd"		// Source database connection string
 #define TD_OPTION					"-td"		// Target database connection string
-#define T_OPTION					"-t"		// List of tables
-#define TF_OPTION					"-tf"		// A file with list of tables
-#define TEXCL_OPTION				"-texcl"	// List of tables to exclude
+#define T_OPTION					"-t"		// List of objects
+#define TF_OPTION					"-tf"		// A file with list of objects
+#define TEXCL_OPTION				"-texcl"	// List of objects to exclude
 #define QF_OPTION					"-qf"		// A file with SQL SELECT queries
 #define CMD_OPTION					"-cmd"		// Command to perform
 #define SMAP_OPTION					"-smap"		// Schema name mapping
@@ -118,6 +119,7 @@ class SqlDataCmd
 	size_t _command_start;
 
 	int _transfer_table_num;
+	int _transfer_obj_num;
 	int _validate_table_num;
 	int _assess_table_num;
 
@@ -140,6 +142,11 @@ class SqlDataCmd
 	int _total_tables;
 	// Tables for which the transfer or validation failed
 	int _failed_tables;
+
+	// Total number of non-table objects
+	int _total_objects;
+	int _total_object_lines;
+	int _total_object_bytes;
 
 	// Total number of DDL statement executed for target database
 	int _total_target_ddl;
@@ -166,6 +173,9 @@ class SqlDataCmd
 	SqlDataCallbackFunc _ui_callback;
 	void *_ui_callback_object;
 
+	// License information
+	License _license;
+
 public:
 	SqlDataCmd();
 
@@ -189,6 +199,10 @@ public:
 	void SetUiCallback(void *o, SqlDataCallbackFunc f) { _ui_callback = f; _ui_callback_object = o; }
 
 	bool IsStdOut() { return _td_stdout; }
+
+	// Set the license information
+	void SetLicense(const char *exe) { _license.Set(exe); }
+	License *GetLicense() { return &_license; }
 
 private:
 	// Connect to the database to read metadata

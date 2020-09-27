@@ -347,8 +347,24 @@ int SqlData::CreateMetadataQueues(std::string &select, std::string &exclude)
 			{
 				task.type = SQLDATA_CMD_ADD_CHECK_CONSTRAINT;
 
+				// Add if( to force a boolean condition conversion - without closing ')'
+				std::string condition_source("if(");
+				condition_source += (*i).condition;
+
+				std::string condition_target;
+
+				// Convert condition to the target syntax seperately (not entire ALTER TABLE statement)
+				// to avoid unintended changes in identifiers
+				ConvertSql(condition_source, condition_target);	
+
 				clause += " CHECK (";
-				clause += (*i).condition;
+
+				// Remove "if("
+				if(condition_target.size() > 3)
+					clause += condition_target.c_str() + 3;
+				else
+					clause += condition_target;
+
 				clause += ")";
 			}
 			else
@@ -357,6 +373,11 @@ int SqlData::CreateMetadataQueues(std::string &select, std::string &exclude)
 			{
 				if((*i).type == 'P')
 				{
+					// For target MySQL, MariaDB a primary key is defined in CREATE TABLE
+					// if the table has an identity column, so skip PK in ALTER TABLE
+					if(_target_type == SQLDATA_MYSQL && IsIdentityDefined(schema, table))
+						continue;
+
 					task.type = SQLDATA_CMD_ADD_PRIMARY_KEY;
 					clause += " PRIMARY KEY (";
 				}
@@ -617,6 +638,54 @@ int SqlData::CreateMetadataQueues(std::string &select, std::string &exclude)
 			_meta_tasks.push_back(task);
 		}
 	}
+
+	return rc;
+}
+
+// Create tasks queue to transfer non-table objects
+int SqlData::CreateObjectQueue(std::string &select, std::string &exclude, int *total_obj, int *total_lines, int *total_bytes)
+{
+	size_t obj_cnt  = 0;
+	size_t obj_lines  = 0;
+	size_t obj_bytes  = 0;
+
+	_obj_meta_tasks.clear();
+
+	// Read source objects
+	int rc = _db.ReadObjects(SQLDB_SOURCE_ONLY, select, exclude);
+
+	// Stored procedures
+	std::list<SqlObjMeta> *procedures = _db.GetProcedures(SQLDB_SOURCE_ONLY);
+
+	if(procedures != NULL)
+	{
+		obj_cnt += procedures->size();
+
+		for(std::list<SqlObjMeta>::iterator i = procedures->begin(); i != procedures->end(); i++)
+		{
+			SqlObjMetaTask task;
+			task.source = &(*i);
+
+			_obj_meta_tasks.push_back(task);
+
+			size_t bytes = 0;
+			size_t lines = 0;
+
+			Str::GetSizeAndLines((*i).text, &bytes, &lines);
+
+			obj_bytes += bytes;
+			obj_lines += lines;			
+		}
+	}
+
+	if(total_obj != NULL)
+		*total_obj = obj_cnt;
+
+	if(total_lines != NULL)
+		*total_lines = obj_lines;
+
+	if(total_bytes != NULL)
+		*total_bytes = obj_bytes;
 
 	return rc;
 }
@@ -1671,16 +1740,10 @@ int SqlData::StartLocalWorker(SqlDb *sqlDb)
 			reply.rc = sqlDb->ExecuteNonQuery(SQLDB_TARGET_ONLY, reply, task.statement.c_str());
 		}
 		else
-		// Add a CHECK constraint (expression conversion is performed)
+		// Add a CHECK constraint (expression conversion was already performed)
 		if(task.type == SQLDATA_CMD_ADD_CHECK_CONSTRAINT)
 		{
-			std::string source_stmt = task.statement;
-			std::string target_stmt;
-
-			// Convert SQL to the target syntax
-			ConvertSql(source_stmt, target_stmt);
-
-			reply.rc = sqlDb->ExecuteNonQuery(SQLDB_TARGET_ONLY, reply, target_stmt.c_str());
+			reply.rc = sqlDb->ExecuteNonQuery(SQLDB_TARGET_ONLY, reply, task.statement.c_str());
 		}
 		else
 		if(task.type == SQLDATA_CMD_CREATE_SEQUENCE)
@@ -2405,6 +2468,12 @@ int SqlData::SetConcurrentSessions(int max_sessions, int table_count)
 	_max_sessions = (max_sessions <= table_count) ? max_sessions : table_count;
 
 	return _max_sessions;
+}
+
+// Check if identity column defined for the table
+bool SqlData::IsIdentityDefined(std::string &schema, std::string &table)
+{
+	return _db.IsIdentityDefined(SQLDB_SOURCE_ONLY, schema, table);
 }
 
 // Get primary or unique key columns

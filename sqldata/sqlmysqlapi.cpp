@@ -384,7 +384,10 @@ int SqlMysqlApi::InitSession()
 
 	// mysql_set_character_set is available since 5.0.7
 	if(Str::IsSet(value) == true && _mysql_set_character_set != NULL)
+	{
 		rc = _mysql_set_character_set(&_mysql, value);
+		TRACE_P("MySQL/C InitSession() set character set: %s", value);
+	}
 
 	value = _parameters->Get("-mysql_set_foreign_key_checks");
 
@@ -412,6 +415,15 @@ int SqlMysqlApi::InitSession()
 	}
 	else
 		rc = ExecuteNonQuery("SET sql_log_bin=0", NULL);
+
+	// SET UNIQUE_CHECKS option for MariaDB
+	if(_subtype == SQLDATA_SUBTYPE_MARIADB)
+	{
+		value = _parameters->Get("-mariadb_set_unique_checks");
+
+		if(Str::IsSet(value))
+			rc = ExecuteNonQuery(std::string("SET unique_checks=").append(value).c_str(), NULL);
+	}
 
 	// If AUTOCOMMIT is set to 0 in the database or client side, LOAD DATA INFILE requires a COMMIT statement 
 	// to put data to the table, so we force AUTOCOMMIT to 1 for connection
@@ -1003,9 +1015,12 @@ int SqlMysqlApi::local_infile_read(char *buf, unsigned int buf_len)
 
 #if defined(_WIN64)
 				// DB2 11 64-bit CLI driver still writes indicators to 4-byte array
-				if(_source_api_type == SQLDATA_DB2 && _ldi_cols[k].ind[0] & 0xFFFFFFFF00000000)
+				if(_source_api_type == SQLDATA_DB2 /*&& _ldi_cols[k].ind[0] & 0xFFFFFFFF00000000*/)
 					len = ((int*)(_ldi_cols[k].ind))[i];
 #endif
+				// DB2 supports TIMESTAMP(12), it cause Data truncation warning, so trim it
+				if(_source_api_type == SQLDATA_DB2 && _ldi_cols[k]._native_dt == SQL_TYPE_TIMESTAMP && len > 26)
+					len = 26;
 			}
 			
 			bool no_space = false;
@@ -1035,7 +1050,10 @@ int SqlMysqlApi::local_infile_read(char *buf, unsigned int buf_len)
 				// ODBC CHAR
 				((_source_api_type == SQLDATA_ODBC || _source_api_type == SQLDATA_INFORMIX || 
 				 _source_api_type == SQLDATA_DB2 || _source_api_type == SQLDATA_SQL_SERVER) && 
-							_ldi_cols[k]._native_fetch_dt == SQL_C_CHAR))
+							_ldi_cols[k]._native_fetch_dt == SQL_C_CHAR) ||
+				// DB2 BINARY
+				((_source_api_type == SQLDATA_ODBC || _source_api_type == SQLDATA_DB2) && 
+					_ldi_cols[k]._native_fetch_dt == SQL_C_BINARY))
 			{
 				// Copy data 
 				for(int m = _ldi_current_col_len; m < len; m++)

@@ -68,6 +68,8 @@ SqlCtApi::~SqlCtApi()
 // Initialize API
 int SqlCtApi::Init()
 {
+	TRACE("Sybase CTLIB Init() Entered");
+
 #if defined(WIN32) || defined(_WIN64)
 
 	// Try to load the library by default path
@@ -194,6 +196,7 @@ int SqlCtApi::Init()
 	else
 	{
 		Os::GetLastErrorText(CTLIB_DLL_LOAD_ERROR, _native_error_text, 1024);
+		TRACE("Sybase CTLIB Init() Left with error");
 		return -1;
 	}
 
@@ -207,6 +210,12 @@ int SqlCtApi::Init()
 		_cs_loc_alloc(_context, &_locale);
 		_cs_locale(_context, CS_SET, _locale, CS_LC_ALL, (CS_CHAR*)NULL, CS_UNUSED, (CS_INT*)NULL);
 
+		// Check if client codepage is specified, by default it is iso_1
+		char *codepage = _parameters->Get("-sybase_codepage");
+
+		if(Str::IsSet(codepage))
+			ret = _cs_locale(_context, CS_SET, _locale, CS_SYB_CHARSET, codepage, strlen(codepage), (CS_INT*)NULL);
+
 		// Define the string format for all data types
 		CS_INT dt_fmt_type = CS_DATES_YMDHMSUS_YYYY;
 		_cs_dt_info(_context, CS_SET, _locale, CS_DT_CONVFMT, CS_UNUSED, (CS_VOID*)&dt_fmt_type, CS_SIZEOF(CS_INT), NULL);
@@ -214,9 +223,11 @@ int SqlCtApi::Init()
 		// Set the locate with the new format
 		_cs_config(_context, CS_SET, CS_LOC_PROP, _locale, CS_UNUSED, NULL);
 
+		TRACE_P("Sybase CTLIB Init() Left, retcode %d", ret);
 		return (ret == CS_SUCCEED) ? 0 : -1;
 	}
 
+	TRACE("Sybase CTLIB Init() Left");
 	return 0;
 }
 
@@ -229,22 +240,32 @@ void SqlCtApi::SetConnectionString(const char *conn)
 // Connect to the database
 int SqlCtApi::Connect(size_t *time_spent)
 {
+	TRACE("Sybase CTLIB Connect() Entered");
+
 	if(_connected == true)
 		return 0;
 
 	size_t start = (time_spent != NULL) ? Os::GetTickCount() : 0;
 
 	CS_RETCODE rc = _ct_con_alloc(_context, &_connection);
+	TRACE_P("Sybase CTLIB ct_con_alloc(), retcode %d", rc);
 
 	if(rc != CS_SUCCEED)
+	{
+		TRACE("Sybase CTLIB Connect() Left with error");
 		return -1;
+	}
 
 	// Initialize inline error handling (without using callbacks)
 	rc = _ct_diag(_connection, CS_INIT, CS_UNUSED, CS_UNUSED, NULL);
+	TRACE_P("Sybase CTLIB ct_diag(), retcode %d", rc);
 
 	// Set user name and password
 	rc = _ct_con_props(_connection, CS_SET, CS_USERNAME, (CS_VOID*)_user.c_str(), CS_NULLTERM, NULL);
+	TRACE_P("Sybase CTLIB ct_con_props() CS_USERNAME, retcode %d", rc);
+
 	rc = _ct_con_props(_connection, CS_SET, CS_PASSWORD, (CS_VOID*)_pwd.c_str(), CS_NULLTERM, NULL);
+	TRACE_P("Sybase CTLIB ct_con_props() CS_PASSWORD, retcode %d", rc);
 
 	// Check if password encryption required
 	if(_parameters->GetTrue("-sybase_encrypted_password") != NULL)
@@ -264,14 +285,17 @@ int SqlCtApi::Connect(size_t *time_spent)
 		// Use format "server port"
 		std::string serveraddr = _server + " " + _port;
 		rc = _ct_con_props(_connection, CS_SET, CS_SERVERADDR, (CS_VOID*)serveraddr.c_str(), CS_NULLTERM, NULL);
+		TRACE_P("Sybase CTLIB ct_con_props() CS_SERVERADDR, retcode %d", rc);
 	}
 
 	// Connect to the server
 	rc = _ct_connect(_connection, (CS_CHAR*)server, CS_NULLTERM);
+	TRACE_P("Sybase CTLIB ct_connect(), retcode %d", rc);
 
 	if(rc != CS_SUCCEED)
 	{
 		SetError();
+		TRACE("Sybase CTLIB Connect() Left with error");
 		return -1;
 	}
 	
@@ -280,16 +304,20 @@ int SqlCtApi::Connect(size_t *time_spent)
 	{
 		CS_COMMAND *cmd;
 		rc = _ct_cmd_alloc(_connection, &cmd);
+		TRACE_P("Sybase CTLIB ct_cmd_alloc(), retcode %d", rc);
 
 		std::string sql = "USE ";
 		sql += _db;
 
 		// Add command to the buffer
 		rc = _ct_command(cmd, CS_LANG_CMD, (CS_CHAR*)sql.c_str(), CS_NULLTERM, CS_UNUSED);
+		TRACE_P("Sybase CTLIB ct_command(), retcode %d", rc);
 
 		// Send command
 		if(rc == CS_SUCCEED)
 			rc = _ct_send(cmd);
+
+		TRACE_P("Sybase CTLIB ct_send(), retcode %d", rc);
 
 		CS_INT type = 0;
 
@@ -304,6 +332,7 @@ int SqlCtApi::Connect(size_t *time_spent)
 		}
 
 		rc = _ct_cmd_drop(cmd);
+		TRACE_P("Sybase CTLIB ct_cmd_drop(), retcode %d", rc);
 	}
 	else
 		_connected = true;
@@ -313,6 +342,8 @@ int SqlCtApi::Connect(size_t *time_spent)
 
 	if(time_spent != NULL)
 		*time_spent = Os::GetTickCount() - start;
+
+	TRACE("Sybase CTLIB Connect() Left");
 		
 	return (_connected == true) ? 0 : -1;
 }
@@ -450,17 +481,8 @@ int SqlCtApi::ExecuteNonQuery(const char *query, size_t *time_spent)
 
 	bool error = false;
 
-	// Error raised
-	/*if(_PQresultStatus(result) != PGRES_COMMAND_OK)
-	{
-		SetError();
-		error = true;
-	}*/
-
 	if(time_spent != NULL)
 		*time_spent = Os::GetTickCount() - start;
-
-	//_PQclear(result);
 
 	return (error == true) ? -1 : 0;
 }
@@ -472,28 +494,40 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 	if(query == NULL) 
 		return -1;
 
+	TRACE("Sybase CTLIB OpenCursor() Entered");
+
 	size_t start = Os::GetTickCount();
 
 	// Reset the previous errors
-	_ct_diag(_connection, CS_CLEAR, CS_CLIENTMSG_TYPE, CS_UNUSED, NULL);
-	_ct_diag(_connection, CS_CLEAR, CS_SERVERMSG_TYPE, CS_UNUSED, NULL);
+	int rc = _ct_diag(_connection, CS_CLEAR, CS_CLIENTMSG_TYPE, CS_UNUSED, NULL);
+	TRACE_P("Sybase CTLIB ct_diag(), retcode %d", rc);
+
+	rc = _ct_diag(_connection, CS_CLEAR, CS_SERVERMSG_TYPE, CS_UNUSED, NULL);
+	TRACE_P("Sybase CTLIB ct_diag(), retcode %d", rc);
 
 	// Allocate command 
-	int rc = _ct_cmd_alloc(_connection, &_cursor_cmd);
+	rc = _ct_cmd_alloc(_connection, &_cursor_cmd);
+	TRACE_P("Sybase CTLIB ct_cmd_alloc(), retcode %d", rc);
 
 	rc = _ct_command(_cursor_cmd, CS_LANG_CMD, (CS_CHAR*)query, CS_NULLTERM, CS_UNUSED);
+	TRACE_P("Sybase CTLIB ct_command(), retcode %d", rc);
 
 	// Send the command
 	if(rc == CS_SUCCEED)
+	{
 		rc = _ct_send(_cursor_cmd);
+		TRACE_P("Sybase CTLIB ct_send(), retcode %d", rc);
+	}
 
 	CS_INT type = 0;
 
 	if(rc != CS_SUCCEED)
 	{
 		SetError();
-		_ct_cmd_drop(_cursor_cmd);
+		rc = _ct_cmd_drop(_cursor_cmd);
 
+		TRACE_P("Sybase CTLIB ct_cmd_drop(), retcode %d", rc);
+		TRACE("Sybase CTLIB OpenCursor() Left with error");
 		return -1;
 	}
 
@@ -507,13 +541,19 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		// We must cancel of fetch all ct_results before dropping the command; otherwise this drop fails and all subsequent statements will fail as well
 		rc = _ct_cancel(NULL, _cursor_cmd, CS_CANCEL_ALL);
 		rc = _ct_cmd_drop(_cursor_cmd);
+
+		TRACE("Sybase CTLIB OpenCursor() Left with error");
 		return -1;
 	}
 
 	// Define the number of columns
 	rc = _ct_res_info(_cursor_cmd, CS_NUMDATA, &_cursor_cols_count, CS_UNUSED, NULL);
+	TRACE_P("Sybase CTLIB ct_res_info(), retcode %d", rc);
+	TRACE_P("Sybase CTLIB number of columns %d", (int)_cursor_cols_count);
 
 	CS_DATAFMT *fmt = NULL;
+
+	_cursor_lob_exists = false;
 
 	if(_cursor_cols_count > 0)
 	{
@@ -532,6 +572,8 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		// CS_LONGCHAR_TYPE is returned for VARCHAR > 255 (max length is 32K since ASE 12.5)
 
 		rc = _ct_describe(_cursor_cmd, i + 1, &fmt[i]);
+		TRACE_P("Sybase CTLIB ct_describe(), retcode %d", rc);
+		TRACE_P("Sybase CTLIB data type %d, len %d, name len %d", (int)fmt[i].datatype, (int)fmt[i].maxlength, (int)fmt[i].namelen);
 
 		// Copy the column name
 		if(fmt[i].namelen > 0)
@@ -539,16 +581,21 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 			strncpy(_cursor_cols[i]._name, fmt[i].name, (size_t)fmt[i].namelen);
 			_cursor_cols[i]._name[fmt[i].namelen] = '\x0';
 		}
+		else
+			_cursor_cols[i]._name[0] = '\x0';
 
 		// Get column native data type
 		_cursor_cols[i]._native_dt = fmt[i].datatype;
-
+		
 		// Get column length for character and binary strings
 		_cursor_cols[i]._len = (size_t)fmt[i].maxlength;
 				
-		// For TEXT and UNITEXT Sybase ASE 16 returns size 32768, change to 1M
+		// For TEXT and UNITEXT Sybase ASE 16 returns size 32768, change to a few MB
 		if(_cursor_cols[i]._native_dt == CS_TEXT_TYPE || _cursor_cols[i]._native_dt == CS_UNITEXT_TYPE)
-			_cursor_cols[i]._len = 1048576;
+		{
+			_cursor_cols[i]._len = 10 * 1048576;
+			_cursor_lob_exists = true;
+		}
 
 		row_size += _cursor_cols[i]._len;
 
@@ -572,6 +619,11 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		_cursor_allocated_rows = rows > 0 ? rows : 1;
 	}	
 
+	if(_cursor_lob_exists)
+		_cursor_allocated_rows = 1;
+
+	TRACE_P("Sybase CTLIB allocated rows %d", (int)_cursor_allocated_rows);
+
 	// Allocate buffers for each column
 	for(int i = 0; i < _cursor_cols_count; i++)
 	{
@@ -580,9 +632,11 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		{
 			// Do not bind to null-terminating string as zero byte will be included to length indicator
 			_cursor_cols[i]._native_fetch_dt = _cursor_cols[i]._native_dt;
-			_cursor_cols[i]._fetch_len = _cursor_cols[i]._len;
+			_cursor_cols[i]._fetch_len = _cursor_cols[i]._len + 1;
 
 			_cursor_cols[i]._data = new char[_cursor_cols[i]._fetch_len * _cursor_allocated_rows];
+
+			fmt[i].maxlength = (CS_INT)_cursor_cols[i]._fetch_len;
 		}
 		else
 		// BINARY data type
@@ -824,6 +878,8 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		// Bind the data to array
 		if(_cursor_cols[i]._data != NULL)
 		{
+			TRACE("Sybase CTLIB data defined for column");
+
 			// Allocate indicators
 			_cursor_cols[i]._ind2 = new short[_cursor_allocated_rows];
 			_cursor_cols[i]._len_ind4 = new int[_cursor_allocated_rows];
@@ -832,6 +888,7 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 
 			rc = _ct_bind(_cursor_cmd, i + 1, &fmt[i], _cursor_cols[i]._data, (CS_INT*)_cursor_cols[i]._len_ind4,
 				_cursor_cols[i]._ind2);
+			TRACE_P("Sybase CTLIB ct_bind(), retcode %d", rc);
 		}
 	}
 
@@ -841,6 +898,7 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 
 	// Fetch the initial set of data
 	rc = _ct_fetch(_cursor_cmd, CS_UNUSED, CS_UNUSED, CS_UNUSED, (CS_INT*)&fetched);
+	TRACE_P("Sybase CTLIB ct_fetch(), rows %d, retcode %d", fetched, rc);
 
 	// CS_END_DATA is returned if there is no rows in the table, 
 	// CS_SUCCEED is still returned if there are less rows than allocated buffer 
@@ -850,6 +908,7 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 		SetError();
 		CloseCursor();
 
+		TRACE("Sybase CTLIB OpenCursor() Left with error");
 		return -1;
 	}
 
@@ -871,6 +930,7 @@ int SqlCtApi::OpenCursor(const char *query, size_t buffer_rows, int buffer_memor
 	if(time_spent != NULL)
 		*time_spent = Os::GetTickCount() - start;
 
+	TRACE("Sybase CTLIB OpenCursor() Left");
 	return (rc == CS_END_DATA) ? 100 : 0;
 }
 
@@ -907,6 +967,8 @@ int SqlCtApi::Fetch(int *rows_fetched, size_t *time_spent)
 // Close the cursor and deallocate buffers
 int SqlCtApi::CloseCursor()
 {
+	TRACE("Sybase CTLIB CloseCursor() Entered");
+
 	// Close cursor can be called when not all rows are fetched (error creating table in the target database i.e.), so we need to cancel command
 	int	rc = _ct_cancel(NULL, _cursor_cmd, CS_CANCEL_ALL);
 	
@@ -917,17 +979,24 @@ int SqlCtApi::CloseCursor()
 	// Delete allocated buffers
 	for(int i = 0; i < _cursor_cols_count; i++)
 	{
+		TRACE("Sybase CTLIB free data");
 		delete [] _cursor_cols[i]._data;
+
+		TRACE("Sybase CTLIB free indicators");
 		delete [] _cursor_cols[i]._ind2;
+
+		TRACE("Sybase CTLIB free length indicators");
 		delete [] _cursor_cols[i]._len_ind4;
 	}
 
+	TRACE("Sybase CTLIB free columns");
 	delete [] _cursor_cols;
 
 	_cursor_cols = NULL;
 	_cursor_cols_count = 0;
 	_cursor_allocated_rows = 0;
 
+	TRACE("Sybase CTLIB CloseCursor() Left");
 	return 0;
 }
 
@@ -1103,6 +1172,23 @@ int SqlCtApi::ReadSchema(const char *select, const char *exclude, bool read_cns,
 
 	if(read_cns)
 		rc = ReadReferences(condition);
+
+	return rc;
+}
+
+// Read schema information
+int SqlCtApi::ReadObjects(const char *select, const char *exclude)
+{
+	std::string condition;
+
+	ClearSchema();
+
+	// Get a condition to select objects from the catalog
+	// User can see multiple schemas in the database
+	// * means all user tables, *.* means all tables accessible by the user
+	GetSelectionCriteria(select, exclude, "u.name", "o.name", condition, "dbo", false);
+
+	int rc = ReadObjects(condition);
 
 	return rc;
 }
@@ -1587,6 +1673,142 @@ int SqlCtApi::ReadReferences(std::string &condition)
 	cns.idxname = NULL;
 	cns.pk_schema = NULL; 
 	cns.pk_table = NULL;
+	CloseCursor();
+
+	return 0;
+}
+
+// Read information about non-table objects (objects with source code)
+int SqlCtApi::ReadObjects(std::string &condition)
+{
+	// Tested on Sybase ASE 16
+	std::string query = "SELECT o.id, o.type, u.name, o.name, c.text";
+	query += " FROM sysusers u, syscomments c, sysobjects o";
+	query += " WHERE o.type = 'P' AND o.id = c.id AND o.uid = u.uid";
+
+	if(condition.empty() == false)
+	{
+		query += " AND ";
+		query += condition;
+	}
+	
+	query += " ORDER BY o.id, c.colid";
+	
+	size_t col_count = 0;
+	size_t allocated_rows = 0;
+	int rows_fetched = 0; 
+	size_t time_read = 0;
+	
+	SqlCol *cols = NULL;
+	SqlObjMeta obj_meta;
+
+	int prev_id = -1;
+	std::string text;
+	
+	// Open cursor allocating 100 rows buffer
+	int rc = OpenCursor(query.c_str(), 100, 0, &col_count, &allocated_rows, &rows_fetched, &cols, 
+		&time_read, true);
+
+	while(rc >= 0)
+	{
+		// Copy column information
+		for(int i = 0; i < rows_fetched; i++)
+		{
+			SQLLEN len;
+			int id = -1;
+
+			len = GetLen(&cols[0], i);
+			
+			// Object ID (INTEGER)
+			if(len == 4)
+				id = *((int*)(cols[0]._data + cols[0]._fetch_len * i));
+
+			// First chunk of new object
+			if(prev_id == -1 || obj_meta.id != id)
+			{
+				// Save the previous object
+				if(prev_id != -1)
+				{
+					obj_meta.text = new char[text.length() + 1];
+					strcpy(obj_meta.text, text.c_str());
+					text.clear();
+
+					if(obj_meta.type == 'P')
+						_procedures.push_back(obj_meta);
+				}
+				
+				obj_meta.schema = NULL;
+				obj_meta.name = NULL;
+				obj_meta.text = NULL;
+				obj_meta.id = id;				
+
+				len = GetLen(&cols[1], i);
+
+				// Object type, CHAR(2)
+				if(len == 2)
+				{
+					char *tp = cols[1]._data + cols[1]._fetch_len * i;
+
+					if(tp[0] == 'P' && tp[1] == ' ')
+						obj_meta.type = 'P';
+				}
+
+				len = GetLen(&cols[2], i);
+
+				// Schema
+				if(len != -1)
+				{
+					obj_meta.schema = new char[(size_t)len + 1];
+
+					strncpy(obj_meta.schema, cols[2]._data + cols[2]._fetch_len * i, (size_t)len);
+					obj_meta.schema[len] = '\x0';
+				}
+
+				len = GetLen(&cols[3], i);
+
+				// Object name
+				if(len != -1)
+				{
+					obj_meta.name = new char[(size_t)len + 1];
+
+					strncpy(obj_meta.name, cols[3]._data + cols[3]._fetch_len * i, (size_t)len);
+					obj_meta.name[len] = '\x0';
+				}
+
+				obj_meta.id = id;
+				prev_id = id;
+			}
+			
+			len = GetLen(&cols[4], i);
+
+			// Chunk of code
+			if(len != -1)
+				text.append(cols[4]._data + cols[4]._fetch_len * i, (size_t)len);
+		}
+
+		if(rc != 100)
+			rc = Fetch(&rows_fetched, &time_read);
+
+		// No more rows
+		if(rc == 100)
+			break;
+	}
+
+	// Save the last object
+	if(obj_meta.schema != NULL && !text.empty())
+	{
+		obj_meta.text = new char[text.length() + 1];
+		strcpy(obj_meta.text, text.c_str());
+
+		if(obj_meta.type == 'P')
+			_procedures.push_back(obj_meta);
+	}
+
+	// Set pointer to NULL to avoid delete if destructor (values belong to list now)
+	obj_meta.schema = NULL;
+	obj_meta.name = NULL;
+	obj_meta.text = NULL;
+
 	CloseCursor();
 
 	return 0;

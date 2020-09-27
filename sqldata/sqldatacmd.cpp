@@ -46,6 +46,9 @@ SqlDataCmd::SqlDataCmd()
 
 	_total_tables = 0;
 	_failed_tables = 0;
+	_total_objects = 0;
+	_total_object_lines = 0;
+	_total_object_bytes = 0;
 
 	_total_target_ddl = 0;
 	_failed_target_ddl = 0;
@@ -59,6 +62,7 @@ SqlDataCmd::SqlDataCmd()
 	_ui_callback_object = NULL;
 
 	_transfer_table_num = 1;
+	_transfer_obj_num = 1;
 	_validate_table_num = 1;
 	_assess_table_num = 1;
 
@@ -125,18 +129,24 @@ int SqlDataCmd::Run()
 	rc = ReadMetadata();
 
 	// No tables selected
-	if(_total_tables == 0)
+	if(_total_tables == 0 && _total_objects == 0)
 		return 0;
 
-	// Remove foreign keys for selected tables if DROP or TRUNCATE options are set
-	rc = DropReferences();
-
-	int workers = _sqlData.SetConcurrentSessions(_concurrent_sessions, _total_tables);
+	int workers = (_command != SQLDATA_CMD_TRANSFER_OBJ) ? _sqlData.SetConcurrentSessions(_concurrent_sessions, _total_tables) : 1;
 	
 	if(_command == SQLDATA_CMD_TRANSFER)
 	{
+		// Remove foreign keys for selected tables if DROP or TRUNCATE options are set
+		rc = DropReferences();
+
 		_log.Log("\n\nTransferring database ");
 		_transfer_table_num = 1;
+	}
+	else
+	if(_command == SQLDATA_CMD_TRANSFER_OBJ)
+	{
+		_log.Log("\n\nTransferring database objects ");
+		_transfer_obj_num = 1;
 	}
 	else
 	if(_command == SQLDATA_CMD_VALIDATE)
@@ -158,7 +168,7 @@ int SqlDataCmd::Run()
 
 	_log.Log("(%d %s):\n", workers, (workers == 1) ? "session" : "concurrent sessions");
 
-	// Process tables
+	// Process tables or objects
 	if(rc != -1)
 		rc = _sqlData.Run();
 
@@ -979,7 +989,7 @@ int SqlDataCmd::Connect()
 
 	int rc = -1;
 
-	if(_command == SQLDATA_CMD_TRANSFER || _command == SQLDATA_CMD_VALIDATE)
+	if(_command == SQLDATA_CMD_TRANSFER || _command == SQLDATA_CMD_TRANSFER_OBJ || _command == SQLDATA_CMD_VALIDATE)
 	{
 		_log.Log("\n\nConnecting to databases");
 
@@ -1091,7 +1101,13 @@ int SqlDataCmd::ReadMetadata()
 
 		// Get list of tables available in the source database
 		if(!_t.empty())
-			rc = _sqlData.GetAvailableTables(_t, _texcl, avail_tables); 
+		{
+			if(_command != SQLDATA_CMD_TRANSFER_OBJ)
+				rc = _sqlData.GetAvailableTables(_t, _texcl, avail_tables); 
+			else
+				// For non-table objects source code will be read later
+				rc = 0;
+		}
 		else
 		// Get list from file
 		if(!_tf.empty())
@@ -1135,6 +1151,8 @@ int SqlDataCmd::ReadMetadata()
 		_log.Log(" (%d %s)", _total_tables, SUFFIX2(_total_tables, "query", "queries"));
 	}
 	else
+	// Tables
+	if(_command != SQLDATA_CMD_TRANSFER_OBJ)
 	{
 		// Add all tables to the list
 		for(std::list<std::string>::iterator i = avail_tables.begin(); i != avail_tables.end(); i++)
@@ -1175,6 +1193,21 @@ int SqlDataCmd::ReadMetadata()
 
 			_ui_callback(_ui_callback_object, &reply);
 		}
+	}
+	else
+	// Non-table objects
+	if(_command == SQLDATA_CMD_TRANSFER_OBJ)
+	{
+		_sqlData.CreateObjectQueue(_t, _texcl, &_total_objects, &_total_object_lines, &_total_object_bytes);
+
+		char time_fmt[21];
+		Str::FormatTime(GetTickCount() - start, time_fmt);
+
+		char bytes_fmt[21];
+		Str::FormatByteSize((double)_total_object_bytes, bytes_fmt);
+
+		_log.Log(" (%d object%s, %d line%s, %s, %s)", _total_objects, SUFFIX(_total_objects), _total_object_lines, SUFFIX(_total_object_lines), 
+			bytes_fmt, time_fmt);
 	}
 	
 	return 0;
@@ -1381,6 +1414,15 @@ int SqlDataCmd::SetParameters()
 
 	_log.Log("\n%s - %s.\n%s", SQLDATA_VERSION, SQLDATA_DESC, SQLDATA_COPYRIGHT);
 
+	// Show the license message if required
+	if(_license.IsLicenseCheckRequired())
+	{
+		if(_license.IsEmpty())
+			_log.Log("\n\nThe product is FOR EVALUATION USE ONLY.");
+		else
+			_log.Log("\n\nThe product is licensed to %s.", _license.GetName().c_str());
+	}
+
 	if(_parameters.Get(TRACE_OPTION) != NULL)
 		_log.Trace(SQLDATA_VERSION);
 
@@ -1551,19 +1593,19 @@ int SqlDataCmd::SetParameters()
 		_sqlData.SetLocalWorkers(_local_workers);
 	}
 
-	// Mandatory parameter -t must be set, and if not print how to use
+	// Some mandatory parameters must be set, and if not print how to use and exist
 	if(_sd.empty() || _td.empty() || _parameters.Get(HELP_PARAMETER) || (_t.empty() && _tf.empty() && _qf.empty()))
 	{
 		_log.Log("\n\nCommand line error:\n");
 
 		if(_sd.empty() == true)
-			_log.Log("\n   -sd option not set");
+			_log.Log("\n   -sd option is not set");
 
 		if(_td.empty() == true)
-			_log.Log("\n   -td option not set");
+			_log.Log("\n   -td option is not set");
 
-		if(_t.empty() == true)
-			_log.Log("\n   -t option not set");
+		if(_t.empty() && _tf.empty() && _qf.empty())
+			_log.Log("\n   -t, -tf or -qf option is not set");
 
 		PrintHowToUse();
 		return -1;
@@ -1708,6 +1750,9 @@ void SqlDataCmd::DefineCommand()
 
 	const char *cur = Str::SkipSpaces(_cmd.c_str());
 
+	if(_strnicmp(cur, "transfer_obj", 12) == 0)
+		_command = SQLDATA_CMD_TRANSFER_OBJ;
+	else
 	if(_strnicmp(cur, "transfer", 8) == 0)
 		_command = SQLDATA_CMD_TRANSFER;
 	else
@@ -1808,9 +1853,10 @@ void SqlDataCmd::PrintHowToUse()
 	printf("\n\nOptions:\n");
 	printf("\n   -sd       - Source database connection string");
 	printf("\n   -td       - Target database connection string");
-	printf("\n   -t        - List of tables (wildcards *.* are allowed)");
-	printf("\n   -tf       - File with a list of tables");
-	printf("\n   -texcl    - Tables to exclude (wildcards *.* are allowed)");
+	printf("\n   -t        - List of objects (wildcards *.* are allowed)");
+	printf("\n   -tf       - File with a list of objects");
+	printf("\n   -texcl    - Objects to exclude (wildcards *.* are allowed)");
+	printf("\n   -qf       - Query file");
 	printf("\n   -out      - Output directory (the current directory by default)");
 	printf("\n   -log      - Log file (sqldata.log by default)");
 	printf("\n   -?        - Print how to use");

@@ -335,6 +335,11 @@ int SqlSncApi::ExecuteScalar(const char *query, int *result, size_t *time_spent)
 // Execute the statement
 int SqlSncApi::ExecuteNonQuery(const char *query, size_t *time_spent)
 {
+	if(query == NULL)
+		return -1;
+
+	TRACE_P("SQL Server ExecuteNonQuery() Entered:\n%s", query);
+
 	SQLHANDLE stmt;
 
 	size_t start = GetTickCount();
@@ -353,6 +358,8 @@ int SqlSncApi::ExecuteNonQuery(const char *query, size_t *time_spent)
 
 	if(time_spent != NULL)
 		*time_spent = GetTickCount() - start;
+
+	TRACE_P("SQL Server ExecuteNonQuery() Left, retcode %d", rc);
 
 	return rc;
 }
