@@ -47,6 +47,8 @@ int Sqlines::Run(int argc, char** argv)
 {
 	_total_files = 0;
 
+	_license.Set(argv[0]);
+
 	// Read and validate parameters
 	int rc = SetParameters(argc, argv);
 
@@ -130,8 +132,12 @@ int Sqlines::ProcessFiles()
 
         if(_a)
         {
+			std::string report_summary = SQLINES_VERSION;
+			report_summary += "<br><br>"; 
+			report_summary += summary;
+
             _log.Log("\n\nCreating assessment report");
-            CreateAssessmentReport(_parser, summary);
+			CreateAssessmentReport(_parser, report_summary.c_str());
         }
     }
 
@@ -310,7 +316,21 @@ int Sqlines::SetParameters(int argc, char **argv)
 	_log.SetLogfile(_logfile.c_str());
 
 	if(_stdin == false)
+	{
 		_log.Log("\n%s\n%s", SQLINES_VERSION, SQLINES_COPYRIGHT);
+
+		// Show the license message if required
+		if(_license.IsLicenseCheckRequired())
+		{
+			if(_license.IsEmpty())
+			{
+				_log.Log("\n\nThe product is FOR EVALUATION USE ONLY.");
+				SetParserOption(_parser, SQLINES_EVAL_MODE, "TRUE");
+			}
+			else
+				_log.Log("\n\nThe product is licensed to %s.", _license.GetName().c_str());
+		}
+	}
 
 	// Get -s option
 	value = _parameters.Get(S_OPTION);

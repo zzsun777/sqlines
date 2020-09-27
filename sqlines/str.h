@@ -21,6 +21,9 @@
 
 #ifndef WIN32
 
+#include <string.h>
+#include <strings.h>
+
 #define _stricmp strcasecmp
 #define _strnicmp strncasecmp
 
