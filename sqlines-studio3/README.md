@@ -6,4 +6,4 @@ New features:
 - Selecting files for conversion
 - Advanced settings and much more
 
-<img width="1129" alt="Screenshot 2021-09-01 at 22 08 56" src="https://user-images.githubusercontent.com/83589564/131729735-039d65ac-cf05-4978-83d7-ca772bdf6713.png">
+<img width="1129" alt="Screenshot 2021-09-01 at 22 13 48" src="https://user-images.githubusercontent.com/83589564/131730239-beca8c67-6e54-4bc0-978c-380a496e699b.png">
