@@ -457,5 +457,5 @@ void MainWindowPresenter::openSite() const noexcept
 
 void MainWindowPresenter::openSourceCode() const noexcept
 {
-    QDesktopServices::openUrl(QUrl("https://www.sqlines.com"));
+    QDesktopServices::openUrl(QUrl("https://github.com/dmtolpeko/sqlines/tree/master/sqlines-studio3"));
 }
